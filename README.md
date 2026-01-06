@@ -24,7 +24,7 @@ Pigment.O is a Krita plugin Color Picker and Mixer.
 ![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/pop_panel_luma.png)
 ![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/pop_panel_dot_none.png)
 ![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/pop_panel_mask_none.png)
-![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/pos_interface_1.png)
+![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/pos_interface1.png)
 
 # Support
 
@@ -34,3 +34,4 @@ Support with donations to keep the project alive and maintained.
 <a href="https://www.paypal.com/donate/?hosted_button_id=9FARNUYBC9R3J">
   <img src="https://pics.paypal.com/00/s/NjA2OWU0ZmEtNjQ4MC00MWZhLTk5YzctM2VhZDA1MzgyMDQ0/file.PNG" width="200" alt="Donation Link">
 </a>
+
