@@ -44,6 +44,14 @@ kkk_delta = kkk_max_scale - kkk_min_scale
 kkk_half_percent = (kkk_half_scale - kkk_min_scale) / kkk_delta
 # Panel
 panel = "PANEL"
+panel_fill      = "Display : Fill"
+panel_square    = "Selector : Square"
+panel_hue       = "Selector : Hue"
+panel_gamut     = "Selector : Gamut"
+panel_hexagon   = "Selector : Hexagon"
+panel_luma      = "Selector : Luma"
+panel_dot       = "Mixer : Dot"
+panel_mask      = "Mixer : Mask"
 
 # Range
 krange = {
@@ -89,6 +97,7 @@ stops = {
     "lch_1" : 4, "lch_2" : 4, "lch_3" : 6,
     # Non Color
     "kkk_1" : 4,
+    "pole_1" : 4,
     # Mixers
     "mixer" : 2
     }

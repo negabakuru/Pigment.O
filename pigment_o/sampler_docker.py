@@ -37,7 +37,7 @@ from .engine_calculations import Geometry, Convert, Analyse
 #region Global Variables
 
 DOCKER_NAME = "Pigment.O Sampler"
-sample_o_version = "2025_09_16"
+version = "2026_01_01"
 
 #endregion
 
@@ -79,7 +79,7 @@ class Sampler_Docker( DockWidget ):
 
         # Settings
         self.dialog = uic.loadUi( os.path.join( self.directory_plugin, "sampler_settings.ui" ), QDialog( self ) )
-        self.dialog.setWindowTitle( "Pigment.O Sampler : Settings" )
+        self.dialog.setWindowTitle( f"{ DOCKER_NAME } : Settings" )
         self.dialog.accept() # Hides the Dialog
     def Variables( self ):
         # Layout
@@ -87,8 +87,7 @@ class Sampler_Docker( DockWidget ):
         self.split_method = "CHANNEL" # "CHANNEL" "RANGE"
         # Dialog
         self.cs_luminosity = "ITU-R BT.709"
-        self.cs_matrix = "sRGB"
-        self.cs_illuminant = "D65"
+        self.cs_matrix = "sRGB (D65)"
         self.tic_display = False
         self.tic_value = 300
         self.invert_tic = False
@@ -140,13 +139,12 @@ class Sampler_Docker( DockWidget ):
 
         # Color Space
         self.dialog.cs_luminosity.currentTextChanged.connect( self.CS_Luminosity )
-        self.dialog.cs_matrix.currentTextChanged.connect( lambda: self.CS_Matrix( self.dialog.cs_matrix.currentText(), self.dialog.cs_illuminant.currentText() ) )
-        self.dialog.cs_illuminant.currentTextChanged.connect( lambda: self.CS_Matrix( self.dialog.cs_matrix.currentText(), self.dialog.cs_illuminant.currentText() ) )
+        self.dialog.cs_matrix.currentTextChanged.connect( self.CS_Matrix )
 
         # Options
-        self.dialog.tic_display.toggled.connect( self.TIC_Display )
-        self.dialog.tic_value.valueChanged.connect( self.TIC_Value )
         self.dialog.invert_tic.toggled.connect( self.Invert_TIC )
+        self.dialog.tic_value.valueChanged.connect( self.TIC_Value )
+        self.dialog.tic_display.toggled.connect( self.TIC_Display )
         self.dialog.invert_cmyk.toggled.connect( self.Invert_CMYK )
 
         # Footer
@@ -169,9 +167,9 @@ class Sampler_Docker( DockWidget ):
         self.convert = Convert()
         self.convert.Set_Document( "RGB", "U8", "sRGB-elle-V2-srgtrc.icc" )
         self.convert.Set_Hue( zero )
-        self.convert.Set_Luminosity( "ITU-R BT.709" )
+        self.convert.Set_Luminosity( self.cs_luminosity )
         self.convert.Set_Gamma( gamma_y, gamma_l )
-        self.convert.Set_Matrix( "sRGB", "D65" )
+        self.convert.Set_Matrix( self.cs_matrix )
         # Analyse
         self.analyse = Analyse()
 
@@ -230,13 +228,12 @@ class Sampler_Docker( DockWidget ):
         self.layout.split_method.setToolTip( "Split Method" )
         self.layout.run.setToolTip( "Run" )
         self.layout.settings.setToolTip( "Settings" )
-        # Style Sheets Layout
-        self.layout.channel_select.setStyleSheet( "#channel_select{background-color: rgba( 0, 0, 0, 0 );}" )
-        self.layout.page_range.setStyleSheet( "#page_range{background-color: rgba( 0, 0, 0, 0 );}" )
-        self.layout.progress_bar.setStyleSheet( "#progress_bar{background-color: rgba( 0, 0, 0, 0 );}" )
 
         # State
         self.Mode_Insert( False )
+
+        # StyleSheets Layout
+        self.Theme_Changed()
     def Settings( self ):
         # Layout
         self.layout.color_space.setCurrentText( self.Set_Read( "STR", "color_space", self.color_space ) )
@@ -245,7 +242,6 @@ class Sampler_Docker( DockWidget ):
         # Dialog Color Space
         self.dialog.cs_luminosity.setCurrentText( self.Set_Read( "STR", "cs_luminosity", self.cs_luminosity ) )
         self.dialog.cs_matrix.setCurrentText( self.Set_Read( "STR", "cs_matrix", self.cs_matrix ) )
-        self.dialog.cs_illuminant.setCurrentText( self.Set_Read( "STR", "cs_illuminant", self.cs_illuminant ) )
 
         # Dialog Map
         self.dialog.tic_display.setChecked( self.Set_Read( "EVAL", "tic_display", self.tic_display ) )
@@ -275,6 +271,8 @@ class Sampler_Docker( DockWidget ):
                     read = str( setting )
                 elif mode == "INT":
                     read = int( setting )
+                elif mode == "LIST":
+                    read = list( setting )
             except:
                 read = default
         Krita.instance().writeSetting( DOCKER_NAME, entry, str( read ) )
@@ -574,6 +572,11 @@ class Sampler_Docker( DockWidget ):
     # User Interface
     def ProgressBar_Value( self, value ):
         self.layout.progress_bar.setValue( value )
+    def ProgressBar_StyleSheet( self, percentage, background ):
+        style_sheet = str()
+        style_sheet += "QProgressBar { background-color: " + background + "; border-radius: 0px; }"
+        style_sheet += "QProgressBar::chunk { background-color: " + percentage + "; }"
+        self.layout.progress_bar.setStyleSheet( style_sheet )
 
     # Colors Spaces
     def CS_Luminosity( self, cs_luminosity ):
@@ -582,14 +585,10 @@ class Sampler_Docker( DockWidget ):
         self.convert.Set_Luminosity( cs_luminosity )
         # Save
         Krita.instance().writeSetting( DOCKER_NAME, "cs_luminosity", str( self.cs_luminosity ) )
-    def CS_Matrix( self, cs_matrix, cs_illuminant ):
-        # Variables
+    def CS_Matrix( self, cs_matrix ):
         self.cs_matrix = cs_matrix
-        self.cs_illuminant = cs_illuminant
-        self.convert.Set_Matrix( cs_matrix, cs_illuminant )
-        # Save
+        self.convert.Set_Matrix( cs_matrix )
         Krita.instance().writeSetting( DOCKER_NAME, "cs_matrix", str( self.cs_matrix ) )
-        Krita.instance().writeSetting( DOCKER_NAME, "cs_illuminant", str( self.cs_illuminant ) )
 
     # Maps
     def TIC_Display( self, boolean ):
@@ -631,15 +630,15 @@ class Sampler_Docker( DockWidget ):
     def Message_Label( self, message ):
         self.layout.label.setText( str( message ) )
     def Message_Log( self, operation, message ):
-        string = f"Pigment.O Sampler | { operation } { message }"
+        string = f"{ DOCKER_NAME } | { operation } { message }"
         try:QtCore.qDebug( string )
         except:pass
     def Message_Warnning( self, operation, message ):
-        string = f"Pigment.O Sampler | { operation.upper() } { message }"
+        string = f"{ DOCKER_NAME } | { operation.upper() } { message }"
         QMessageBox.information( QWidget(), i18n( "Warnning" ), i18n( string ) )
     def Message_Float( self, operation, message, icon ):
         ki = Krita.instance()
-        string = f"Pigment.O Sampler | { operation.upper() } { message }"
+        string = f"{ DOCKER_NAME } | { operation.upper() } { message }"
         ki.activeWindow().activeView().showFloatingMessage( string, ki.icon( icon ), 5000, 0 )
 
     # Channels
@@ -888,7 +887,9 @@ class Sampler_Docker( DockWidget ):
 
     # Generate
     def RUN( self ):
-        if ( ( self.canvas() is not None ) and ( self.canvas().view() is not None ) ):
+        canvas = self.canvas()
+        view = canvas.view()
+        if ( canvas is not None ) and ( view is not None ):
             # Time Watcher
             self.time = QtCore.QDateTime.currentDateTimeUtc()
 
@@ -902,21 +903,14 @@ class Sampler_Docker( DockWidget ):
             d_cm = ad.colorModel()
             d_cd = ad.colorDepth()
             d_cp = ad.colorProfile()
-            # d_nt = ad.activeNode().type()
 
             # Color Model
-            if ( d_cm == "A" or d_cm == "GRAYA" ):
-                d_cm = "A"
-            elif ( d_cm == "RGBA" or d_cm == None ):
-                d_cm = "RGB"
-            elif d_cm == "CMYKA":
-                d_cm = "CMYK"
-            elif d_cm == "YCbCr":
-                d_cm = "YUV"
-            elif d_cm == "XYZA":
-                d_cm = "XYZ"
-            elif d_cm == "LABA":
-                d_cm = "LAB"
+            if d_cm in [ "A", "GRAYA" ]:    cmodel = "A"
+            elif d_cm in [ "RGBA", None ]:  cmodel = "RGB"
+            elif d_cm == "CMYKA":           cmodel = "CMYK"
+            elif d_cm == "YCbCr":           cmodel = "YUV"
+            elif d_cm == "XYZA":            cmodel = "XYZ"
+            elif d_cm == "LABA":            cmodel = "LAB"
 
             # Place Text
             self.Message_Label( "" )
@@ -963,7 +957,7 @@ class Sampler_Docker( DockWidget ):
                 num_ss = self.analyse.Bytes_to_Integer( byte_ss, None )
 
             # Run mode
-            run_variables = ( d_cm, d_cd, depth, k, dx, dy, dw, dh, num_array, num_ss )
+            run_variables = ( cmodel, d_cd, depth, k, dx, dy, dw, dh, num_array, num_ss )
             thread = True
             if thread == False: # Local
                 if self.split_method == "CHANNEL":
@@ -1071,27 +1065,79 @@ class Sampler_Docker( DockWidget ):
         self.window.activeViewChanged.connect( self.View_Changed )
         self.window.themeChanged.connect( self.Theme_Changed )
         self.window.windowClosed.connect( self.Window_Closed )
-        # Start Position
-        self.Theme_Changed()
 
     def View_Changed( self ):
         pass
     def Theme_Changed( self ):
-        # Krita Theme
-        theme_value = QApplication.palette().color( QPalette.Window ).value()
-        if theme_value > 128:
-            self.color_1 = QColor( "#191919" )
-            self.color_2 = QColor( "#e5e5e5" )
-        else:
-            self.color_1 = QColor( "#e5e5e5" )
-            self.color_2 = QColor( "#191919" )
+        """
+        Theme Breeze Dark
+        alternateBase = #31363b
+        base = #232629
+        brightText = #ffffff
+        button = #31363b
+        buttonText = #eff0f1
+        dark = #1d2023
+        highlight = #3daee9
+        highlightedText = #eff0f1
+        light = #464d54
+        link = #2980b9
+        linkVisited = #7f8c8d
+        mid = #2b3034
+        midlight = #3c4248
+        placeholderText = #eff0f1
+        shadow = #151719
+        text = #eff0f1
+        toolTipBase = #31363b
+        toolTipText = #eff0f1
+        window = #31363b
+        windowText = #eff0f1
+        """
+        # Read
+        palette = QApplication.palette()
+        # Theme Colors
+        # Window ( Dark )
+        w_alternate   = palette.alternateBase().color().name()
+        w_base        = palette.base().color().name()
+        w_button      = palette.button().color().name()
+        w_dark        = palette.dark().color().name()
+        w_light       = palette.light().color().name()
+        w_mid         = palette.mid().color().name()
+        w_midlight    = palette.midlight().color().name()
+        w_shadow      = palette.shadow().color().name()
+        w_tool_tip    = palette.toolTipBase().color().name()
+        w_window      = palette.window().color().name()
+        # Text ( Bright )
+        t_bright      = palette.brightText().color().name()
+        t_button      = palette.buttonText().color().name()
+        t_highlighted = palette.highlightedText().color().name()
+        t_placeholder = palette.placeholderText().color().name()
+        t_text        = palette.text().color().name()
+        t_tool_tip    = palette.toolTipText().color().name()
+        t_window      = palette.windowText().color().name()
+        # Color
+        c_highlight   = palette.highlight().color().name()
+        c_link        = palette.link().color().name()
+        c_visited     = palette.linkVisited().color().name()
+        # c_accent      = palette.accent().color().name() # qt6
+
         # Update
-        self.display_map.Set_Theme( self.color_1, self.color_2 )
-        self.channel_select.Set_Theme( self.color_1, self.color_2 )
-        self.range_0.Set_Theme( self.color_1, self.color_2 )
-        self.range_1.Set_Theme( self.color_1, self.color_2 )
-        self.range_2.Set_Theme( self.color_1, self.color_2 )
-        self.range_3.Set_Theme( self.color_1, self.color_2 )
+        self.display_map.Set_Theme( t_button, w_dark )
+        self.channel_select.Set_Theme( t_button, w_dark )
+        # Channel
+        self.range_0.Set_Theme( t_button, w_dark, c_highlight )
+        self.range_1.Set_Theme( t_button, w_dark, c_highlight )
+        self.range_2.Set_Theme( t_button, w_dark, c_highlight )
+        self.range_3.Set_Theme( t_button, w_dark, c_highlight )
+        # Progress Bar
+        self.ProgressBar_StyleSheet( c_highlight, w_mid )
+
+        # Style Sheets Layout
+        self.layout.display_map.setStyleSheet( "#display_map{background-color: " + w_base + ";}" )
+        self.layout.page_channel.setStyleSheet( "#page_channel{background-color: " + w_mid + ";}" )
+        self.layout.page_range.setStyleSheet( "#page_range{background-color: " + w_mid + ";}" )
+
+        # Style Sheets Dialog
+        self.dialog.scroll_area_contents_system.setStyleSheet( "#scroll_area_contents_system{background-color: " + w_mid + ";}" )
     def Window_Closed( self ):
         pass
 
@@ -1154,7 +1200,7 @@ class Worker_Samples( QObject ):
             Run_Range( source, *run_variables )
 
 # Cycles
-def Run_Channel( self, d_cm, d_cd, depth, k, dx, dy, dw, dh, num_array, num_ss ):
+def Run_Channel( self, cmodel, d_cd, depth, k, dx, dy, dw, dh, num_array, num_ss ):
     # Variables
     index = 0
     c0 = 0.75
@@ -1216,31 +1262,31 @@ def Run_Channel( self, d_cm, d_cd, depth, k, dx, dy, dw, dh, num_array, num_ss )
         # Pixel
         for x in range( 0, dw ):
             # Read Byte
-            num = self.analyse.Numbers_on_Pixel( d_cm, d_cd, index, num_array )
+            num = self.analyse.Numbers_on_Pixel( cmodel, d_cd, index, num_array )
             ssi = num_ss[index] / depth
 
             # Convert
-            if d_cm == "A":
+            if cmodel == "A":
                 # Variables
                 n0 = num[0] / depth
                 na = num[1] / depth
                 # Convert
-                conv = self.convert.color_convert( d_cm, self.color_space, [ n0 ] )
+                conv = self.convert.color_convert( cmodel, self.color_space, [ n0 ] )
                 # Variables
                 cmyk = self.convert.rgb_to_cmyk( n0, n0, n0, None )
                 bw = 1 - cmyk[3]
-            elif ( d_cm == "RGB" or d_cm == None ):
+            elif ( cmodel == "RGB" or cmodel == None ):
                 # Variables
                 n0 = num[0] / depth
                 n1 = num[1] / depth
                 n2 = num[2] / depth
                 na = num[3] / depth
                 # Convert
-                conv = self.convert.color_convert( d_cm, self.color_space, [ n0, n1, n2 ] )
+                conv = self.convert.color_convert( cmodel, self.color_space, [ n0, n1, n2 ] )
                 # Variables
                 cmyk = self.convert.rgb_to_cmyk( n0, n1, n2, None )
                 bw = 1 - cmyk[3]
-            elif d_cm == "CMYK":
+            elif cmodel == "CMYK":
                 # Variables
                 n0 = num[0] / depth
                 n1 = num[1] / depth
@@ -1248,7 +1294,7 @@ def Run_Channel( self, d_cm, d_cd, depth, k, dx, dy, dw, dh, num_array, num_ss )
                 n3 = num[3] / depth
                 na = num[4] / depth
                 # Convert
-                conv = self.convert.color_convert( d_cm, self.color_space, [ n0, n1, n2, n3 ] )
+                conv = self.convert.color_convert( cmodel, self.color_space, [ n0, n1, n2, n3 ] )
                 # Variables
                 cmyk = [ n0, n1, n2, n3 ]
                 bw = 1 - n3
@@ -1369,14 +1415,14 @@ def Run_Channel( self, d_cm, d_cd, depth, k, dx, dy, dw, dh, num_array, num_ss )
         self.Channel_Icons()
         self.Mode_Insert( True )
     else:
-        self.Message_Warnning( "ERROR", f"Model { d_cm } and/or Depth { d_cd } not supported" )
+        self.Message_Warnning( "ERROR", f"Model { cmodel } and/or Depth { d_cd } not supported" )
 
     # Progress bar
     self.ProgressBar_Value( 100 )
 
     # Stop Worker
     self.Thread_Samples_Quit()
-def Run_Range( self, d_cm, d_cd, depth, k, dx, dy, dw, dh, num_array, num_ss ):
+def Run_Range( self, cmodel, d_cd, depth, k, dx, dy, dw, dh, num_array, num_ss ):
     # Length
     length = 3
     if self.color_space == "A":
@@ -1423,18 +1469,18 @@ def Run_Range( self, d_cm, d_cd, depth, k, dx, dy, dw, dh, num_array, num_ss ):
         # Pixels
         for x in range( 0, dw ):
             # Read Bytes
-            num = self.analyse.Numbers_on_Pixel( d_cm, d_cd, index, num_array )
+            num = self.analyse.Numbers_on_Pixel( cmodel, d_cd, index, num_array )
             ssi = num_ss[ index ] / depth
 
             # Convert
-            if d_cm == "A":
-                conv = self.convert.color_convert( d_cm, self.color_space, [num[0] / depth] )
+            if cmodel == "A":
+                conv = self.convert.color_convert( cmodel, self.color_space, [num[0] / depth] )
                 alpha = num[1] / depth
-            if ( d_cm == "RGB" or d_cm == None ):
-                conv = self.convert.color_convert( d_cm, self.color_space, [num[0] / depth, num[1] / depth, num[2] / depth] )
+            if ( cmodel == "RGB" or cmodel == None ):
+                conv = self.convert.color_convert( cmodel, self.color_space, [num[0] / depth, num[1] / depth, num[2] / depth] )
                 alpha = num[3] / depth
-            if d_cm == "CMYK":
-                conv = self.convert.color_convert( d_cm, self.color_space, [num[0] / depth, num[1] / depth, num[2] / depth, num[3] / depth] )
+            if cmodel == "CMYK":
+                conv = self.convert.color_convert( cmodel, self.color_space, [num[0] / depth, num[1] / depth, num[2] / depth, num[3] / depth] )
                 alpha = num[4] / depth
 
             # Variables
@@ -1505,7 +1551,7 @@ def Run_Range( self, d_cm, d_cd, depth, k, dx, dy, dw, dh, num_array, num_ss ):
         self.Map_Display( qpixmap, False )
         self.Mode_Insert( True )
     else:
-        self.Message_Warnning( "ERROR", f"Model { d_cm } and/or Depth { d_cd } not supported" )
+        self.Message_Warnning( "ERROR", f"Model { cmodel } and/or Depth { d_cd } not supported" )
 
     # Stop Worker
     self.Thread_Samples_Quit()

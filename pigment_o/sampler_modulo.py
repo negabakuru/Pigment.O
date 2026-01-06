@@ -79,8 +79,8 @@ class Display_Map( QWidget ):
 
     # Relay
     def Set_Theme( self, color_1, color_2 ):
-        self.color_1 = color_1
-        self.color_2 = color_2
+        self.color_1 = QColor( color_1 )
+        self.color_2 = QColor( color_2 )
     def Set_Size( self, ww, hh ):
         self.ww = ww
         self.hh = hh
@@ -261,9 +261,7 @@ class Display_Map( QWidget ):
         painter.setPen( QtCore.Qt.NoPen )
         if self.background == True:
             painter.setBrush( QBrush( self.color_red ) )
-        else:
-            painter.setBrush( QBrush( self.color_alpha ) )
-        painter.drawRect( 0, 0, ww, hh )
+            painter.drawRect( 0, 0, ww, hh )
 
         # Mask
         painter.setClipRect( QRect( int( 0 ), int( 0 ), int( ww ), int( hh ) ), Qt.ReplaceClip )
@@ -328,8 +326,8 @@ class Channel_Select( QWidget ):
 
     # Relay
     def Set_Theme( self, color_1, color_2 ):
-        self.color_1 = color_1
-        self.color_2 = color_2
+        self.color_1 = QColor( color_1 )
+        self.color_2 = QColor( color_2 )
     def Set_Size( self, ww, hh ):
         self.ww = ww
         self.hh = hh
@@ -460,10 +458,6 @@ class Channel_Select( QWidget ):
         painter = QPainter( self )
         painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
 
-        painter.setBrush( QBrush( self.color_alpha ) )
-        painter.setPen( QtCore.Qt.NoPen )
-        painter.drawRect( int( 0 ), int( 0 ), int( ww ), int( hh ) )
-
         # Paint Images
         if self.channel_maps != None:
             for i in range( 0, len( self.channel_maps ) ):
@@ -541,6 +535,7 @@ class Channel_Slider( QWidget ):
         # Colors
         self.color_1 = QColor( "#ffffff" )
         self.color_2 = QColor( "#000000" )
+        self.color_h = QColor( "#7f7f7f" )
         self.color_neutral = QColor( 127, 127, 127 )
         self.color_alpha = QColor( 0, 0, 0, 50 )
         self.color_clip = QColor( 0, 0, 0, 100 )
@@ -550,9 +545,10 @@ class Channel_Slider( QWidget ):
         return QtCore.QSize( 5000, 50 )
 
     # Relay
-    def Set_Theme( self, color_1, color_2 ):
-        self.color_1 = color_1
-        self.color_2 = color_2
+    def Set_Theme( self, color_1, color_2, color_h ):
+        self.color_1 = QColor( color_1 )
+        self.color_2 = QColor( color_2 )
+        self.color_h = QColor( color_h )
     def Set_Size( self, ww, hh ):
         self.ww = int( ww )
         self.hh = int( hh )
@@ -631,7 +627,7 @@ class Channel_Slider( QWidget ):
     def Channel_Node( self, ex, ey ):
         # Variable
         node = None
-        dist = 20
+        dist = 30
 
         # Distance
         k_pa = int( self.ex_pa * self.ww )
@@ -662,18 +658,18 @@ class Channel_Slider( QWidget ):
         # Controller
         if ey <= self.h2: # TOP SIDE
             if self.slider_order in [ "ABCD", "BCDA", "DABC" ]: # BC order
-                if   ( min_pb <= dist and ( min_pb < min_pc or ex < k_pb ) ): node = "ex_pb"
-                elif ( min_pc <= dist and ( min_pc < min_pb or ex > k_pc ) ): node = "ex_pc"
+                if   ( min_pb <= dist and ( min_pb < min_pc or ex <= k_pb ) ): node = "ex_pb"
+                elif ( min_pc <= dist and ( min_pc < min_pb or ex >= k_pc ) ): node = "ex_pc"
             else: # CB order
-                if   ( min_pb <= dist and ( min_pb < min_pc or ex > k_pb ) ): node = "ex_pb"
-                elif ( min_pc <= dist and ( min_pc < min_pb or ex < k_pc ) ): node = "ex_pc"
+                if   ( min_pb <= dist and ( min_pb < min_pc or ex >= k_pb ) ): node = "ex_pb"
+                elif ( min_pc <= dist and ( min_pc < min_pb or ex <= k_pc ) ): node = "ex_pc"
         else: # BOTTOM SIDE
             if self.slider_order == "ABCD": # AD order
-                if   ( min_pa <= dist and ( min_pa < min_pd or ex < k_pa ) ): node = "ex_pa"
-                elif ( min_pd <= dist and ( min_pd < min_pa or ex > k_pd ) ): node = "ex_pd"
+                if   ( min_pa <= dist and ( min_pa < min_pd or ex <= k_pa ) ): node = "ex_pa"
+                elif ( min_pd <= dist and ( min_pd < min_pa or ex >= k_pd ) ): node = "ex_pd"
             else: # DA order
-                if   ( min_pa <= dist and ( min_pa < min_pd or ex > k_pa ) ): node = "ex_pa"
-                elif ( min_pd <= dist and ( min_pd < min_pa or ex < k_pd ) ): node = "ex_pd"
+                if   ( min_pa <= dist and ( min_pa < min_pd or ex >= k_pa ) ): node = "ex_pa"
+                elif ( min_pd <= dist and ( min_pd < min_pa or ex <= k_pd ) ): node = "ex_pd"
 
         return node
     def Channel_Move( self, ex, ey ):
@@ -1011,7 +1007,7 @@ class Channel_Slider( QWidget ):
             # Marker for Color
             if self.slider_cor != None:
                 sc = self.slider_cor * ww
-                painter.setPen( QPen( self.color_1, line_size, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+                painter.setPen( QPen( self.color_h, line_size, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
                 painter.setBrush( QtCore.Qt.NoBrush )
                 painter.drawLine( int( sc ), int( 0 ), int( sc ), int( hh ) )
 

@@ -58,48 +58,61 @@ def Read_Zip( self, location, tan_range, space, shape ):
     return qpixmap_list
 
 # Region
-def Circles( self, painter ):
+def Circles( self, px, py, side ):
     # Circle 0 ( Everything )
-    v0a = 0
+    v0a = 0.01
     v0b = 1 - ( 2*v0a )
     circle_0 = QPainterPath()
-    circle_0.addEllipse( int( self.px + self.side * v0a ), int( self.py + self.side * v0a ), int( self.side * v0b ), int( self.side * v0b ) )
+    circle_0.addEllipse( int( px + side * v0a ), int( py + side * v0a ), int( side * v0b ), int( side * v0b ) )
     # Circle 1 ( Outter Most Region )
-    v1a = 0.025
+    v1a = 0.035
     v1b = 1 - ( 2*v1a )
     circle_1 = QPainterPath()
-    circle_1.addEllipse( int( self.px + self.side * v1a ), int( self.py + self.side * v1a ), int( self.side * v1b ), int( self.side * v1b ) )
+    circle_1.addEllipse( int( px + side * v1a ), int( py + side * v1a ), int( side * v1b ), int( side * v1b ) )
     # Circle 2 ( Inner Most Region )
     v2a = 0.068
     v2b = 1 - ( 2*v2a )
     circle_2 = QPainterPath()
-    circle_2.addEllipse( int( self.px + self.side * v2a ), int( self.py + self.side * v2a ), int( self.side * v2b ), int( self.side * v2b ) )
+    circle_2.addEllipse( int( px + side * v2a ), int( py + side * v2a ), int( side * v2b ), int( side * v2b ) )
     # Circle 3 ( Central Dot )
     v3a = 0.13
     v3b = 1 - ( 2*v3a )
     circle_3 = QPainterPath()
-    circle_3.addEllipse( int( self.px + self.side * v3a ), int( self.py + self.side * v3a ), int( self.side * v3b ), int( self.side * v3b ) )
-
+    circle_3.addEllipse( int( px + side * v3a ), int( py + side * v3a ), int( side * v3b ), int( side * v3b ) )
     # Return
     return circle_0, circle_1, circle_2, circle_3
 # Cursor
-def Cursor_Normal( self, painter, size ):
+def Cursor_Display( self, painter, offset=False ):
+    # Variables
+    size = 10
+    half = int( size * 0.5 * offset )
+    zoom_size = 100
+    margin_size = 10
+    # Switch
+    if ( self.press == True and self.zoom == True ):
+        Cursor_Zoom( self, painter, int( self.ex + half ), int( self.ey + half ), zoom_size, margin_size, self.hex_color )
+    elif( self.pressure > self.input_pressure ):
+        zoom_pressure = int( zoom_size * self.pressure )
+        Cursor_Zoom( self, painter, int( self.ex + half ), int( self.ey + half ), zoom_pressure, margin_size, self.hex_color )
+    else:
+        Cursor_Normal( self, painter, int( self.ex + half ), int( self.ey + half ), size )
+def Cursor_Normal( self, painter, ex, ey, size1 ):
     # Variables
     w1 = 2
-    w2 = w1 * 2
-    w4 = w1 * 4
-    size2 = size * 2
+    w2 = int( w1 * 2 )
+    w4 = int( w1 * 4 )
+    size2 = int( size1 * 2 )
     # Mask
     mask = QPainterPath()
     mask.addEllipse( 
-        int( self.ex - size ),
-        int( self.ey - size ),
+        int( ex - size1 ),
+        int( ey - size1 ),
         int( size2 ),
         int( size2 ),
         )
     mask.addEllipse( 
-        int( self.ex - size + w2 ),
-        int( self.ey - size + w2 ),
+        int( ex - size1 + w2 ),
+        int( ey - size1 + w2 ),
         int( size2 - w4 ),
         int( size2 - w4 ),
         )
@@ -108,8 +121,8 @@ def Cursor_Normal( self, painter, size ):
     painter.setPen( QtCore.Qt.NoPen )
     painter.setBrush( QBrush( QColor( "#000000" ) ) )
     painter.drawEllipse( 
-        int( self.ex - size ),
-        int( self.ey - size ),
+        int( ex - size1 ),
+        int( ey - size1 ),
         int( size2 ),
         int( size2 ),
         )
@@ -117,26 +130,26 @@ def Cursor_Normal( self, painter, size ):
     painter.setPen( QtCore.Qt.NoPen )
     painter.setBrush( QBrush( QColor( "#ffffff" ) ) )
     painter.drawEllipse( 
-        int( self.ex - size + w1 ),
-        int( self.ey - size + w1 ),
+        int( ex - size1 + w1 ),
+        int( ey - size1 + w1 ),
         int( size2 - w2 ),
         int( size2 - w2 ),
         )
-def Cursor_Zoom( self, painter, zoom_size, margin_size ):
+def Cursor_Zoom( self, painter, ex, ey, zoom_size, margin_size, hex_color ):
     # Border
     painter.setPen( QtCore.Qt.NoPen )
     painter.setBrush( QBrush( QColor( "#000000" ) ) )
     painter.drawEllipse( 
-        int( self.ex - zoom_size ),
-        int( self.ey - zoom_size ),
+        int( ex - zoom_size ),
+        int( ey - zoom_size ),
         int( zoom_size * 2 ),
         int( zoom_size * 2 ),
         )
     # Hex Color
-    painter.setBrush( QBrush( self.hex_color ) )
+    painter.setBrush( QBrush( hex_color ) )
     painter.drawEllipse( 
-        int( self.ex - zoom_size + margin_size ),
-        int( self.ey - zoom_size + margin_size ),
+        int( ex - zoom_size + margin_size ),
+        int( ey - zoom_size + margin_size ),
         int( zoom_size * 2 - margin_size * 2 ),
         int( zoom_size * 2 - margin_size * 2 ),
         )
@@ -1121,7 +1134,7 @@ class Panel_Square( QWidget ):
                 # Draw Masks
                 if self.shape == "3":
                     triangle = QPainterPath()
-                    triangle.moveTo( int( 0 ), int( 1 ) )
+                    triangle.moveTo( int( 0 ), int( 0 ) )
                     triangle.lineTo( int( self.ww ), int( self.h2 ) )
                     triangle.lineTo( int( 0 ), int( self.hh ) )
                     painter.setClipPath( triangle )
@@ -1269,17 +1282,7 @@ class Panel_Square( QWidget ):
                 painter.drawEllipse( int( points[i][0] - radius ), int( points[i][1] - radius ), int( radius * 2 ), int( radius * 2 ) )
 
         # Cursor
-        size = 10
-        zoom_size = 100
-        margin_size = 10
-        if ( self.press == True and self.zoom == True ):
-            size = zoom_size
-            Cursor_Zoom( self, painter, size, margin_size )
-        elif( self.pressure > self.input_pressure ):
-            size = zoom_size * self.pressure
-            Cursor_Zoom( self, painter, size, margin_size )
-        else:
-            Cursor_Normal( self, painter, size )
+        Cursor_Display( self, painter, False )
 
 class Panel_HueCircle( QWidget ):
     SIGNAL_VALUE = QtCore.pyqtSignal( float )
@@ -1360,14 +1363,16 @@ class Panel_HueCircle( QWidget ):
         self.w2 = ww * 0.5
         self.h2 = hh * 0.5
         # Frame
-        if self.ww >= self.hh:
-            self.side = self.hh
-            self.px = self.w2 - ( self.side * 0.5 )
-            self.py = 0
-        else:
-            self.side = self.ww
-            self.px = 0
-            self.py = self.h2 - ( self.side * 0.5 )
+        self.side = min( self.ww, self.hh )
+        self.px = int( self.w2 - ( self.side * 0.5 ) )
+        self.py = int( self.h2 - ( self.side * 0.5 ) )
+
+        # Circles
+        self.circle_0, self.circle_1, self.circle_2, self.circle_3 = Circles( self, self.px, self.py, self.side )
+        self.circle_01 = self.circle_0.subtracted( self.circle_1 )
+        self.circle_02 = self.circle_0.subtracted( self.circle_2 )
+        self.circle_12 = self.circle_1.subtracted( self.circle_2 )
+        self.circle_13 = self.circle_1.subtracted( self.circle_3 )
 
         # Variables
         pad = 5
@@ -1420,15 +1425,18 @@ class Panel_HueCircle( QWidget ):
                     ] )
             diamond = QRegion( polygon, Qt.OddEvenFill )
             mask_region = widget_square.subtracted( diamond )
+
         # Mask
-        self.setMask( mask_region )
+        mask_circle = QRegion( int( self.px ), int( self.py ), int( self.side ), int( self.side ), QRegion.Ellipse )
+        mask = mask_circle.intersected( mask_region )
+        self.setMask( mask )
 
         # Update
         self.resize( ww, hh )
     def Set_Theme( self, color_1, color_2, color_theme ):
-        self.color_1 = color_1
-        self.color_2 = color_2
-        self.color_theme = color_theme
+        self.color_1 = QColor( color_1 )
+        self.color_2 = QColor( color_2 )
+        self.color_theme = QColor( color_theme )
         self.update()
 
     # Update
@@ -1556,11 +1564,6 @@ class Panel_HueCircle( QWidget ):
 
         # Variables
         line_width = 4
-        circle_0, circle_1, circle_2, circle_3 = Circles( self, painter )
-        circle_01 = circle_0.subtracted( circle_1 )
-        circle_02 = circle_0.subtracted( circle_2 )
-        circle_12 = circle_1.subtracted( circle_2 )
-        circle_13 = circle_1.subtracted( circle_3 )
 
         # Hue
         if self.wheel_mode == "DIGITAL":
@@ -1611,7 +1614,7 @@ class Panel_HueCircle( QWidget ):
         # Dark Border
         painter.setPen( QtCore.Qt.NoPen )
         painter.setBrush( QBrush( self.color_theme ) )
-        painter.drawPath( circle_02 )
+        painter.drawPath( self.circle_02 )
         # Dark Lines Color Reference
         painter.setPen( QPen( self.color_theme, line_width, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
         painter.setBrush( QtCore.Qt.NoBrush )
@@ -1634,7 +1637,7 @@ class Panel_HueCircle( QWidget ):
                 # Draw
                 line_gray.moveTo( int( self.w2 ), int( self.h2 ) )
                 line_gray.lineTo( int( px ), int( py ) )
-            painter.setClipPath( circle_13 )
+            painter.setClipPath( self.circle_13 )
             painter.drawPath( line_gray )
         # Pinned Colors
         if self.pin_list != None:
@@ -1648,7 +1651,7 @@ class Panel_HueCircle( QWidget ):
                 # Draw
                 line_gray.moveTo( int( self.w2 ), int( self.h2 ) )
                 line_gray.lineTo( int( px ), int( py ) )
-            painter.setClipPath( circle_12 )
+            painter.setClipPath( self.circle_12 )
             painter.drawPath( line_gray )
         # Hue Gradient
         painter.setPen( QtCore.Qt.NoPen )
@@ -1673,12 +1676,12 @@ class Panel_HueCircle( QWidget ):
             hue.setColorAt( 0.833, QColor( int( self.colors[1][0] * d ), int( self.colors[1][1] * d ), int( self.colors[1][2] * d ) ) ) # ORANGE
             hue.setColorAt( 1.000, QColor( int( self.colors[0][0] * d ), int( self.colors[0][1] * d ), int( self.colors[0][2] * d ) ) ) # RED
         painter.setBrush( QBrush( hue ) )
-        painter.setClipPath( circle_01 )
+        painter.setClipPath( self.circle_01 )
         painter.drawRect( int( self.px ), int( self.py ), int( self.side ), int( self.side ) )
         # Dark Line over Hue
         painter.setPen( QPen( self.color_theme, line_width, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
         painter.setBrush( QtCore.Qt.NoBrush )
-        painter.setClipPath( circle_01 )
+        painter.setClipPath( self.circle_01 )
         for i in range( 0, length ):
             painter.drawLine( int( circle_points[i][0] ), int( circle_points[i][1] ), int( self.w2 ), int( self.h2 ) )
 
@@ -1825,9 +1828,6 @@ class Panel_Gamut( QWidget ):
 
         # Update
         self.update()
-    def Set_Theme( self, color_1, color_2 ):
-        self.color_1 = color_1
-        self.color_2 = color_2
     def Set_Size( self, ww, hh ):
         # Widget
         self.ww = ww
@@ -1835,25 +1835,27 @@ class Panel_Gamut( QWidget ):
         self.w2 = ww * 0.5
         self.h2 = hh * 0.5
         # Frame
-        if self.ww >= self.hh:
-            self.side = self.hh
-            self.px = self.w2 - ( self.side * 0.5 )
-            self.py = 0
-        else:
-            self.side = self.ww
-            self.px = 0
-            self.py = self.h2 - ( self.side * 0.5 )
+        self.side = min( self.ww, self.hh )
+        self.px = int( self.w2 - ( self.side * 0.5 ) )
+        self.py = int( self.h2 - ( self.side * 0.5 ) )
         # Disk Coordinates
         self.disk_x = self.px + self.disk_var * self.side
         self.disk_y = self.py + self.disk_var * self.side
         self.disk_side = ( 1 - 2 * self.disk_var ) * self.side
 
+        # Circles
+        self.circle_0, self.circle_1, self.circle_2, self.circle_3 = Circles( self, self.px, self.py, self.side )
+
+        # Mask
+        mask = QRegion( int( self.px ), int( self.py ), int( self.side ), int( self.side ), QRegion.Ellipse )
+        self.setMask( mask )
+
         # Update
         self.resize( ww, hh )
     def Set_Theme( self, color_1, color_2, color_theme ):
-        self.color_1 = color_1
-        self.color_2 = color_2
-        self.color_theme = color_theme
+        self.color_1 = QColor( color_1 )
+        self.color_2 = QColor( color_2 )
+        self.color_theme = QColor( color_theme )
         self.update()
 
     # Update
@@ -2286,7 +2288,6 @@ class Panel_Gamut( QWidget ):
 
         # Variables
         line_width = 5
-        circle_0, circle_1, circle_2, circle_3 = Circles( self, painter )
 
         # Hue
         if self.wheel_mode == "DIGITAL":
@@ -2336,13 +2337,13 @@ class Panel_Gamut( QWidget ):
         # Outter Mask
         outline = QPainterPath()
         outline.addEllipse( int( 0 ), int( 0 ), int( self.ww ), int( self.hh ) )
-        painter.setClipPath( circle_0 )
+        painter.setClipPath( self.circle_0 )
 
         # Dark Border
         painter.setPen( QtCore.Qt.NoPen )
         painter.setBrush( QBrush( self.color_theme ) )
-        circle_02 = circle_0.subtracted( circle_2 )
-        painter.drawPath( circle_02 )
+        self.circle_02 = self.circle_0.subtracted( self.circle_2 )
+        painter.drawPath( self.circle_02 )
         # Dark Lines
         painter.setPen( QPen( self.color_theme, line_width, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
         painter.setBrush( QtCore.Qt.NoBrush )
@@ -2356,7 +2357,7 @@ class Panel_Gamut( QWidget ):
         # Line Gray
         painter.setPen( QPen( self.color_1, line_width, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
         painter.setBrush( QtCore.Qt.NoBrush )
-        circle_02 = circle_0.subtracted( circle_2 )
+        self.circle_02 = self.circle_0.subtracted( self.circle_2 )
         if length > 0:
             line_gray = QPainterPath()
             for i in range( 0, length ):
@@ -2366,11 +2367,11 @@ class Panel_Gamut( QWidget ):
                 # Draw
                 line_gray.moveTo( int( self.w2 ), int( self.h2 ) )
                 line_gray.lineTo( int( px ), int( py ) )
-            painter.setClipPath( circle_02 )
+            painter.setClipPath( self.circle_02 )
             painter.drawPath( line_gray )
         # Pin Points
         if self.pin_list != None:
-            circle_12 = circle_1.subtracted( circle_2 )
+            self.circle_12 = self.circle_1.subtracted( self.circle_2 )
             painter.setPen( QPen( self.color_1, line_width, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
             painter.setBrush( QtCore.Qt.NoBrush )
             line_gray = QPainterPath()
@@ -2381,7 +2382,7 @@ class Panel_Gamut( QWidget ):
                 # Draw
                 line_gray.moveTo( int( self.w2 ), int( self.h2 ) )
                 line_gray.lineTo( int( px ), int( py ) )
-            painter.setClipPath( circle_12 )
+            painter.setClipPath( self.circle_12 )
             painter.drawPath( line_gray )
 
 
@@ -2459,7 +2460,7 @@ class Panel_Gamut( QWidget ):
             painter.drawEllipse( int( gdx + gds * self.gamut_1squ[4][0] - dot ), int( gdy + gds * self.gamut_1squ[4][1] - dot ), int( dot * 2 ), int( dot * 2 ) )
         if self.gamut_mask == "Circle":
             # Profile Points
-            path, P0, P1, P2, P3, P4 = self.Render_Circle( gdx, gdy, gds, self.gamut_1cir, circle_2 )
+            path, P0, P1, P2, P3, P4 = self.Render_Circle( gdx, gdy, gds, self.gamut_1cir, self.circle_2 )
 
             # Polygon
             painter.setPen( QtCore.Qt.NoPen )
@@ -2474,8 +2475,8 @@ class Panel_Gamut( QWidget ):
             painter.drawEllipse( int( P4[0] - dot ), int( P4[1] - dot ), int( dot * 2 ), int( dot * 2 ) )
         if self.gamut_mask == "2 Circle":
             # Profile Points
-            path_0, P0_0, P1_0, P2_0, P3_0, P4_0 = self.Render_Circle( gdx, gdy, gds, self.gamut_2cir[0:5], circle_2 )
-            path_1, P0_1, P1_1, P2_1, P3_1, P4_1 = self.Render_Circle( gdx, gdy, gds, self.gamut_2cir[5:10], circle_2 )
+            path_0, P0_0, P1_0, P2_0, P3_0, P4_0 = self.Render_Circle( gdx, gdy, gds, self.gamut_2cir[0:5], self.circle_2 )
+            path_1, P0_1, P1_1, P2_1, P3_1, P4_1 = self.Render_Circle( gdx, gdy, gds, self.gamut_2cir[5:10], self.circle_2 )
 
             # Polygon
             painter.setPen( QtCore.Qt.NoPen )
@@ -2619,17 +2620,7 @@ class Panel_Gamut( QWidget ):
                 painter.drawEllipse( int( points[i][0] - dot ), int( points[i][1] - dot ), int( dot * 2 ), int( dot * 2 ) )
 
         # Cursor
-        size = 10
-        zoom_size = 100
-        margin_size = 10
-        if ( self.press == True and self.zoom == True ):
-            size = zoom_size
-            Cursor_Zoom( self, painter, size, margin_size )
-        elif( self.pressure > self.input_pressure ):
-            size = zoom_size * self.pressure
-            Cursor_Zoom( self, painter, size, margin_size )
-        else:
-            Cursor_Normal( self, painter, size )
+        Cursor_Display( self, painter, False )
     def Render_Circle( self, px, py, side, points, circle ):
         # Points from User
         P0 = [ px + points[0][0] * side, py + points[0][1] * side ]
@@ -3147,17 +3138,7 @@ class Panel_Hexagon( QWidget ):
                 painter.drawEllipse( int( points[i][0] - dot ), int( points[i][1] - dot ), int( dot * 2 ), int( dot * 2 ) )
 
         # Cursor
-        size = 10
-        zoom_size = 100
-        margin_size = 10
-        if ( self.press == True and self.zoom == True ):
-            size = zoom_size
-            Cursor_Zoom( self, painter, size, margin_size )
-        elif( self.pressure > self.input_pressure ):
-            size = zoom_size * self.pressure
-            Cursor_Zoom( self, painter, size, margin_size )
-        else:
-            Cursor_Normal( self, painter, size )
+        Cursor_Display( self, painter, False )
 
 class Panel_Dot( QWidget ):
     SIGNAL_VALUE = QtCore.pyqtSignal( str )
@@ -3534,73 +3515,7 @@ class Panel_Dot( QWidget ):
                         painter.drawRect( int( point_x ), int( point_y ), int( self.unit ), int( self.unit ) )
 
         # Cursor
-        zoom_size = 100
-        margin_size = 10
-        size = 10
-        s2 = int( size * 0.5 )
-        if ( self.press == True and self.zoom == True ):
-            size = zoom_size
-            self.Cursor_Zoom( painter, size, margin_size, s2 )
-        elif( self.pressure > self.input_pressure ):
-            size = zoom_size * self.pressure
-            self.Cursor_Zoom( painter, size, margin_size, s2 )
-        else:
-            self.Cursor_Normal( painter, size, s2 )
-    # Cursor
-    def Cursor_Normal( self, painter, size, s2 ):
-        # Variables
-        w = 2
-        # Mask
-        mask = QPainterPath()
-        mask.addEllipse( 
-            int( self.ex - s2 ),
-            int( self.ey - s2 ),
-            int( size * 2 ),
-            int( size * 2 ),
-            )
-        mask.addEllipse( 
-            int( self.ex - s2 + w * 2 ),
-            int( self.ey - s2 + w * 2 ),
-            int( size * 2 - w * 4 ),
-            int( size * 2 - w * 4 ),
-            )
-        painter.setClipPath( mask )
-        # Black Circle
-        painter.setPen( QtCore.Qt.NoPen )
-        painter.setBrush( QBrush( self.color_black ) )
-        painter.drawEllipse( 
-            int( self.ex - s2 ),
-            int( self.ey - s2 ),
-            int( size * 2 ),
-            int( size * 2 ),
-            )
-        # White Circle
-        painter.setPen( QtCore.Qt.NoPen )
-        painter.setBrush( QBrush( self.color_white ) )
-        painter.drawEllipse( 
-            int( self.ex - s2 + w ),
-            int( self.ey - s2 + w ),
-            int( size * 2 - w * 2 ),
-            int( size * 2 - w * 2 ),
-            )
-    def Cursor_Zoom( self, painter, zoom_size, margin_size, s2 ):
-        # Border
-        painter.setPen( QtCore.Qt.NoPen )
-        painter.setBrush( QBrush( self.color_black ) )
-        painter.drawEllipse( 
-            int( self.ex - zoom_size + s2 ),
-            int( self.ey - zoom_size + s2 ),
-            int( zoom_size * 2 ),
-            int( zoom_size * 2 ),
-            )
-        # Hex Color
-        painter.setBrush( QBrush( self.hex_color ) )
-        painter.drawEllipse( 
-            int( self.ex - zoom_size + margin_size + s2 ),
-            int( self.ey - zoom_size + margin_size + s2 ),
-            int( zoom_size * 2 - margin_size * 2 ),
-            int( zoom_size * 2 - margin_size * 2 ),
-            )
+        Cursor_Display( self, painter, True )
 
 class Panel_Mask( QWidget ):
     SIGNAL_VALUE = QtCore.pyqtSignal( str )
@@ -3930,7 +3845,7 @@ class Panel_Mask( QWidget ):
         # Background
         painter.setPen( QtCore.Qt.NoPen )
         bw = QLinearGradient( int( 0 ), int( 0 ), int( 0 ), int( self.hh ) )
-        bw.setColorAt( 0.000, QColor( 0, 0, 0, 0 ) ) # White
+        bw.setColorAt( 0.000, QColor( 0, 0, 0, 0 ) ) # Transparent
         bw.setColorAt( 1.000, QColor( 0, 0, 0, 50 ) ) # Black
         painter.setBrush( QBrush( bw ) )
         painter.drawRect( int( 0 ), int( 0 ), int( self.ww ), int( self.hh ) )
@@ -3948,23 +3863,13 @@ class Panel_Mask( QWidget ):
                     painter.drawPixmap( int( px ), int( py ), render )
 
         # Cursor
-        size = 10
-        zoom_size = 100
-        margin_size = 10
-        if ( self.press == True and self.zoom == True ):
-            size = zoom_size
-            Cursor_Zoom( self, painter, size, margin_size )
-        elif( self.pressure > self.input_pressure ):
-            size = zoom_size * self.pressure
-            Cursor_Zoom( self, painter, size, margin_size )
-        else:
-            Cursor_Normal( self, painter, size )
+        Cursor_Display( self, painter, False )
 
 #endregion
-#region Channels
+#region Channels & Pin
 
 class Channel_Slider( QWidget ):
-    SIGNAL_VALUE = QtCore.pyqtSignal( dict )
+    SIGNAL_VALUE = QtCore.pyqtSignal( int, float )
     SIGNAL_RELEASE = QtCore.pyqtSignal( bool )
     SIGNAL_STOPS = QtCore.pyqtSignal( int )
     SIGNAL_TEXT = QtCore.pyqtSignal( str )
@@ -4027,8 +3932,8 @@ class Channel_Slider( QWidget ):
     def Set_Index( self, index ):
         self.index = index
     def Set_Theme( self, color_1, color_2 ):
-        self.color_1 = color_1
-        self.color_2 = color_2
+        self.color_1 = QColor( color_1 )
+        self.color_2 = QColor( color_2 )
         self.update()
 
     # Interaction
@@ -4108,13 +4013,13 @@ class Channel_Slider( QWidget ):
         percent = self.value / self.ww
         text = str( round( percent*100,2 ) ) + " %"
         # Emission
-        self.SIGNAL_VALUE.emit( { "index":self.index, "value":percent } )
+        self.SIGNAL_VALUE.emit( self.index, percent )
         self.SIGNAL_TEXT.emit( text )
 
     # Snap
     def Snap_Half( self, event ):
         self.value = self.half * self.ww
-        self.SIGNAL_VALUE.emit( { "index":self.index, "value":self.half } )
+        self.SIGNAL_VALUE.emit( self.index, self.half )
         self.SIGNAL_TEXT.emit( "50 %" )
     def Snap_Stop( self, event ):
         # Mouse
@@ -4131,7 +4036,7 @@ class Channel_Slider( QWidget ):
         percent = self.value / self.ww
         text = str( round( percent*100,2 ) ) + " %"
         # Emission
-        self.SIGNAL_VALUE.emit( { "index":self.index, "value":percent } )
+        self.SIGNAL_VALUE.emit( self.index, percent )
         self.SIGNAL_TEXT.emit( text )
     # Stops
     def Stops_Shift( self, event ):
@@ -4172,7 +4077,7 @@ class Channel_Slider( QWidget ):
         percent = self.value / self.ww
         text = str( round( percent*100,2 ) ) + " %"
         # Emit
-        self.SIGNAL_VALUE.emit( { "index":self.index, "value":percent } )
+        self.SIGNAL_VALUE.emit( self.index, percent )
         self.SIGNAL_TEXT.emit( text )
         self.update()
 
@@ -4257,482 +4162,6 @@ class Channel_Slider( QWidget ):
             QPoint( int( wr ), int( top2 ) ),
             ] )
         painter.drawPolygon( white )
-
-class Channel_Selection( QWidget ):
-    SIGNAL_VALUE = QtCore.pyqtSignal( dict )
-    SIGNAL_RELEASE = QtCore.pyqtSignal( bool )
-    SIGNAL_RESET = QtCore.pyqtSignal( int )
-
-    # Init
-    def __init__( self, parent ):
-        super( Channel_Selection, self ).__init__( parent )
-        self.Variables()
-    def sizeHint( self ):
-        return QtCore.QSize( render_width, 100 )
-    def Variables( self ):
-        # Modules
-        self.geometry = Geometry()
-        # Widget
-        self.ww = 1
-        self.hh = 1
-
-        # Variables
-        self.mode = "LINEAR" # "LINEAR" "CIRCULAR"
-        self.value = 0
-        self.colors = None
-        self.alpha = 1
-        self.sele = None
-        self.sele_origin = None
-        self.marker = None
-
-        # Colors
-        self.color_black = QColor( "#000000")
-        self.color_white = QColor( "#ffffff")
-        self.color_alpha = QColor( 0, 0, 0, 50 )
-        self.color_1 = QColor( "#e5e5e5" )
-        self.color_2 = QColor( "#191919" )
-
-    # Relay
-    def Set_Mode( self, mode ):
-        self.mode = mode
-        self.update()
-    def Set_Size( self, ww, hh ):
-        self.ww = ww
-        self.hh = hh
-        self.resize( ww, hh )
-
-    # Update
-    def Update_Value( self, value ):
-        self.value = value
-        self.update()
-    def Update_Colors( self, colors, alpha ):
-        self.colors = colors
-        self.alpha = alpha
-        self.update()
-    def Update_Selection( self, sele ):
-        self.sele = sele
-        self.update()
-
-    # Interaction
-    def mousePressEvent( self, event ):
-        # Event
-        ex = event.x()
-
-        # Variables
-        self.sele_origin = self.sele
-
-        # LMB Neutral
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == QtCore.Qt.NoModifier ):
-            self.marker = self.Marker_Index( ex, "ALL" )
-            self.Cursor_Position( ex )
-        # LMB Modifier
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == QtCore.Qt.ShiftModifier ):
-            self.marker = self.Marker_Index( ex, "1" )
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == QtCore.Qt.ControlModifier ):
-            self.marker = self.Marker_Index( ex, "0" )
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == QtCore.Qt.AltModifier ):
-            pass
-
-        # Reset
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == ( QtCore.Qt.ShiftModifier | QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier ) ):
-            self.Cursor_Reset()
-
-        self.update()
-    def mouseMoveEvent( self, event ):
-        # Event
-        ex = event.x()
-
-        # LMB Neutral
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == QtCore.Qt.NoModifier ):
-            self.Cursor_Position( ex )
-        # LMB Modifier
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == QtCore.Qt.ShiftModifier ):
-            self.Cursor_Position( ex )
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == QtCore.Qt.ControlModifier ):
-            self.Cursor_Position( ex )
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == QtCore.Qt.AltModifier ):
-            pass
-
-        # Reset
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == ( QtCore.Qt.ShiftModifier | QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier ) ):
-            self.Cursor_Reset()
-
-        self.update()
-    def mouseDoubleClickEvent( self, event ):
-        # Event
-        ex = event.x()
-
-        # LMB Neutral
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == QtCore.Qt.NoModifier ):
-            self.Cursor_Position( ex )
-        # LMB Modifier
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == QtCore.Qt.ShiftModifier ):
-            self.Cursor_Position( ex )
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == QtCore.Qt.ControlModifier ):
-            self.Cursor_Position( ex )
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == QtCore.Qt.AltModifier ):
-            pass
-
-        # Reset
-        if ( event.buttons() == QtCore.Qt.LeftButton and event.modifiers() == ( QtCore.Qt.ShiftModifier | QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier ) ):
-            self.Cursor_Reset()
-
-        self.update()
-    def mouseReleaseEvent( self, event ):
-        # Variables
-        self.marker = None
-        # Update
-        self.SIGNAL_RELEASE.emit( True )
-        self.update()
-    # Cursor
-    def Cursor_Position( self, ex ):
-        if ( self.mode != None ):
-            # Interaction
-            limit = 20
-            if self.marker[0] <= limit:
-                # Variables
-                index = self.marker[1]
-                ww = self.ww
-                vv = self.value * ww
-                # Markers Normal
-                l0 = vv - self.sele_origin["l0"] * ww
-                l1 = vv - self.sele_origin["l1"] * ww
-                r1 = vv + self.sele_origin["r1"] * ww
-                r0 = vv + self.sele_origin["r0"] * ww
-                # Markers Negative
-                n_l0 = vv - self.sele_origin["l0"] * ww + ww
-                n_l1 = vv - self.sele_origin["l1"] * ww + ww
-                n_r1 = vv + self.sele_origin["r1"] * ww - ww
-                n_r0 = vv + self.sele_origin["r0"] * ww - ww
-
-                # Calculations
-                if index == "l0":
-                    delta = ex - l0
-                    value = l0 + delta
-                    if self.mode == "CIRCULAR":
-                        value = self.geometry.Limit_Range( value, n_r0, l1  )
-                    else:
-                        value = self.geometry.Limit_Range( value, 0, l1  )
-                    percentage = ( vv - value ) / self.ww
-                    self.sele["l0"] = percentage
-                if index == "l1":
-                    delta = ex - l1
-                    value = l1 + delta
-                    if self.mode == "CIRCULAR":
-                        value = self.geometry.Limit_Range( value, l0, vv  )
-                    else:
-                        value = self.geometry.Limit_Range( value, l0, vv  )
-                    percentage = ( vv - value ) / self.ww
-                    self.sele["l1"] = percentage
-                if index == "r1":
-                    delta = ex - r1
-                    value = r1 + delta
-                    if self.mode == "CIRCULAR":
-                        value = self.geometry.Limit_Range( value, vv, r0  )
-                    else:
-                        value = self.geometry.Limit_Range( value, vv, r0  )
-                    percentage = ( value - vv ) / self.ww
-                    self.sele["r1"] = percentage
-                if index == "r0":
-                    delta = ex - r0
-                    value = r0 + delta
-                    if self.mode == "CIRCULAR":
-                        value = self.geometry.Limit_Range( value, r1, n_l0  )
-                    else:
-                        value = self.geometry.Limit_Range( value, r1, ww  )
-                    percentage = ( value - vv ) / self.ww
-                    self.sele["r0"] = percentage
-
-                if index == "n_l0":
-                    delta = ex - l0
-                    value = l0 + delta
-                    if self.mode == "CIRCULAR":
-                        value = self.geometry.Limit_Range( value, n_r0, l1  ) - ww
-                    else:
-                        value = self.geometry.Limit_Range( value, 0, l1  ) - ww
-                    percentage = ( vv - value - ww ) / self.ww
-                    self.sele["l0"] = percentage
-                if index == "n_l1":
-                    delta = ex - l1
-                    value = l1 + delta
-                    if self.mode == "CIRCULAR":
-                        value = self.geometry.Limit_Range( value, l0, vv  ) - ww
-                    else:
-                        value = self.geometry.Limit_Range( value, l0, vv  ) - ww
-                    percentage = ( vv - value - ww ) / self.ww
-                    self.sele["l1"] = percentage
-                if index == "n_r1":
-                    delta = ex - r1
-                    value = r1 + delta
-                    if self.mode == "CIRCULAR":
-                        value = self.geometry.Limit_Range( value, vv, r0  ) + ww
-                    else:
-                        value = self.geometry.Limit_Range( value, vv, r0  ) + ww
-                    percentage = ( value - vv - ww ) / self.ww
-                    self.sele["r1"] = percentage
-                if index == "n_r0":
-                    delta = ex - r0
-                    value = r0 + delta
-                    if self.mode == "CIRCULAR":
-                        value = self.geometry.Limit_Range( value, r1, n_l0  ) + ww
-                    else:
-                        value = self.geometry.Limit_Range( value, r1, ww  ) + ww
-                    percentage = ( value - vv - ww ) / self.ww
-                    self.sele["r0"] = percentage
-
-                self.SIGNAL_VALUE.emit( self.sele )
-                self.update()
-    def Cursor_Reset( self ):
-        if self.mode != None:
-            self.SIGNAL_RESET.emit( 0 )
-    # Marker
-    def Marker_Index( self, ex, mode ):
-        # Markers Normal
-        ww = self.ww
-        vv = self.value * ww
-        l0 = vv - self.sele["l0"] * ww
-        l1 = vv - self.sele["l1"] * ww
-        r1 = vv + self.sele["r1"] * ww
-        r0 = vv + self.sele["r0"] * ww
-        # Markers Negative
-        n_l0 = vv - self.sele["l0"] * ww + ww
-        n_l1 = vv - self.sele["l1"] * ww + ww
-        n_r1 = vv + self.sele["r1"] * ww - ww
-        n_r0 = vv + self.sele["r0"] * ww - ww
-        # Distance
-        d_ml0 = abs( ex - l0 )
-        d_ml1 = abs( ex - l1 )
-        d_mr1 = abs( ex - r1 )
-        d_mr0 = abs( ex - r0 )
-        d_n_ml0 = abs( ex - n_l0 )
-        d_n_ml1 = abs( ex - n_l1 )
-        d_n_mr1 = abs( ex - n_r1 )
-        d_n_mr0 = abs( ex - n_r0 )
-        # Index
-        if mode == "ALL":
-            distance = [ ( d_n_ml0, "n_l0" ), ( d_n_ml1, "n_l1" ), ( d_ml0, "l0" ), ( d_ml1, "l1" ), ( d_mr1, "r1" ), ( d_mr0, "r0" ), ( d_n_mr1, "n_r1" ), ( d_n_mr0, "n_r0" ) ]
-        elif mode == "1":
-            distance = [ ( d_n_ml1, "n_l1" ), ( d_ml1, "l1" ), ( d_mr1, "r1" ), ( d_n_mr1, "n_r1" ) ]
-        elif mode == "0":
-            distance = [ ( d_n_ml0, "n_l0" ), ( d_ml0, "l0" ), ( d_mr0, "r0" ), ( d_n_mr0, "n_r0" ) ]
-        distance.sort()
-        marker = distance[0]
-        # Return
-        return marker
-
-    # Paint Style
-    def paintEvent( self, event ):
-        # Painter
-        painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
-
-        # Variables
-        ww = self.ww
-        hh = self.hh
-        w1 = ww - 1
-        w2 = ww - 2
-        h1 = hh - 1
-        h4 = hh - 4
-        h5 = hh - 5
-        h6 = hh - 6
-
-        # Slider
-        if ( self.value != None and self.sele != None ):
-            # Variables 1
-            vv = self.value * self.ww
-            l0 = vv - self.sele["l0"] * self.ww
-            l1 = vv - self.sele["l1"] * self.ww
-            r1 = vv + self.sele["r1"] * self.ww
-            r0 = vv + self.sele["r0"] * self.ww
-            # Variables 2
-            l0i = l0 + 1
-            l1i = l1 + 1
-            r1i = r1 - 1
-            r0i = r0 - 1
-
-            # Background Style
-            painter.setPen( QtCore.Qt.NoPen )
-
-            painter.setBrush( QBrush( self.color_alpha ) )
-            painter.drawRect( int( 0 ), int( h5 ), int( self.ww ), int( 5 ) )
-
-            # Markers Range
-            left_full = QPolygon( [
-                QPoint( int( vv ),  int( 1 )  ),
-                QPoint( int( vv ),  int( 2 )  ),
-                QPoint( int( l1i ), int( 2 )  ),
-                QPoint( int( l1i ), int( h6 ) ),
-                QPoint( int( vv ),  int( h6 ) ),
-                QPoint( int( vv ),  int( h5 ) ),
-                QPoint( int( l1 ),  int( h5 ) ),
-                QPoint( int( l1 ),  int( 1 )  ),
-                ] )
-            right_full = QPolygon( [
-                QPoint( int( vv ),  int( 1 )  ),
-                QPoint( int( vv ),  int( 2 )  ),
-                QPoint( int( r1i ), int( 2 )  ),
-                QPoint( int( r1i ), int( h6 ) ),
-                QPoint( int( vv ),  int( h6 ) ),
-                QPoint( int( vv ),  int( h5 ) ),
-                QPoint( int( r1 ),  int( h5 ) ),
-                QPoint( int( r1 ),  int( 1 )  ),
-                ] )
-            left_tri = QPolygon( [
-                QPoint( int( l1 ), int( 1 )  ),
-                QPoint( int( l1 ), int( h5 ) ),
-                QPoint( int( l0 ), int( h5 ) ),
-                QPoint( int( l0 ), int( 1 )  ),
-                ] )
-            right_tri = QPolygon( [
-                QPoint( int( r1 ), int( 1 )  ),
-                QPoint( int( r1 ), int( h5 ) ),
-                QPoint( int( r0 ), int( h5 ) ),
-                QPoint( int( r0 ), int( 1 )  ),
-                ] )
-            left_cap = QPolygon( [
-                QPoint( int( l0 ),  int( 1 )  ),
-                QPoint( int( l0 ),  int( h5 ) ),
-                QPoint( int( l0i ), int( h5 ) ),
-                QPoint( int( l0i ), int( 1 )  ),
-                ] )
-            right_cap = QPolygon( [
-                QPoint( int( r0 ),  int( 1 )  ),
-                QPoint( int( r0 ),  int( h5 ) ),
-                QPoint( int( r0i ), int( h5 ) ),
-                QPoint( int( r0i ), int( 1 )  ),
-                ] )
-
-            painter.setPen( QtCore.Qt.NoPen )
-
-            painter.setBrush( QBrush( QColor( self.color_1 ) ) )
-            painter.drawPolygon( left_full )
-            painter.drawPolygon( right_full )
-
-            painter.setBrush( QBrush( QColor( self.color_1 ), Qt.BDiagPattern ) )
-            painter.drawPolygon( left_tri )
-            painter.setBrush( QBrush( QColor( self.color_1 ), Qt.FDiagPattern ) )
-            painter.drawPolygon( right_tri )
-
-            painter.setBrush( QBrush( QColor( self.color_1 ) ) )
-            painter.drawPolygon( left_cap )
-            painter.setBrush( QBrush( QColor( self.color_1 ) ) )
-            painter.drawPolygon( right_cap )
-
-
-            if self.mode == "CIRCULAR":
-                # Polygons
-                neg_left_full = QPolygon( [
-                    QPoint( int( vv - ww ),  int( 1 )  ),
-                    QPoint( int( vv - ww ),  int( 2 )  ),
-                    QPoint( int( r1i - ww ), int( 2 )  ),
-                    QPoint( int( r1i - ww ), int( h6 ) ),
-                    QPoint( int( vv - ww ),  int( h6 ) ),
-                    QPoint( int( vv - ww ),  int( h5 ) ),
-                    QPoint( int( r1 - ww ),  int( h5 ) ),
-                    QPoint( int( r1 - ww ),  int( 1 )  ),
-                    ] )
-                neg_right_full = QPolygon( [
-                    QPoint( int( vv + ww ),  int( 1 )  ),
-                    QPoint( int( vv + ww ),  int( 2 )  ),
-                    QPoint( int( l1i + ww ), int( 2 )  ),
-                    QPoint( int( l1i + ww ), int( h6 ) ),
-                    QPoint( int( vv + ww ),  int( h6 ) ),
-                    QPoint( int( vv + ww ),  int( h5 ) ),
-                    QPoint( int( l1 + ww ),  int( h5 ) ),
-                    QPoint( int( l1 + ww ),  int( 1 )  ),
-                    ] )
-                neg_left_tri = QPolygon( [
-                    QPoint( int( r1 - ww ), int( 1 )  ),
-                    QPoint( int( r1 - ww ), int( h5 ) ),
-                    QPoint( int( r0 - ww ), int( h5 ) ),
-                    QPoint( int( r0 - ww ), int( 1 )  ),
-                    ] )
-                neg_right_tri = QPolygon( [
-                    QPoint( int( l1 + ww ), int( 1 )  ),
-                    QPoint( int( l1 + ww ), int( h5 ) ),
-                    QPoint( int( l0 + ww ), int( h5 ) ),
-                    QPoint( int( l0 + ww ), int( 1 )  ),
-                    ] )
-                neg_left_cap = QPolygon( [
-                    QPoint( int( r0 - ww ),  int( 1 )  ),
-                    QPoint( int( r0 - ww ),  int( h5 ) ),
-                    QPoint( int( r0i - ww ), int( h5 ) ),
-                    QPoint( int( r0i - ww ), int( 1 )  ),
-                    ] )
-                neg_right_cap = QPolygon( [
-                    QPoint( int( l0 + ww ),  int( 1 )  ),
-                    QPoint( int( l0 + ww ),  int( h5 ) ),
-                    QPoint( int( l0i + ww ), int( h5 ) ),
-                    QPoint( int( l0i + ww ), int( 1 )  ),
-                    ] )
-
-                # Draw
-                painter.setPen( QtCore.Qt.NoPen )
-
-                painter.setBrush( QBrush( QColor( self.color_1 ) ) )
-                painter.drawPolygon( neg_left_full )
-                painter.drawPolygon( neg_right_full )
-
-                painter.setBrush( QBrush( QColor( self.color_1 ), Qt.FDiagPattern ) )
-                painter.drawPolygon( neg_left_tri )
-                painter.setBrush( QBrush( QColor( self.color_1 ), Qt.BDiagPattern ) )
-                painter.drawPolygon( neg_right_tri )
-
-                painter.setBrush( QBrush( QColor( self.color_1 ) ) )
-                painter.drawPolygon( neg_left_cap )
-                painter.setBrush( QBrush( QColor( self.color_1 ) ) )
-                painter.drawPolygon( neg_right_cap )
-
-        # Draw Colors Gradient
-        if self.colors != None:
-            painter.setPen( QtCore.Qt.NoPen )
-            grad = QLinearGradient( int( 0 ), int( 0 ), int( self.ww ), int( 0 ) )
-            number = len( self.colors )
-            for i in range( 0, number ):
-                grad.setColorAt( round( i / number, 3 ), QColor( int( self.colors[i][0] * 255 ), int( self.colors[i][1] * 255 ), int( self.colors[i][2] * 255 ), int( self.alpha * 255 ) ) )
-            painter.setBrush( QBrush( grad ) )
-            square = QPolygon( [
-                QPoint( int( 1 ),  int( h4 ) ),
-                QPoint( int( w1 ), int( h4 ) ),
-                QPoint( int( w1 ), int( h1 ) ),
-                QPoint( int( 1 ),  int( h1 ) ),
-                ] )
-            painter.drawPolygon( square )
-
-        # Cursor
-        if self.value != None:
-            vv = int( self.value * self.ww )
-            bl = vv - 3
-            br = vv + 3
-            wl = vv - 1
-            wr = vv + 1
-            top1 = 0
-            bot1 = self.hh
-            top2 = 1
-            bot2 = self.hh - 1
-            # Black Square
-            painter.setPen( QtCore.Qt.NoPen )
-            painter.setBrush( QBrush( self.color_black ) )
-            black = QPolygon( [
-                QPoint( int( bl ), int( top1 ) ),
-                QPoint( int( bl ), int( bot1 ) ),
-                QPoint( int( br ), int( bot1 ) ),
-                QPoint( int( br ), int( top1 ) ),
-                ] )
-            painter.drawPolygon( black )
-            # White Square
-            painter.setPen( QtCore.Qt.NoPen )
-            painter.setBrush( QBrush( self.color_white ) )
-            white = QPolygon( [
-                QPoint( int( wl ), int( top2 ) ),
-                QPoint( int( wl ), int( bot2 ) ),
-                QPoint( int( wr ), int( bot2 ) ),
-                QPoint( int( wr ), int( top2 ) ),
-                ] )
-            painter.drawPolygon( white )
-
-#endregion
-#region Pin
 
 class Pin_Color( QWidget ):
     SIGNAL_APPLY = QtCore.pyqtSignal( int )
@@ -4927,7 +4356,7 @@ class Pin_Color( QWidget ):
         nn = 2
         painter.setPen( QPen( self.color_3, nn, Qt.SolidLine, Qt.FlatCap, Qt.MiterJoin ) )
         painter.setBrush( QtCore.Qt.NoBrush )
-        painter.drawLine( self.w2 - nn, self.h2, self.w2 + nn, self.h2 )
+        painter.drawLine( int( self.w2 - nn ), int( self.h2 ), int( self.w2 + nn ), int( self.h2 ) )
 
         # Active
         if self.active == True:
@@ -4948,6 +4377,7 @@ class Pin_Color( QWidget ):
             a1 = 0
         else:
             a1 = 2
+
         # Dot
         painter.setPen( QtCore.Qt.NoPen )
         painter.setBrush( QBrush( QColor( self.color_1 ) ) )

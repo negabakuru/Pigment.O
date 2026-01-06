@@ -48,7 +48,6 @@ from .picker_modulo import (
     Panel_Mask,
     # Sliders
     Channel_Slider,
-    Channel_Selection,
     # Mixer
     Pin_Color,
     )
@@ -65,7 +64,7 @@ from .engine_calculations import (
 #region Global Variables
 
 DOCKER_NAME = "Pigment.O Picker"
-pigment_o_version = "2025_09_16"
+version = "2026_01_01"
 
 #endregion
 
@@ -109,8 +108,18 @@ class Picker_Docker( DockWidget ):
 
         # Settings
         self.dialog = uic.loadUi( os.path.join( self.directory_plugin, "picker_settings.ui" ), QDialog( self ) )
-        self.dialog.setWindowTitle( "Pigment.O Picker : Settings" )
+        self.dialog.setWindowTitle( f"{ DOCKER_NAME } : Settings" )
         self.dialog.accept() # Hides the Dialog
+
+        # Panel Entries
+        self.dialog.panel_index.addItem( panel_fill )
+        self.dialog.panel_index.addItem( panel_square )
+        self.dialog.panel_index.addItem( panel_hue )
+        self.dialog.panel_index.addItem( panel_gamut )
+        self.dialog.panel_index.addItem( panel_hexagon )
+        self.dialog.panel_index.addItem( panel_luma )
+        self.dialog.panel_index.addItem( panel_dot )
+        self.dialog.panel_index.addItem( panel_mask )
     def Variables( self ):
         # Paths
         mask_set = os.path.join( self.directory_plugin, "MASK" )
@@ -118,8 +127,8 @@ class Picker_Docker( DockWidget ):
 
         # Widget
         self.mode_index = 0
-        self.inbound = False
-        self.mode_ab = True
+        self.cursor_inside = False
+        self.active_ab = True
         self.cor = kac
         self.widget_press = False # cursor pressing widget
         self.slider_height = 15
@@ -135,12 +144,13 @@ class Picker_Docker( DockWidget ):
         self.harmony_span = 0.2
 
         # Panels
+        self.panel_index = panel_square
         self.zoom = False
         # Color Wheel
         self.wheel_mode = "DIGITAL" # "DIGITAL" "ANALOG"
         self.wheel_space = "HSV" # "HSV" "HSL" "HCY" "ARD"
         # Hue
-        self.huecircle_shape = "None" # "None" "Triangle" "Square" "Diamond"
+        self.huecircle_shape = "Square" # "None" "Triangle" "Square" "Diamond"
         # Gamut
         self.gamut_mask = "None" # "None" "Triangle" "Square" "1 Circle" "2 Circle" "3 Pie" "Reset"
         self.gamut_profile = [
@@ -206,35 +216,27 @@ class Picker_Docker( DockWidget ):
 
         # Dialog UI
         self.ui_harmony = False
-        self.ui_channel = False
+        self.ui_channel = True
         self.ui_mixer = False
         self.ui_pin = False
         self.ui_history = False
 
-        # Panels
-        self.panel_index = None
+        # Pole
+        self.pole_percent = 0.5
+        self.pole_mix = color_true.copy()
+        self.pole_cor_a = color_true.copy()
+        self.pole_cor_n = color_true.copy()
+        self.pole_cor_b = color_true.copy()
         # Mixers
-        self.mixer_space = "RGB"
-        self.mixer_count = 1
-        self.mixer_widget = [ {
-            "l" : self.layout.mixer_l_000,
-            "m" : self.layout.mixer_m_000,
-            "r" : self.layout.mixer_r_000,
-            } ]
-        self.mixer_module = [ {
-            "l" : Pin_Color( self.mixer_widget[0]["l"] ),
-            "m" : Channel_Slider( self.mixer_widget[0]["m"] ),
-            "r" : Pin_Color( self.mixer_widget[0]["r"] ),
-            } ]
-        self.mixer_colors = [ {
-            "l" : color_false.copy(),
-            "m" : 0,
-            "r" : color_false.copy(),
-            } ]
+        self.mixer_space = "HSV"
+        self.mixer_count = 0
+        self.mixer_widget = list()
+        self.mixer_module = list()
+        self.mixer_colors = list()
         # Pins
-        self.pin_widget = []
-        self.pin_module = []
-        self.pin_cor = []
+        self.pin_widget = list()
+        self.pin_module = list()
+        self.pin_cor = list()
 
         # Channels
         self.chan_aaa = False
@@ -243,7 +245,7 @@ class Picker_Docker( DockWidget ):
         self.chan_cmyk = False
         self.chan_ryb = False
         self.chan_yuv = False
-        self.chan_hsv = False
+        self.chan_hsv = True
         self.chan_hsl = False
         self.chan_hcy = False
         self.chan_ard = False
@@ -254,16 +256,17 @@ class Picker_Docker( DockWidget ):
         # Non Color
         self.chan_kkk = False
         self.chan_hex = False
-        self.hex_sum = False
+        self.chan_sum = False
         # Locks
         self.lock_cmyk_4 = False
-        self.lock_kkk_1 = False
+
+        # Hex
+        self.hex_code = "#000000"
 
         # Channel Format
         self.disp_labels = False
         self.disp_values = False
         self.hue_shine = False
-        self.hex_copy_paste = False
 
         # Shortcut
         self.key_1_chan = "[KEY 1]"
@@ -278,6 +281,10 @@ class Picker_Docker( DockWidget ):
         # Annotations
         self.annotation_kra = False
         self.annotation_file = False
+
+        # Color Space
+        self.cs_luminosity = "ITU-R BT.709"
+        self.cs_matrix = "sRGB (D65)"
         # Performance
         self.performance_release = False
         self.performance_inaccurate = False
@@ -315,7 +322,6 @@ class Picker_Docker( DockWidget ):
         #region Locks
 
         self.layout.cmyk_4_label.toggled.connect( self.Lock_CMYK_4 )
-        self.layout.kkk_1_label.toggled.connect( self.Lock_KKK_1 )
 
         #endregion
         #region Channels Ranges
@@ -424,66 +430,66 @@ class Picker_Docker( DockWidget ):
         #region Channels Connections
 
         # AAA
-        self.layout.aaa_1_value.valueChanged.connect( self.Channels_AAA_1_Value )
+        self.layout.aaa_1_value.valueChanged.connect( self.Channel_AAA_1_Value )
         # RGB
-        self.layout.rgb_1_value.valueChanged.connect( self.Channels_RGB_1_Value )
-        self.layout.rgb_2_value.valueChanged.connect( self.Channels_RGB_2_Value )
-        self.layout.rgb_3_value.valueChanged.connect( self.Channels_RGB_3_Value )
+        self.layout.rgb_1_value.valueChanged.connect( self.Channel_RGB_1_Value )
+        self.layout.rgb_2_value.valueChanged.connect( self.Channel_RGB_2_Value )
+        self.layout.rgb_3_value.valueChanged.connect( self.Channel_RGB_3_Value )
         # CMY
-        self.layout.cmy_1_value.valueChanged.connect( self.Channels_CMY_1_Value )
-        self.layout.cmy_2_value.valueChanged.connect( self.Channels_CMY_2_Value )
-        self.layout.cmy_3_value.valueChanged.connect( self.Channels_CMY_3_Value )
+        self.layout.cmy_1_value.valueChanged.connect( self.Channel_CMY_1_Value )
+        self.layout.cmy_2_value.valueChanged.connect( self.Channel_CMY_2_Value )
+        self.layout.cmy_3_value.valueChanged.connect( self.Channel_CMY_3_Value )
         # CMYK
-        self.layout.cmyk_1_value.valueChanged.connect( self.Channels_CMYK_1_Value )
-        self.layout.cmyk_2_value.valueChanged.connect( self.Channels_CMYK_2_Value )
-        self.layout.cmyk_3_value.valueChanged.connect( self.Channels_CMYK_3_Value )
-        self.layout.cmyk_4_value.valueChanged.connect( self.Channels_CMYK_4_Value )
+        self.layout.cmyk_1_value.valueChanged.connect( self.Channel_CMYK_1_Value )
+        self.layout.cmyk_2_value.valueChanged.connect( self.Channel_CMYK_2_Value )
+        self.layout.cmyk_3_value.valueChanged.connect( self.Channel_CMYK_3_Value )
+        self.layout.cmyk_4_value.valueChanged.connect( self.Channel_CMYK_4_Value )
         # RYB
-        self.layout.ryb_1_value.valueChanged.connect( self.Channels_RYB_1_Value )
-        self.layout.ryb_2_value.valueChanged.connect( self.Channels_RYB_2_Value )
-        self.layout.ryb_3_value.valueChanged.connect( self.Channels_RYB_3_Value )
+        self.layout.ryb_1_value.valueChanged.connect( self.Channel_RYB_1_Value )
+        self.layout.ryb_2_value.valueChanged.connect( self.Channel_RYB_2_Value )
+        self.layout.ryb_3_value.valueChanged.connect( self.Channel_RYB_3_Value )
         # YUV
-        self.layout.yuv_1_value.valueChanged.connect( self.Channels_YUV_1_Value )
-        self.layout.yuv_2_value.valueChanged.connect( self.Channels_YUV_2_Value )
-        self.layout.yuv_3_value.valueChanged.connect( self.Channels_YUV_3_Value )
+        self.layout.yuv_1_value.valueChanged.connect( self.Channel_YUV_1_Value )
+        self.layout.yuv_2_value.valueChanged.connect( self.Channel_YUV_2_Value )
+        self.layout.yuv_3_value.valueChanged.connect( self.Channel_YUV_3_Value )
 
         # HSV
-        self.layout.hsv_1_value.valueChanged.connect( self.Channels_HSV_1_Value )
-        self.layout.hsv_2_value.valueChanged.connect( self.Channels_HSV_2_Value )
-        self.layout.hsv_3_value.valueChanged.connect( self.Channels_HSV_3_Value )
+        self.layout.hsv_1_value.valueChanged.connect( self.Channel_HSV_1_Value )
+        self.layout.hsv_2_value.valueChanged.connect( self.Channel_HSV_2_Value )
+        self.layout.hsv_3_value.valueChanged.connect( self.Channel_HSV_3_Value )
         # HSL
-        self.layout.hsl_1_value.valueChanged.connect( self.Channels_HSL_1_Value )
-        self.layout.hsl_2_value.valueChanged.connect( self.Channels_HSL_2_Value )
-        self.layout.hsl_3_value.valueChanged.connect( self.Channels_HSL_3_Value )
+        self.layout.hsl_1_value.valueChanged.connect( self.Channel_HSL_1_Value )
+        self.layout.hsl_2_value.valueChanged.connect( self.Channel_HSL_2_Value )
+        self.layout.hsl_3_value.valueChanged.connect( self.Channel_HSL_3_Value )
         # HCY
-        self.layout.hcy_1_value.valueChanged.connect( self.Channels_HCY_1_Value )
-        self.layout.hcy_2_value.valueChanged.connect( self.Channels_HCY_2_Value )
-        self.layout.hcy_3_value.valueChanged.connect( self.Channels_HCY_3_Value )
+        self.layout.hcy_1_value.valueChanged.connect( self.Channel_HCY_1_Value )
+        self.layout.hcy_2_value.valueChanged.connect( self.Channel_HCY_2_Value )
+        self.layout.hcy_3_value.valueChanged.connect( self.Channel_HCY_3_Value )
         # ARD
-        self.layout.ard_1_value.valueChanged.connect( self.Channels_ARD_1_Value )
-        self.layout.ard_2_value.valueChanged.connect( self.Channels_ARD_2_Value )
-        self.layout.ard_3_value.valueChanged.connect( self.Channels_ARD_3_Value )
+        self.layout.ard_1_value.valueChanged.connect( self.Channel_ARD_1_Value )
+        self.layout.ard_2_value.valueChanged.connect( self.Channel_ARD_2_Value )
+        self.layout.ard_3_value.valueChanged.connect( self.Channel_ARD_3_Value )
 
         # XYZ
-        self.layout.xyz_1_value.valueChanged.connect( self.Channels_XYZ_1_Value )
-        self.layout.xyz_2_value.valueChanged.connect( self.Channels_XYZ_2_Value )
-        self.layout.xyz_3_value.valueChanged.connect( self.Channels_XYZ_3_Value )
+        self.layout.xyz_1_value.valueChanged.connect( self.Channel_XYZ_1_Value )
+        self.layout.xyz_2_value.valueChanged.connect( self.Channel_XYZ_2_Value )
+        self.layout.xyz_3_value.valueChanged.connect( self.Channel_XYZ_3_Value )
         # XYY
-        self.layout.xyy_1_value.valueChanged.connect( self.Channels_XYY_1_Value )
-        self.layout.xyy_2_value.valueChanged.connect( self.Channels_XYY_2_Value )
-        self.layout.xyy_3_value.valueChanged.connect( self.Channels_XYY_3_Value )
+        self.layout.xyy_1_value.valueChanged.connect( self.Channel_XYY_1_Value )
+        self.layout.xyy_2_value.valueChanged.connect( self.Channel_XYY_2_Value )
+        self.layout.xyy_3_value.valueChanged.connect( self.Channel_XYY_3_Value )
         # LAB*
-        self.layout.lab_1_value.valueChanged.connect( self.Channels_LAB_1_Value )
-        self.layout.lab_2_value.valueChanged.connect( self.Channels_LAB_2_Value )
-        self.layout.lab_3_value.valueChanged.connect( self.Channels_LAB_3_Value )
+        self.layout.lab_1_value.valueChanged.connect( self.Channel_LAB_1_Value )
+        self.layout.lab_2_value.valueChanged.connect( self.Channel_LAB_2_Value )
+        self.layout.lab_3_value.valueChanged.connect( self.Channel_LAB_3_Value )
 
         # LCH
-        self.layout.lch_1_value.valueChanged.connect( self.Channels_LCH_1_Value )
-        self.layout.lch_2_value.valueChanged.connect( self.Channels_LCH_2_Value )
-        self.layout.lch_3_value.valueChanged.connect( self.Channels_LCH_3_Value )
+        self.layout.lch_1_value.valueChanged.connect( self.Channel_LCH_1_Value )
+        self.layout.lch_2_value.valueChanged.connect( self.Channel_LCH_2_Value )
+        self.layout.lch_3_value.valueChanged.connect( self.Channel_LCH_3_Value )
 
         # KKK
-        self.layout.kkk_1_value.valueChanged.connect( self.Channels_KKK_1_Value )
+        self.layout.kkk_1_value.valueChanged.connect( self.Channel_KKK_1_Value )
 
         # HEX
         self.layout.hex_string.returnPressed.connect( lambda: self.Color_HEX( self.layout.hex_string.text() ) )
@@ -497,6 +503,7 @@ class Picker_Docker( DockWidget ):
         #region Footer
 
         self.layout.fill.toggled.connect( self.Menu_FILL )
+        self.layout.sample_screen.clicked.connect( self.Menu_SampleScreen )
         self.layout.settings.clicked.connect( self.Menu_Settings )
 
         #endregion
@@ -579,14 +586,13 @@ class Picker_Docker( DockWidget ):
         # Non Color Kelvin
         self.dialog.chan_kkk.toggled.connect( self.Channel_KKK )
         # Non Color Hex
-        self.dialog.chan_hex.toggled.connect( self.Channel_Hex )
-        self.dialog.hex_sum.toggled.connect( self.Hex_Sum )
+        self.dialog.chan_hex.toggled.connect( self.Channel_HEX )
+        self.dialog.chan_sum.toggled.connect( self.Channel_SUM )
 
         # Format
         self.dialog.disp_labels.toggled.connect( self.Display_Labels )
         self.dialog.disp_values.toggled.connect( self.Display_Values )
         self.dialog.hue_shine.toggled.connect( self.Hue_Shine )
-        self.dialog.hex_copy_paste.toggled.connect( self.Hex_CopyPaste )
 
         # Reference
         self.dialog.name_display.clicked.connect( self.Color_Name )
@@ -607,8 +613,7 @@ class Picker_Docker( DockWidget ):
 
         # Color Space
         self.dialog.cs_luminosity.currentTextChanged.connect( self.CS_Luminosity )
-        self.dialog.cs_matrix.currentTextChanged.connect( lambda: self.CS_Matrix( self.dialog.cs_matrix.currentText(), self.dialog.cs_illuminant.currentText() ) )
-        self.dialog.cs_illuminant.currentTextChanged.connect( lambda: self.CS_Matrix( self.dialog.cs_matrix.currentText(), self.dialog.cs_illuminant.currentText() ) )
+        self.dialog.cs_matrix.currentTextChanged.connect( self.CS_Matrix )
 
         # Performance
         self.dialog.performance_release.toggled.connect( self.Performace_Release )
@@ -644,6 +649,7 @@ class Picker_Docker( DockWidget ):
         self.layout.lch_slider.installEventFilter( self )
         self.layout.kkk_slider.installEventFilter( self )
         # Mixer
+        self.layout.pole_slider.installEventFilter( self )
         self.layout.mixer_set.installEventFilter( self )
         # Footer
         self.layout.mode.installEventFilter( self ) # Mode Index
@@ -673,9 +679,9 @@ class Picker_Docker( DockWidget ):
         self.convert = Convert()
         self.convert.Set_Document( "RGB", "U8", "sRGB-elle-V2-srgtrc.icc" )
         self.convert.Set_Hue( zero )
-        self.convert.Set_Luminosity( "ITU-R BT.709" )
+        self.convert.Set_Luminosity( self.cs_luminosity )
         self.convert.Set_Gamma( gamma_y, gamma_l )
-        self.convert.Set_Matrix( "sRGB", "D65" )
+        self.convert.Set_Matrix( self.cs_matrix )
         # Analyse
         self.analyse = Analyse()
 
@@ -1115,264 +1121,262 @@ class Picker_Docker( DockWidget ):
         #region Sliders Connects
 
         # AAA 1
-        self.aaa_1_slider.SIGNAL_VALUE.connect( self.Channels_AAA_1_Slider )
+        self.aaa_1_slider.SIGNAL_VALUE.connect( self.Channel_AAA_1_Slider )
         self.aaa_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.aaa_1_slider.SIGNAL_STOPS.connect( self.Channels_AAA_1_Stops )
+        self.aaa_1_slider.SIGNAL_STOPS.connect( self.Channel_AAA_1_Stops )
         self.aaa_1_slider.SIGNAL_TEXT.connect( self.Label_String )
 
         # RGB 1
-        self.rgb_1_slider.SIGNAL_VALUE.connect( self.Channels_RGB_1_Slider )
+        self.rgb_1_slider.SIGNAL_VALUE.connect( self.Channel_RGB_1_Slider )
         self.rgb_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.rgb_1_slider.SIGNAL_STOPS.connect( self.Channels_RGB_1_Stops )
+        self.rgb_1_slider.SIGNAL_STOPS.connect( self.Channel_RGB_1_Stops )
         self.rgb_1_slider.SIGNAL_TEXT.connect( self.Label_String )
         # RGB 2
-        self.rgb_2_slider.SIGNAL_VALUE.connect( self.Channels_RGB_2_Slider )
+        self.rgb_2_slider.SIGNAL_VALUE.connect( self.Channel_RGB_2_Slider )
         self.rgb_2_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.rgb_2_slider.SIGNAL_STOPS.connect( self.Channels_RGB_2_Stops )
+        self.rgb_2_slider.SIGNAL_STOPS.connect( self.Channel_RGB_2_Stops )
         self.rgb_2_slider.SIGNAL_TEXT.connect( self.Label_String )
         # RGB 3
-        self.rgb_3_slider.SIGNAL_VALUE.connect( self.Channels_RGB_3_Slider )
+        self.rgb_3_slider.SIGNAL_VALUE.connect( self.Channel_RGB_3_Slider )
         self.rgb_3_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.rgb_3_slider.SIGNAL_STOPS.connect( self.Channels_RGB_3_Stops )
+        self.rgb_3_slider.SIGNAL_STOPS.connect( self.Channel_RGB_3_Stops )
         self.rgb_3_slider.SIGNAL_TEXT.connect( self.Label_String )
 
         # CMY 1
-        self.cmy_1_slider.SIGNAL_VALUE.connect( self.Channels_CMY_1_Slider )
+        self.cmy_1_slider.SIGNAL_VALUE.connect( self.Channel_CMY_1_Slider )
         self.cmy_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.cmy_1_slider.SIGNAL_STOPS.connect( self.Channels_CMY_1_Stops )
+        self.cmy_1_slider.SIGNAL_STOPS.connect( self.Channel_CMY_1_Stops )
         self.cmy_1_slider.SIGNAL_TEXT.connect( self.Label_String )
         # CMY 2
-        self.cmy_2_slider.SIGNAL_VALUE.connect( self.Channels_CMY_2_Slider )
+        self.cmy_2_slider.SIGNAL_VALUE.connect( self.Channel_CMY_2_Slider )
         self.cmy_2_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.cmy_2_slider.SIGNAL_STOPS.connect( self.Channels_CMY_2_Stops )
+        self.cmy_2_slider.SIGNAL_STOPS.connect( self.Channel_CMY_2_Stops )
         self.cmy_2_slider.SIGNAL_TEXT.connect( self.Label_String )
         # CMY 3
-        self.cmy_3_slider.SIGNAL_VALUE.connect( self.Channels_CMY_3_Slider )
+        self.cmy_3_slider.SIGNAL_VALUE.connect( self.Channel_CMY_3_Slider )
         self.cmy_3_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.cmy_3_slider.SIGNAL_STOPS.connect( self.Channels_CMY_3_Stops )
+        self.cmy_3_slider.SIGNAL_STOPS.connect( self.Channel_CMY_3_Stops )
         self.cmy_3_slider.SIGNAL_TEXT.connect( self.Label_String )
 
         # CMYK 1
-        self.cmyk_1_slider.SIGNAL_VALUE.connect( self.Channels_CMYK_1_Slider )
+        self.cmyk_1_slider.SIGNAL_VALUE.connect( self.Channel_CMYK_1_Slider )
         self.cmyk_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.cmyk_1_slider.SIGNAL_STOPS.connect( self.Channels_CMYK_1_Stops )
+        self.cmyk_1_slider.SIGNAL_STOPS.connect( self.Channel_CMYK_1_Stops )
         self.cmyk_1_slider.SIGNAL_TEXT.connect( self.Label_String )
         # CMYK 2
-        self.cmyk_2_slider.SIGNAL_VALUE.connect( self.Channels_CMYK_2_Slider )
+        self.cmyk_2_slider.SIGNAL_VALUE.connect( self.Channel_CMYK_2_Slider )
         self.cmyk_2_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.cmyk_2_slider.SIGNAL_STOPS.connect( self.Channels_CMYK_2_Stops )
+        self.cmyk_2_slider.SIGNAL_STOPS.connect( self.Channel_CMYK_2_Stops )
         self.cmyk_2_slider.SIGNAL_TEXT.connect( self.Label_String )
         # CMYK 3
-        self.cmyk_3_slider.SIGNAL_VALUE.connect( self.Channels_CMYK_3_Slider )
+        self.cmyk_3_slider.SIGNAL_VALUE.connect( self.Channel_CMYK_3_Slider )
         self.cmyk_3_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.cmyk_3_slider.SIGNAL_STOPS.connect( self.Channels_CMYK_3_Stops )
+        self.cmyk_3_slider.SIGNAL_STOPS.connect( self.Channel_CMYK_3_Stops )
         self.cmyk_3_slider.SIGNAL_TEXT.connect( self.Label_String )
         # CMYK 4
-        self.cmyk_4_slider.SIGNAL_VALUE.connect( self.Channels_CMYK_4_Slider )
+        self.cmyk_4_slider.SIGNAL_VALUE.connect( self.Channel_CMYK_4_Slider )
         self.cmyk_4_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.cmyk_4_slider.SIGNAL_STOPS.connect( self.Channels_CMYK_4_Stops )
+        self.cmyk_4_slider.SIGNAL_STOPS.connect( self.Channel_CMYK_4_Stops )
         self.cmyk_4_slider.SIGNAL_TEXT.connect( self.Label_String )
 
         # RYB 1
-        self.ryb_1_slider.SIGNAL_VALUE.connect( self.Channels_RYB_1_Slider )
+        self.ryb_1_slider.SIGNAL_VALUE.connect( self.Channel_RYB_1_Slider )
         self.ryb_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.ryb_1_slider.SIGNAL_STOPS.connect( self.Channels_RYB_1_Stops )
+        self.ryb_1_slider.SIGNAL_STOPS.connect( self.Channel_RYB_1_Stops )
         self.ryb_1_slider.SIGNAL_TEXT.connect( self.Label_String )
         # RYB 2
-        self.ryb_2_slider.SIGNAL_VALUE.connect( self.Channels_RYB_2_Slider )
+        self.ryb_2_slider.SIGNAL_VALUE.connect( self.Channel_RYB_2_Slider )
         self.ryb_2_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.ryb_2_slider.SIGNAL_STOPS.connect( self.Channels_RYB_2_Stops )
+        self.ryb_2_slider.SIGNAL_STOPS.connect( self.Channel_RYB_2_Stops )
         self.ryb_2_slider.SIGNAL_TEXT.connect( self.Label_String )
         # RYB 3
-        self.ryb_3_slider.SIGNAL_VALUE.connect( self.Channels_RYB_3_Slider )
+        self.ryb_3_slider.SIGNAL_VALUE.connect( self.Channel_RYB_3_Slider )
         self.ryb_3_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.ryb_3_slider.SIGNAL_STOPS.connect( self.Channels_RYB_3_Stops )
+        self.ryb_3_slider.SIGNAL_STOPS.connect( self.Channel_RYB_3_Stops )
         self.ryb_3_slider.SIGNAL_TEXT.connect( self.Label_String )
 
         # YUV 1
-        self.yuv_1_slider.SIGNAL_VALUE.connect( self.Channels_YUV_1_Slider )
+        self.yuv_1_slider.SIGNAL_VALUE.connect( self.Channel_YUV_1_Slider )
         self.yuv_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.yuv_1_slider.SIGNAL_STOPS.connect( self.Channels_YUV_1_Stops )
+        self.yuv_1_slider.SIGNAL_STOPS.connect( self.Channel_YUV_1_Stops )
         self.yuv_1_slider.SIGNAL_TEXT.connect( self.Label_String )
         # YUV 2
-        self.yuv_2_slider.SIGNAL_VALUE.connect( self.Channels_YUV_2_Slider )
+        self.yuv_2_slider.SIGNAL_VALUE.connect( self.Channel_YUV_2_Slider )
         self.yuv_2_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.yuv_2_slider.SIGNAL_STOPS.connect( self.Channels_YUV_2_Stops )
+        self.yuv_2_slider.SIGNAL_STOPS.connect( self.Channel_YUV_2_Stops )
         self.yuv_2_slider.SIGNAL_TEXT.connect( self.Label_String )
         # YUV 3
-        self.yuv_3_slider.SIGNAL_VALUE.connect( self.Channels_YUV_3_Slider )
+        self.yuv_3_slider.SIGNAL_VALUE.connect( self.Channel_YUV_3_Slider )
         self.yuv_3_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.yuv_3_slider.SIGNAL_STOPS.connect( self.Channels_YUV_3_Stops )
+        self.yuv_3_slider.SIGNAL_STOPS.connect( self.Channel_YUV_3_Stops )
         self.yuv_3_slider.SIGNAL_TEXT.connect( self.Label_String )
 
 
         # HSV 1
-        self.hsv_1_slider.SIGNAL_VALUE.connect( self.Channels_HSV_1_Slider )
+        self.hsv_1_slider.SIGNAL_VALUE.connect( self.Channel_HSV_1_Slider )
         self.hsv_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.hsv_1_slider.SIGNAL_STOPS.connect( self.Channels_HSV_1_Stops )
+        self.hsv_1_slider.SIGNAL_STOPS.connect( self.Channel_HSV_1_Stops )
         self.hsv_1_slider.SIGNAL_TEXT.connect( self.Label_String )
         # HSV 2
-        self.hsv_2_slider.SIGNAL_VALUE.connect( self.Channels_HSV_2_Slider )
+        self.hsv_2_slider.SIGNAL_VALUE.connect( self.Channel_HSV_2_Slider )
         self.hsv_2_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.hsv_2_slider.SIGNAL_STOPS.connect( self.Channels_HSV_2_Stops )
+        self.hsv_2_slider.SIGNAL_STOPS.connect( self.Channel_HSV_2_Stops )
         self.hsv_2_slider.SIGNAL_TEXT.connect( self.Label_String )
         # HSV 3
-        self.hsv_3_slider.SIGNAL_VALUE.connect( self.Channels_HSV_3_Slider )
+        self.hsv_3_slider.SIGNAL_VALUE.connect( self.Channel_HSV_3_Slider )
         self.hsv_3_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.hsv_3_slider.SIGNAL_STOPS.connect( self.Channels_HSV_3_Stops )
+        self.hsv_3_slider.SIGNAL_STOPS.connect( self.Channel_HSV_3_Stops )
         self.hsv_3_slider.SIGNAL_TEXT.connect( self.Label_String )
 
         # HSL 1
-        self.hsl_1_slider.SIGNAL_VALUE.connect( self.Channels_HSL_1_Slider )
+        self.hsl_1_slider.SIGNAL_VALUE.connect( self.Channel_HSL_1_Slider )
         self.hsl_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.hsl_1_slider.SIGNAL_STOPS.connect( self.Channels_HSL_1_Stops )
+        self.hsl_1_slider.SIGNAL_STOPS.connect( self.Channel_HSL_1_Stops )
         self.hsl_1_slider.SIGNAL_TEXT.connect( self.Label_String )
         # HSL 2
-        self.hsl_2_slider.SIGNAL_VALUE.connect( self.Channels_HSL_2_Slider )
+        self.hsl_2_slider.SIGNAL_VALUE.connect( self.Channel_HSL_2_Slider )
         self.hsl_2_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.hsl_2_slider.SIGNAL_STOPS.connect( self.Channels_HSL_2_Stops )
+        self.hsl_2_slider.SIGNAL_STOPS.connect( self.Channel_HSL_2_Stops )
         self.hsl_2_slider.SIGNAL_TEXT.connect( self.Label_String )
         # HSL 3
-        self.hsl_3_slider.SIGNAL_VALUE.connect( self.Channels_HSL_3_Slider )
+        self.hsl_3_slider.SIGNAL_VALUE.connect( self.Channel_HSL_3_Slider )
         self.hsl_3_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.hsl_3_slider.SIGNAL_STOPS.connect( self.Channels_HSL_3_Stops )
+        self.hsl_3_slider.SIGNAL_STOPS.connect( self.Channel_HSL_3_Stops )
         self.hsl_3_slider.SIGNAL_TEXT.connect( self.Label_String )
 
         # HCY 1
-        self.hcy_1_slider.SIGNAL_VALUE.connect( self.Channels_HCY_1_Slider )
+        self.hcy_1_slider.SIGNAL_VALUE.connect( self.Channel_HCY_1_Slider )
         self.hcy_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.hcy_1_slider.SIGNAL_STOPS.connect( self.Channels_HCY_1_Stops )
+        self.hcy_1_slider.SIGNAL_STOPS.connect( self.Channel_HCY_1_Stops )
         self.hcy_1_slider.SIGNAL_TEXT.connect( self.Label_String )
         # HCY 2
-        self.hcy_2_slider.SIGNAL_VALUE.connect( self.Channels_HCY_2_Slider )
+        self.hcy_2_slider.SIGNAL_VALUE.connect( self.Channel_HCY_2_Slider )
         self.hcy_2_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.hcy_2_slider.SIGNAL_STOPS.connect( self.Channels_HCY_2_Stops )
+        self.hcy_2_slider.SIGNAL_STOPS.connect( self.Channel_HCY_2_Stops )
         self.hcy_2_slider.SIGNAL_TEXT.connect( self.Label_String )
         # HCY 3
-        self.hcy_3_slider.SIGNAL_VALUE.connect( self.Channels_HCY_3_Slider )
+        self.hcy_3_slider.SIGNAL_VALUE.connect( self.Channel_HCY_3_Slider )
         self.hcy_3_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.hcy_3_slider.SIGNAL_STOPS.connect( self.Channels_HCY_3_Stops )
+        self.hcy_3_slider.SIGNAL_STOPS.connect( self.Channel_HCY_3_Stops )
         self.hcy_3_slider.SIGNAL_TEXT.connect( self.Label_String )
 
         # ARD 1
-        self.ard_1_slider.SIGNAL_VALUE.connect( self.Channels_ARD_1_Slider )
+        self.ard_1_slider.SIGNAL_VALUE.connect( self.Channel_ARD_1_Slider )
         self.ard_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.ard_1_slider.SIGNAL_STOPS.connect( self.Channels_ARD_1_Stops )
+        self.ard_1_slider.SIGNAL_STOPS.connect( self.Channel_ARD_1_Stops )
         self.ard_1_slider.SIGNAL_TEXT.connect( self.Label_String )
         # ARD 2
-        self.ard_2_slider.SIGNAL_VALUE.connect( self.Channels_ARD_2_Slider )
+        self.ard_2_slider.SIGNAL_VALUE.connect( self.Channel_ARD_2_Slider )
         self.ard_2_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.ard_2_slider.SIGNAL_STOPS.connect( self.Channels_ARD_2_Stops )
+        self.ard_2_slider.SIGNAL_STOPS.connect( self.Channel_ARD_2_Stops )
         self.ard_2_slider.SIGNAL_TEXT.connect( self.Label_String )
         # ARD 3
-        self.ard_3_slider.SIGNAL_VALUE.connect( self.Channels_ARD_3_Slider )
+        self.ard_3_slider.SIGNAL_VALUE.connect( self.Channel_ARD_3_Slider )
         self.ard_3_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.ard_3_slider.SIGNAL_STOPS.connect( self.Channels_ARD_3_Stops )
+        self.ard_3_slider.SIGNAL_STOPS.connect( self.Channel_ARD_3_Stops )
         self.ard_3_slider.SIGNAL_TEXT.connect( self.Label_String )
 
         # XYZ 1
-        self.xyz_1_slider.SIGNAL_VALUE.connect( self.Channels_XYZ_1_Slider )
+        self.xyz_1_slider.SIGNAL_VALUE.connect( self.Channel_XYZ_1_Slider )
         self.xyz_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.xyz_1_slider.SIGNAL_STOPS.connect( self.Channels_XYZ_1_Stops )
+        self.xyz_1_slider.SIGNAL_STOPS.connect( self.Channel_XYZ_1_Stops )
         self.xyz_1_slider.SIGNAL_TEXT.connect( self.Label_String )
         # XYZ 2
-        self.xyz_2_slider.SIGNAL_VALUE.connect( self.Channels_XYZ_2_Slider )
+        self.xyz_2_slider.SIGNAL_VALUE.connect( self.Channel_XYZ_2_Slider )
         self.xyz_2_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.xyz_2_slider.SIGNAL_STOPS.connect( self.Channels_XYZ_2_Stops )
+        self.xyz_2_slider.SIGNAL_STOPS.connect( self.Channel_XYZ_2_Stops )
         self.xyz_2_slider.SIGNAL_TEXT.connect( self.Label_String )
         # XYZ 3
-        self.xyz_3_slider.SIGNAL_VALUE.connect( self.Channels_XYZ_3_Slider )
+        self.xyz_3_slider.SIGNAL_VALUE.connect( self.Channel_XYZ_3_Slider )
         self.xyz_3_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.xyz_3_slider.SIGNAL_STOPS.connect( self.Channels_XYZ_3_Stops )
+        self.xyz_3_slider.SIGNAL_STOPS.connect( self.Channel_XYZ_3_Stops )
         self.xyz_3_slider.SIGNAL_TEXT.connect( self.Label_String )
 
         # XYY 1
-        self.xyy_1_slider.SIGNAL_VALUE.connect( self.Channels_XYY_1_Slider )
+        self.xyy_1_slider.SIGNAL_VALUE.connect( self.Channel_XYY_1_Slider )
         self.xyy_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.xyy_1_slider.SIGNAL_STOPS.connect( self.Channels_XYY_1_Stops )
+        self.xyy_1_slider.SIGNAL_STOPS.connect( self.Channel_XYY_1_Stops )
         self.xyy_1_slider.SIGNAL_TEXT.connect( self.Label_String )
         # XYY 2
-        self.xyy_2_slider.SIGNAL_VALUE.connect( self.Channels_XYY_2_Slider )
+        self.xyy_2_slider.SIGNAL_VALUE.connect( self.Channel_XYY_2_Slider )
         self.xyy_2_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.xyy_2_slider.SIGNAL_STOPS.connect( self.Channels_XYY_2_Stops )
+        self.xyy_2_slider.SIGNAL_STOPS.connect( self.Channel_XYY_2_Stops )
         self.xyy_2_slider.SIGNAL_TEXT.connect( self.Label_String )
         # XYY 3
-        self.xyy_3_slider.SIGNAL_VALUE.connect( self.Channels_XYY_3_Slider )
+        self.xyy_3_slider.SIGNAL_VALUE.connect( self.Channel_XYY_3_Slider )
         self.xyy_3_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.xyy_3_slider.SIGNAL_STOPS.connect( self.Channels_XYY_3_Stops )
+        self.xyy_3_slider.SIGNAL_STOPS.connect( self.Channel_XYY_3_Stops )
         self.xyy_3_slider.SIGNAL_TEXT.connect( self.Label_String )
 
         # LAB 1
-        self.lab_1_slider.SIGNAL_VALUE.connect( self.Channels_LAB_1_Slider )
+        self.lab_1_slider.SIGNAL_VALUE.connect( self.Channel_LAB_1_Slider )
         self.lab_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.lab_1_slider.SIGNAL_STOPS.connect( self.Channels_LAB_1_Stops )
+        self.lab_1_slider.SIGNAL_STOPS.connect( self.Channel_LAB_1_Stops )
         self.lab_1_slider.SIGNAL_TEXT.connect( self.Label_String )
         # LAB 2
-        self.lab_2_slider.SIGNAL_VALUE.connect( self.Channels_LAB_2_Slider )
+        self.lab_2_slider.SIGNAL_VALUE.connect( self.Channel_LAB_2_Slider )
         self.lab_2_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.lab_2_slider.SIGNAL_STOPS.connect( self.Channels_LAB_2_Stops )
+        self.lab_2_slider.SIGNAL_STOPS.connect( self.Channel_LAB_2_Stops )
         self.lab_2_slider.SIGNAL_TEXT.connect( self.Label_String )
         # LAB 3
-        self.lab_3_slider.SIGNAL_VALUE.connect( self.Channels_LAB_3_Slider )
+        self.lab_3_slider.SIGNAL_VALUE.connect( self.Channel_LAB_3_Slider )
         self.lab_3_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.lab_3_slider.SIGNAL_STOPS.connect( self.Channels_LAB_3_Stops )
+        self.lab_3_slider.SIGNAL_STOPS.connect( self.Channel_LAB_3_Stops )
         self.lab_3_slider.SIGNAL_TEXT.connect( self.Label_String )
 
         # LCH 1
-        self.lch_1_slider.SIGNAL_VALUE.connect( self.Channels_LCH_1_Slider )
+        self.lch_1_slider.SIGNAL_VALUE.connect( self.Channel_LCH_1_Slider )
         self.lch_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.lch_1_slider.SIGNAL_STOPS.connect( self.Channels_LCH_1_Stops )
+        self.lch_1_slider.SIGNAL_STOPS.connect( self.Channel_LCH_1_Stops )
         self.lch_1_slider.SIGNAL_TEXT.connect( self.Label_String )
         # LCH 2
-        self.lch_2_slider.SIGNAL_VALUE.connect( self.Channels_LCH_2_Slider )
+        self.lch_2_slider.SIGNAL_VALUE.connect( self.Channel_LCH_2_Slider )
         self.lch_2_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.lch_2_slider.SIGNAL_STOPS.connect( self.Channels_LCH_2_Stops )
+        self.lch_2_slider.SIGNAL_STOPS.connect( self.Channel_LCH_2_Stops )
         self.lch_2_slider.SIGNAL_TEXT.connect( self.Label_String )
         # LCH 3
-        self.lch_3_slider.SIGNAL_VALUE.connect( self.Channels_LCH_3_Slider )
+        self.lch_3_slider.SIGNAL_VALUE.connect( self.Channel_LCH_3_Slider )
         self.lch_3_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.lch_3_slider.SIGNAL_STOPS.connect( self.Channels_LCH_3_Stops )
+        self.lch_3_slider.SIGNAL_STOPS.connect( self.Channel_LCH_3_Stops )
         self.lch_3_slider.SIGNAL_TEXT.connect( self.Label_String )
 
         #endregion
-        #region Sliders Non Color
+        #region Sliders Non Color Space
 
         # Kelvin
         self.kkk_1_slider = Channel_Slider( self.layout.kkk_1_slider )
         self.kkk_1_slider.Set_Mode( "LINEAR" )
         self.kkk_1_slider.Set_Limits( 0, 0.5, 1 )
         self.kkk_1_slider.Set_Stops( 4 )
-        self.kkk_1_slider.SIGNAL_VALUE.connect( self.Channels_KKK_1_Slider )
+        self.kkk_1_slider.SIGNAL_VALUE.connect( self.Channel_KKK_1_Slider )
         self.kkk_1_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.kkk_1_slider.SIGNAL_STOPS.connect( self.Channels_KKK_1_Stops )
+        self.kkk_1_slider.SIGNAL_STOPS.connect( self.Channel_KKK_1_Stops )
         self.kkk_1_slider.SIGNAL_TEXT.connect( self.Label_String )
 
         #endregion
         #region Mixer
 
-        # Left
-        self.mixer_module[0]["l"].Set_Index( 0 )
-        self.mixer_module[0]["l"].SIGNAL_APPLY.connect( self.Mixer_Apply_L )
-        self.mixer_module[0]["l"].SIGNAL_SAVE.connect( self.Mixer_Save_L )
-        self.mixer_module[0]["l"].SIGNAL_CLEAN.connect( self.Mixer_Clean_L )
-        self.mixer_module[0]["l"].SIGNAL_TEXT.connect( self.Label_String )
-
-        # Gradient
-        self.mixer_module[0]["m"].Set_Index( 0 )
-        self.mixer_module[0]["m"].Set_Mode( "MIXER" )
-        self.mixer_module[0]["m"].Set_Limits( 0, 0.5, 1 )
-        self.mixer_module[0]["m"].Set_Stops( 2 )
-        self.mixer_module[0]["m"].SIGNAL_VALUE.connect( self.Mixer_Slider_M )
-        self.mixer_module[0]["m"].SIGNAL_STOPS.connect( self.Mixer_Stops_M )
-        self.mixer_module[0]["m"].SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
-        self.mixer_module[0]["m"].SIGNAL_TEXT.connect( self.Label_String )
-
-        # Right
-        self.mixer_module[0]["r"].Set_Index( 0 )
-        self.mixer_module[0]["r"].SIGNAL_APPLY.connect( self.Mixer_Apply_R )
-        self.mixer_module[0]["r"].SIGNAL_SAVE.connect( self.Mixer_Save_R )
-        self.mixer_module[0]["r"].SIGNAL_CLEAN.connect( self.Mixer_Clean_R )
-        self.mixer_module[0]["r"].SIGNAL_TEXT.connect( self.Label_String )
+        # Pole Slider
+        self.pole_slider = Channel_Slider( self.layout.pole_slider )
+        self.pole_slider.Set_Mode( "LINEAR" )
+        self.pole_slider.Set_Limits( 0, 0.5, 1 )
+        self.pole_slider.Set_Stops( 4 )
+        self.pole_slider.SIGNAL_VALUE.connect( self.Channel_Pole_Slider )
+        self.pole_slider.SIGNAL_RELEASE.connect( self.Pigmento_RELEASE )
+        self.pole_slider.SIGNAL_STOPS.connect( self.Channel_Pole_Stops )
+        self.pole_slider.SIGNAL_TEXT.connect( self.Label_String )
+        # Pole 1 A
+        self.pole_pin_a = Pin_Color( self.layout.pole_pin_a )
+        self.pole_pin_a.SIGNAL_APPLY.connect( self.Pole_Apply_1A )
+        self.pole_pin_a.SIGNAL_SAVE.connect( self.Pole_Save_1A )
+        self.pole_pin_a.SIGNAL_CLEAN.connect( self.Pole_Clean_1A )
+        self.pole_pin_a.SIGNAL_TEXT.connect( self.Label_String )
+        # Pole 1 B
+        self.pole_pin_b = Pin_Color( self.layout.pole_pin_b )
+        self.pole_pin_b.SIGNAL_APPLY.connect( self.Pole_Apply_1B )
+        self.pole_pin_b.SIGNAL_SAVE.connect( self.Pole_Save_1B )
+        self.pole_pin_b.SIGNAL_CLEAN.connect( self.Pole_Clean_1B )
+        self.pole_pin_b.SIGNAL_TEXT.connect( self.Label_String )
 
         #endregion
         #region Pin
@@ -1404,47 +1408,39 @@ class Picker_Docker( DockWidget ):
 
         #endregion
     def Style( self ):
+        # Variables
+        ki = Krita.instance()
+
         # Icons
-        self.qicon_on = Krita.instance().icon( "showColoring" )
-        self.qicon_write = Krita.instance().icon( "media-playback-start" )
-        self.qicon_read = Krita.instance().icon( "system-help" )
-        self.qicon_off = Krita.instance().icon( "showColoringOff" )
-        qicon_swap = Krita.instance().icon( "fileLayer" )
-        qicon_fill = Krita.instance().icon( "folder-documents" )
-        qicon_settings = Krita.instance().icon( "settings-button" )
-        self.qicon_lock_layout = Krita.instance().icon( "layer-locked" )
-        self.qicon_lock_dialog = Krita.instance().icon( "docker_lock_b" )
-        self.qicon_none = QIcon()
+        self.qicon_on           = ki.icon( "showColoring" )
+        self.qicon_write        = ki.icon( "media-playback-start" )
+        self.qicon_read         = ki.icon( "system-help" )
+        self.qicon_off          = ki.icon( "showColoringOff" )
+        qicon_swap              = ki.icon( "fileLayer" )
+        qicon_fill              = ki.icon( "folder-documents" )
+        qicon_sample_screen     = ki.icon( "sample-screen" )
+        qicon_settings          = ki.icon( "settings-button" )
+        self.qicon_lock_layout  = ki.icon( "layer-locked" )
+        self.qicon_lock_dialog  = ki.icon( "docker_lock_b" )
+        self.qicon_none         = QIcon()
 
         # Widgets
         self.layout.dot_swap.setIcon( qicon_swap )
         self.layout.mode.setIcon( self.qicon_on )
         self.layout.fill.setIcon( qicon_fill )
+        self.layout.sample_screen.setIcon( qicon_sample_screen )
         self.layout.settings.setIcon( qicon_settings )
 
         # Tool Tips
         self.layout.mode.setToolTip( "Mode" )
         self.layout.fill.setToolTip( "Fill Pixel" )
+        self.layout.sample_screen.setToolTip( "Sample Screen" )
         self.layout.hex_string.setToolTip( "Hex Code" )
         self.layout.settings.setToolTip( "Settings" )
 
-        # Style Sheets Layout
-        self.layout.panel_fill.setStyleSheet( "#panel_fill{background-color: rgba( 0, 0, 0, 50 );}" )
-        self.layout.panel_square.setStyleSheet( "#panel_square{background-color: rgba( 0, 0, 0, 50 );}" )
-        self.layout.panel_hue.setStyleSheet( "#panel_hue{background-color: rgba( 0, 0, 0, 50 );}" )
-        self.layout.panel_gamut.setStyleSheet( "#panel_gamut{background-color: rgba( 0, 0, 0, 50 );}" )
-        self.layout.panel_hexagon.setStyleSheet( "#panel_hexagon{background-color: rgba( 0, 0, 0, 50 );}" )
-        self.layout.panel_dot.setStyleSheet( "#panel_dot{background-color: rgba( 0, 0, 0, 50 );}" )
-        # Style Sheets Dialog
-        self.dialog.scroll_area_contents_option.setStyleSheet( "#scroll_area_contents_option{background-color: rgba( 0, 0, 0, 20 );}" )
-        self.dialog.scroll_area_contents_color.setStyleSheet( "#scroll_area_contents_color{background-color: rgba( 0, 0, 0, 20 );}" )
-        self.dialog.scroll_area_contents_system.setStyleSheet( "#scroll_area_contents_system{background-color: rgba( 0, 0, 0, 20 );}" )
-
-        # Combobox
+        # Panel Icons
         qpixmap_fill = QPixmap( 100, 100 )
         qpixmap_fill.fill( QColor( "#000000" ) )
-
-        # Icons
         icon_path =     os.path.join( self.directory_plugin, "ICON" )
         path_square =   os.path.join( icon_path, "SQUARE.png" )
         path_hue =      os.path.join( icon_path, "HUE.png" )
@@ -1453,8 +1449,6 @@ class Picker_Docker( DockWidget ):
         path_luma =     os.path.join( icon_path, "LUMA.png" )
         path_dot =      os.path.join( icon_path, "DOT.png" )
         path_mask =     os.path.join( icon_path, "MASK.png" )
-        path_sample =   os.path.join( icon_path, "SAMPLE.png" )
-
         self.dialog.panel_index.blockSignals( True )
         self.dialog.panel_index.setItemIcon( 0, QIcon( qpixmap_fill ) )
         self.dialog.panel_index.setItemIcon( 1, QIcon( path_square ) )
@@ -1464,8 +1458,10 @@ class Picker_Docker( DockWidget ):
         self.dialog.panel_index.setItemIcon( 5, QIcon( path_luma ) )
         self.dialog.panel_index.setItemIcon( 6, QIcon( path_dot ) )
         self.dialog.panel_index.setItemIcon( 7, QIcon( path_mask ) )
-        self.dialog.panel_index.setItemIcon( 8, QIcon( path_sample ) )
         self.dialog.panel_index.blockSignals( False )
+
+        # StyleSheets Layout
+        self.Theme_Changed()
     def Timer( self ):
         #region QTimer
 
@@ -1498,10 +1494,20 @@ class Picker_Docker( DockWidget ):
     def Settings( self ):
         #region Dictionaries
 
+        # Pigmento
         self.Dict_Copy( krange, self.Set_Read( "EVAL", "krange", krange ) )
         self.Dict_Copy( stops, self.Set_Read( "EVAL", "stops", stops ) )
         self.Dict_Copy( kac, self.Set_Read( "EVAL", "kac", kac ) )
         self.Dict_Copy( kbc, self.Set_Read( "EVAL", "kbc", kbc ) )
+
+        # Colors
+        self.zorn_yellow = self.Color_Convert( "HEX", "#edb525", 0, 0, 0, color_true.copy() )
+        self.zorn_red = self.Color_Convert( "HEX", "#b72e35", 0, 0, 0, color_true.copy() )
+        self.zorn_white = self.Color_Convert( "HEX", "#edf0ec", 0, 0, 0, color_true.copy() )
+        self.zorn_black = self.Color_Convert( "HEX", "#292421", 0, 0, 0, color_true.copy() )
+        # Pole
+        self.pole_mix = self.Color_Convert( "HEX", "#8b8a86", 0, 0, 0, color_true.copy() )
+        self.pole_cor_n = self.Color_Convert( "HEX", "#8b8a86", 0, 0, 0, color_true.copy() )
 
         #endregion
         #region Dictionaries Pin
@@ -1525,112 +1531,109 @@ class Picker_Docker( DockWidget ):
         self.harmony_span = self.Set_Read( "EVAL", "harmony_span", self.harmony_span )
 
         #endregion
-        #region Panel HUE
-
+        #region Panels
+        
+        # HUE
         self.huecircle_shape = self.Set_Read( "STR", "huecircle_shape", self.huecircle_shape )
 
-        #endregion
-        #region Panel Gamut
-
+        # Gamut
         self.gamut_mask = self.Set_Read( "STR", "gamut_mask", self.gamut_mask )
         self.gamut_profile = self.Set_Read( "EVAL", "gamut_profile", self.gamut_profile )
 
-        #endregion
-        #region Panel DOT
-
-        # Variables
+        # DOT Variables
         self.dot_interpolation = self.Set_Read( "STR", "dot_interpolation", self.dot_interpolation )
         self.dot_dimension = self.Set_Read( "EVAL", "dot_dimension", self.dot_dimension )
         self.dot_edit = self.Set_Read( "EVAL", "dot_edit", self.dot_edit )
-
-        # Colors
+        # DOT Colors
         self.dot_1 = self.Set_Read( "EVAL", "dot_1", self.Color_Convert( "HEX", "#edb525", 0, 0, 0, self.dot_1 ) )
         self.dot_2 = self.Set_Read( "EVAL", "dot_2", self.Color_Convert( "HEX", "#b72e35", 0, 0, 0, self.dot_2 ) )
         self.dot_3 = self.Set_Read( "EVAL", "dot_3", self.Color_Convert( "HEX", "#edf0ec", 0, 0, 0, self.dot_3 ) )
         self.dot_4 = self.Set_Read( "EVAL", "dot_4", self.Color_Convert( "HEX", "#292421", 0, 0, 0, self.dot_4 ) )
 
-        #endregion
-        #region Panel Mask
-
+        # Mask
         self.mask_set = self.Set_Read( "STR", "mask_set", self.mask_set )
         self.mask_edit = self.Set_Read( "EVAL", "mask_edit", self.mask_edit )
 
         #endregion
         #region Mixer
 
+        # Pole
+        self.Dict_Copy( self.pole_cor_a, self.zorn_white )
+        self.Dict_Copy( self.pole_cor_b, self.zorn_black )
+        self.pole_cor_a = self.Set_Read( "EVAL", "pole_cor_a", self.pole_cor_a )
+        self.pole_cor_b = self.Set_Read( "EVAL", "pole_cor_b", self.pole_cor_b )
+        # Mixer
         self.mixer_colors = self.Set_Read( "EVAL", "mixer_colors", self.mixer_colors )
 
         #endregion
         #region Dialog Option
 
         # Panels
-        self.dialog.panel_index.setCurrentText( self.Set_Read( "STR", "panel_index", "Square" ) )
-        self.dialog.wheel_mode.setCurrentText( self.Set_Read( "STR", "wheel_mode", "DIGITAL" ) )
-        self.dialog.wheel_space.setCurrentText( self.Set_Read( "STR", "wheel_space", "HSV" ) )
-        self.dialog.analyse_display.setChecked( self.Set_Read( "EVAL", "analyse_display", False ) )
+        self.dialog.panel_index.setCurrentText( self.Set_Read( "STR", "panel_index", self.panel_index ) )
+        self.dialog.wheel_mode.setCurrentText( self.Set_Read( "STR", "wheel_mode", self.wheel_mode ) )
+        self.dialog.wheel_space.setCurrentText( self.Set_Read( "STR", "wheel_space", self.wheel_space ) )
+        self.dialog.analyse_display.setChecked( self.Set_Read( "EVAL", "analyse_display", self.analyse_display ) )
         # Mixers
-        self.dialog.mixer_space.setCurrentText( self.Set_Read( "STR", "mixer_space", "HSV" ) )
+        self.dialog.mixer_space.setCurrentText( self.Set_Read( "STR", "mixer_space", self.mixer_space ) )
         self.dialog.mixer_count.setValue( self.Set_Read( "INT", "mixer_count", self.mixer_count ) )
 
         #endregion
         #region Dialog Color
 
         # Color Space
-        self.dialog.chan_aaa.setChecked( self.Set_Read( "EVAL", "chan_aaa", False ) )
-        self.dialog.chan_rgb.setChecked( self.Set_Read( "EVAL", "chan_rgb", False ) )
-        self.dialog.chan_cmy.setChecked( self.Set_Read( "EVAL", "chan_cmy", False ) )
-        self.dialog.chan_cmyk.setChecked( self.Set_Read( "EVAL", "chan_cmyk", False ) )
-        self.dialog.chan_ryb.setChecked( self.Set_Read( "EVAL", "chan_ryb", False ) )
-        self.dialog.chan_yuv.setChecked( self.Set_Read( "EVAL", "chan_yuv", False ) )
-        self.dialog.chan_hsv.setChecked( self.Set_Read( "EVAL", "chan_hsv", True ) )
-        self.dialog.chan_hsl.setChecked( self.Set_Read( "EVAL", "chan_hsl", False ) )
-        self.dialog.chan_hcy.setChecked( self.Set_Read( "EVAL", "chan_hcy", False ) )
-        self.dialog.chan_ard.setChecked( self.Set_Read( "EVAL", "chan_ard", False ) )
-        self.dialog.chan_xyz.setChecked( self.Set_Read( "EVAL", "chan_xyz", False ) )
-        self.dialog.chan_xyy.setChecked( self.Set_Read( "EVAL", "chan_xyy", False ) )
-        self.dialog.chan_lab.setChecked( self.Set_Read( "EVAL", "chan_lab", False ) )
-        self.dialog.chan_lch.setChecked( self.Set_Read( "EVAL", "chan_lch", False ) )
+        self.dialog.chan_aaa.setChecked( self.Set_Read( "EVAL", "chan_aaa", self.chan_aaa ) )
+        self.dialog.chan_rgb.setChecked( self.Set_Read( "EVAL", "chan_rgb", self.chan_rgb ) )
+        self.dialog.chan_cmy.setChecked( self.Set_Read( "EVAL", "chan_cmy", self.chan_cmy ) )
+        self.dialog.chan_cmyk.setChecked( self.Set_Read( "EVAL", "chan_cmyk", self.chan_cmyk ) )
+        self.dialog.chan_ryb.setChecked( self.Set_Read( "EVAL", "chan_ryb", self.chan_rgb ) )
+        self.dialog.chan_yuv.setChecked( self.Set_Read( "EVAL", "chan_yuv", self.chan_rgb ) )
+        self.dialog.chan_hsv.setChecked( self.Set_Read( "EVAL", "chan_hsv", self.chan_hsv ) )
+        self.dialog.chan_hsl.setChecked( self.Set_Read( "EVAL", "chan_hsl", self.chan_hsl ) )
+        self.dialog.chan_hcy.setChecked( self.Set_Read( "EVAL", "chan_hcy", self.chan_hcy ) )
+        self.dialog.chan_ard.setChecked( self.Set_Read( "EVAL", "chan_ard", self.chan_ard ) )
+        self.dialog.chan_xyz.setChecked( self.Set_Read( "EVAL", "chan_xyz", self.chan_xyz ) )
+        self.dialog.chan_xyy.setChecked( self.Set_Read( "EVAL", "chan_xyy", self.chan_xyy ) )
+        self.dialog.chan_lab.setChecked( self.Set_Read( "EVAL", "chan_lab", self.chan_lab ) )
+        self.dialog.chan_lch.setChecked( self.Set_Read( "EVAL", "chan_lch", self.chan_lch ) )
         # Non Color
-        self.dialog.chan_kkk.setChecked( self.Set_Read( "EVAL", "chan_kkk", False ) )
-        self.dialog.chan_hex.setChecked( self.Set_Read( "EVAL", "chan_hex", False ) )
-        self.dialog.hex_sum.setChecked( self.Set_Read( "EVAL", "hex_sum", False ) )
+        self.dialog.chan_kkk.setChecked( self.Set_Read( "EVAL", "chan_kkk", self.chan_kkk ) )
+        self.dialog.chan_hex.setChecked( self.Set_Read( "EVAL", "chan_hex", self.chan_hex ) )
+        self.dialog.chan_sum.setChecked( self.Set_Read( "EVAL", "chan_sum", self.chan_sum ) )
 
         # Format
-        self.dialog.disp_labels.setChecked( self.Set_Read( "EVAL", "disp_labels", False ) )
-        self.dialog.disp_values.setChecked( self.Set_Read( "EVAL", "disp_values", False ) )
-        self.dialog.hue_shine.setChecked( self.Set_Read( "EVAL", "hue_shine", False ) )
-        self.dialog.hex_copy_paste.setChecked( self.Set_Read( "EVAL", "hex_copy_paste", False ) )
+        self.dialog.disp_labels.setChecked( self.Set_Read( "EVAL", "disp_labels", self.disp_labels ) )
+        self.dialog.disp_values.setChecked( self.Set_Read( "EVAL", "disp_values", self.disp_values ) )
+        self.dialog.hue_shine.setChecked( self.Set_Read( "EVAL", "hue_shine", self.hue_shine ) )
 
         # Shortcuts
-        self.dialog.key_1_chan.setCurrentText( self.Set_Read( "STR", "key_1_chan", "[KEY 1]" ) )
-        self.dialog.key_2_chan.setCurrentText( self.Set_Read( "STR", "key_2_chan", "[KEY 2]" ) )
-        self.dialog.key_3_chan.setCurrentText( self.Set_Read( "STR", "key_3_chan", "[KEY 3]" ) )
-        self.dialog.key_4_chan.setCurrentText( self.Set_Read( "STR", "key_4_chan", "[KEY 4]" ) )
-        self.dialog.key_1_factor.setValue( self.Set_Read( "INT", "key_1_factor", 1 ) )
-        self.dialog.key_2_factor.setValue( self.Set_Read( "INT", "key_2_factor", 1 ) )
-        self.dialog.key_3_factor.setValue( self.Set_Read( "INT", "key_3_factor", 1 ) )
-        self.dialog.key_4_factor.setValue( self.Set_Read( "INT", "key_4_factor", 1 ) )
+        self.dialog.key_1_chan.setCurrentText( self.Set_Read( "STR", "key_1_chan", self.key_1_chan ) )
+        self.dialog.key_2_chan.setCurrentText( self.Set_Read( "STR", "key_2_chan", self.key_2_chan ) )
+        self.dialog.key_3_chan.setCurrentText( self.Set_Read( "STR", "key_3_chan", self.key_3_chan ) )
+        self.dialog.key_4_chan.setCurrentText( self.Set_Read( "STR", "key_4_chan", self.key_4_chan ) )
+        self.dialog.key_1_factor.setValue( self.Set_Read( "INT", "key_1_factor", self.key_1_factor ) )
+        self.dialog.key_2_factor.setValue( self.Set_Read( "INT", "key_2_factor", self.key_2_factor ) )
+        self.dialog.key_3_factor.setValue( self.Set_Read( "INT", "key_3_factor", self.key_3_factor ) )
+        self.dialog.key_4_factor.setValue( self.Set_Read( "INT", "key_4_factor", self.key_4_factor ) )
 
         #endregion
         #region Dialog System
 
         # Color Space
-        self.dialog.cs_luminosity.setCurrentText( self.Set_Read( "STR", "cs_luminosity", "ITU-R BT.709" ) )
-        self.dialog.cs_matrix.setCurrentText( self.Set_Read( "STR", "cs_matrix", "sRGB" ) )
-        self.dialog.cs_illuminant.setCurrentText( self.Set_Read( "STR", "cs_illuminant", "D65" ) )
+        self.dialog.cs_luminosity.setCurrentText( self.Set_Read( "STR", "cs_luminosity", self.cs_luminosity ) )
+        self.dialog.cs_matrix.setCurrentText( self.Set_Read( "STR", "cs_matrix", self.cs_matrix ) )
 
         # Performance
-        self.dialog.performance_release.setChecked( self.Set_Read( "EVAL", "performance_release", False ) )
-        self.dialog.performance_inaccurate.setChecked( self.Set_Read( "EVAL", "performance_inaccurate", False ) )
+        self.dialog.performance_release.setChecked( self.Set_Read( "EVAL", "performance_release", self.performance_release ) )
+        self.dialog.performance_inaccurate.setChecked( self.Set_Read( "EVAL", "performance_inaccurate", self.performance_inaccurate ) )
 
         #endregion
         #region Dialog Header
 
-        self.dialog.harmony.setChecked( self.Set_Read( "EVAL", "ui_harmony", False ) )
-        self.dialog.channel.setChecked( self.Set_Read( "EVAL", "ui_channel", True ) )
-        self.dialog.mixer.setChecked( self.Set_Read( "EVAL", "ui_mixer", False ) )
-        self.dialog.pin.setChecked( self.Set_Read( "EVAL", "ui_pin", False ) )
-        self.dialog.history.setChecked( self.Set_Read( "EVAL", "ui_history", False ) )
+        self.dialog.harmony.setChecked( self.Set_Read( "EVAL", "ui_harmony", self.ui_harmony ) )
+        self.dialog.channel.setChecked( self.Set_Read( "EVAL", "ui_channel", self.ui_channel ) )
+        self.dialog.mixer.setChecked( self.Set_Read( "EVAL", "ui_mixer", self.ui_mixer ) )
+        self.dialog.pin.setChecked( self.Set_Read( "EVAL", "ui_pin", self.ui_pin ) )
+        self.dialog.history.setChecked( self.Set_Read( "EVAL", "ui_history", self.ui_history ) )
 
         #endregion
     def Plugin_Load( self ):
@@ -1684,9 +1687,10 @@ class Picker_Docker( DockWidget ):
         self.Channel_LCH( self.dialog.chan_lch.isChecked() )
         # Channels Non Color
         self.Channel_KKK( self.dialog.chan_kkk.isChecked() )
-        self.Channel_Hex( self.dialog.chan_hex.isChecked() )
-        self.Hex_Sum( self.dialog.hex_sum.isChecked() )
+        self.Channel_HEX( self.dialog.chan_hex.isChecked() )
+        self.Channel_SUM( self.dialog.chan_sum.isChecked() )
         # Mixer
+        self.Pole_LOAD( self.pole_cor_a, self.pole_cor_b )
         self.Mixer_LOAD()
         # Pin
         self.Pin_LOAD()
@@ -1700,7 +1704,6 @@ class Picker_Docker( DockWidget ):
         self.Display_Labels( self.dialog.disp_labels.isChecked() )
         self.Display_Values( self.dialog.disp_values.isChecked() )
         self.Hue_Shine( self.dialog.hue_shine.isChecked() )
-        self.Hex_CopyPaste( self.dialog.hex_copy_paste.isChecked() )
         # UI Layout
         self.Menu_Harmony( self.dialog.harmony.isChecked() )
         self.Menu_Channel( self.dialog.channel.isChecked() )
@@ -1723,6 +1726,8 @@ class Picker_Docker( DockWidget ):
                     read = str( setting )
                 elif mode == "INT":
                     read = int( setting )
+                elif mode == "LIST":
+                    read = list( setting )
             except:
                 read = default
         Krita.instance().writeSetting( DOCKER_NAME, entry, str( read ) )
@@ -1774,6 +1779,8 @@ class Picker_Docker( DockWidget ):
                 fill["alphalock_before"] = None
         else:
             self.Fill_None()
+    def Menu_SampleScreen( self ):
+        Krita.instance().action( "sample_screen_color_real_canvas" ).trigger()
 
     # UI Toggle
     def Menu_Harmony( self, boolean ):
@@ -1905,22 +1912,14 @@ class Picker_Docker( DockWidget ):
     # Panels
     def Panel_Index( self, index ):
         # UI
-        if index == "Display : Fill":
-            self.layout.panel_set.setCurrentIndex( 0 )
-        if index == "Selector : Square":
-            self.layout.panel_set.setCurrentIndex( 1 )
-        if index == "Selector : Hue":
-            self.layout.panel_set.setCurrentIndex( 2 )
-        if index == "Selector : Gamut":
-            self.layout.panel_set.setCurrentIndex( 3 )
-        if index == "Selector : Hexagon":
-            self.layout.panel_set.setCurrentIndex( 4 )
-        if index == "Selector : Luma":
-            self.layout.panel_set.setCurrentIndex( 5 )
-        if index == "Mixer : Dot":
-            self.layout.panel_set.setCurrentIndex( 6 )
-        if index == "Mixer : Mask":
-            self.layout.panel_set.setCurrentIndex( 7 )
+        if index == panel_fill:     self.layout.panel_set.setCurrentIndex( 0 )
+        if index == panel_square:   self.layout.panel_set.setCurrentIndex( 1 )
+        if index == panel_hue:      self.layout.panel_set.setCurrentIndex( 2 )
+        if index == panel_gamut:    self.layout.panel_set.setCurrentIndex( 3 )
+        if index == panel_hexagon:  self.layout.panel_set.setCurrentIndex( 4 )
+        if index == panel_luma:     self.layout.panel_set.setCurrentIndex( 5 )
+        if index == panel_dot:      self.layout.panel_set.setCurrentIndex( 6 )
+        if index == panel_mask:     self.layout.panel_set.setCurrentIndex( 7 )
         # Update
         if self.panel_index != index:
             self.panel_index = index
@@ -2029,15 +2028,15 @@ class Picker_Docker( DockWidget ):
         if ( canvas is not None ) and ( view is not None ):
             # Variables
             ad = Krita.instance().activeDocument()
-            d_cd = ad.colorDepth()
-            if d_cd == "U8":
+            n_cd = ad.activeNode().colorDepth()
+            if n_cd == "U8":
                 k = 255
-            elif d_cd == "U16":
+            elif n_cd == "U16":
                 k = 65535
-            elif d_cd == "F16":
+            elif n_cd == "F16":
                 # k = 65535
                 k = 15360
-            elif d_cd == "F32":
+            elif n_cd == "F32":
                 # k = 4294836225
                 k = 1065353216
 
@@ -2061,7 +2060,7 @@ class Picker_Docker( DockWidget ):
             if ss != None:
                 # Selection
                 pds = ss.pixelData( dx, dy, dw, dh )
-                num_array = self.analyse.Bytes_to_Integer( pds, d_cd )
+                num_array = self.analyse.Bytes_to_Integer( pds, n_cd )
 
                 # Clip
                 counter = 0
@@ -2084,29 +2083,20 @@ class Picker_Docker( DockWidget ):
     # Mixer
     def Mixer_Space( self, mixer_space ):
         self.mixer_space = mixer_space
-        self.Mixers_Set_Style()
-        # Save
+        self.Mixer_Set_Style()
         Krita.instance().writeSetting( DOCKER_NAME, "mixer_space", str( self.mixer_space ) )
     def Mixer_Count( self, count ):
-        # Widget
         self.dialog.mixer_count.setEnabled( False )
-        # Construct Widgets
         self.Count_Construct( self.mixer_count, count )
-        # Variables
         self.mixer_count = count
-        # Update
         self.Update_Size()
-        # Save
-        Krita.instance().writeSetting( DOCKER_NAME, "mixer_count", str( self.mixer_count ) )
-        # Widget
         self.dialog.mixer_count.setEnabled( True )
+        Krita.instance().writeSetting( DOCKER_NAME, "mixer_count", str( self.mixer_count ) )
     def Count_Construct( self, old, new ):
         # Widgets
         check = int( new - old )
-        if check > 0: # Create
-            self.Count_Plus( old, new )
-        elif check < 0: # Delete
-            self.Count_Subtract( old, new )
+        if check > 0:   self.Count_Plus( old, new ) # Create
+        elif check < 0: self.Count_Subtract( old, new ) # Delete
         # Variables
         self.mixer_colors = self.mixer_colors[0:new]
         self.mixer_module = self.mixer_module[0:new]
@@ -2122,9 +2112,9 @@ class Picker_Docker( DockWidget ):
             middle = self.Geo_Slider( middle, i )
             right = self.Geo_Square( right, i )
             # Layout
-            self.layout.mixer_set_layout.addWidget( left, i, 0 )
-            self.layout.mixer_set_layout.addWidget( middle, i, 1 )
-            self.layout.mixer_set_layout.addWidget( right, i, 2 )
+            self.layout.mixer_set_layout.addWidget( left, i+1, 0 )
+            self.layout.mixer_set_layout.addWidget( middle, i+1, 1 )
+            self.layout.mixer_set_layout.addWidget( right, i+1, 2 )
 
             # Variables
             self.mixer_widget.append( { "l" : left, "m" : middle, "r" : right } )
@@ -2174,7 +2164,7 @@ class Picker_Docker( DockWidget ):
         return square
     def Geo_Slider( self, slider, r ):
         # Geometry
-        width = self.layout.mixer_m_000.width()
+        width = self.layout.pole_slider.width()
         slider.setGeometry( 0, 0, width, 20)
         # Dimensions
         slider.setMinimumHeight( 15 )
@@ -2534,17 +2524,30 @@ class Picker_Docker( DockWidget ):
         self.Pigmento_RELEASE()
         # Save
         Krita.instance().writeSetting( DOCKER_NAME, "chan_kkk", str( self.chan_kkk ) )
-    def Channel_Hex( self, boolean ):
+    def Channel_HEX( self, boolean ):
         # Variables
         self.chan_hex = boolean
-        if boolean == True:
-            self.layout.hex_string.setMaximumWidth( 180 )
-        else:
-            self.layout.hex_string.setMaximumWidth( zero )
-
+        self.Channel_HEX_SUM( self.chan_hex, self.chan_sum )
         self.Pigmento_RELEASE()
         # Save
         Krita.instance().writeSetting( DOCKER_NAME, "chan_hex", str( self.chan_hex ) )
+    def Channel_SUM( self, boolean ):
+        # Variables
+        self.chan_sum = boolean
+        self.Channel_HEX_SUM( self.chan_hex, self.chan_sum )
+        self.Pigmento_RELEASE()
+        # Save
+        Krita.instance().writeSetting( DOCKER_NAME, "chan_sum", str( self.chan_sum ) )
+    def Channel_HEX_SUM( self, chan_hex, chan_sum ):
+        if chan_hex == True and chan_sum == True:
+            self.layout.hex_string.setMaximumWidth( 90 )
+            self.layout.sum_string.setMaximumWidth( 90 )
+        elif chan_hex == True or chan_sum == True:
+            self.layout.hex_string.setMaximumWidth( 180 * chan_hex )
+            self.layout.sum_string.setMaximumWidth( 180 * chan_sum )
+        else:
+            self.layout.hex_string.setMaximumWidth( 0 )
+            self.layout.sum_string.setMaximumWidth( 0 )
 
     # Space Range Load
     def Range_Load( self, dict ):
@@ -2859,13 +2862,6 @@ class Picker_Docker( DockWidget ):
 
         self.dialog.range_lch.clearFocus()
 
-    # Non Color
-    def Hex_Sum( self, boolean ):
-        self.hex_sum = boolean
-        self.Update_Values()
-        # Save
-        Krita.instance().writeSetting( DOCKER_NAME, "hex_sum", str( self.hex_sum ) )
-
     # Locks
     def Lock_CMYK_4( self, boolean ):
         # UI
@@ -2882,22 +2878,6 @@ class Picker_Docker( DockWidget ):
         self.update()
         # Save
         Krita.instance().writeSetting( DOCKER_NAME, "lock_cmyk_4", str( self.lock_cmyk_4 ) )
-    def Lock_KKK_1( self, boolean ):
-        # Variables
-        self.lock_kkk_1 = boolean
-        # State
-        if boolean == True:
-            self.layout.kkk_1_label.setText( "" ) # LOCKED
-            self.layout.kkk_1_label.setIcon( self.qicon_lock_layout )
-            self.dialog.chan_kkk.setIcon( self.qicon_lock_dialog )
-            self.Pigmento_APPLY( "KKK", 0, 0, 0, 0, self.cor ) # Update to Kelvin influence
-        else:
-            self.layout.kkk_1_label.setText( "K" ) # Unlocked
-            self.layout.kkk_1_label.setIcon( self.qicon_none )
-            self.dialog.chan_kkk.setIcon( self.qicon_none )
-            self.Pigmento_APPLY( "RGB", self.cor["rgb_1"], self.cor["rgb_2"], self.cor["rgb_3"], 0, self.cor ) # Recover previous RGB
-        # Save
-        Krita.instance().writeSetting( DOCKER_NAME, "lock_kkk_1", str( self.lock_kkk_1 ) )
 
     # Format
     def Display_Labels( self, boolean ):
@@ -2968,11 +2948,8 @@ class Picker_Docker( DockWidget ):
         Krita.instance().writeSetting( DOCKER_NAME, "disp_values", str( self.disp_values ) )
     def Hue_Shine( self, boolean ):
         self.hue_shine = boolean
-        self.Channels_Set_Style()
+        self.Channel_Set_Style()
         Krita.instance().writeSetting( DOCKER_NAME, "hue_shine", str( self.hue_shine ) )
-    def Hex_CopyPaste( self, boolean ):
-        self.hex_copy_paste = boolean
-        Krita.instance().writeSetting( DOCKER_NAME, "hex_copy_paste", str( self.hex_copy_paste ) )
 
     # Shortcuts Channel
     def Key_1_Channel( self ):
@@ -3020,15 +2997,14 @@ class Picker_Docker( DockWidget ):
         self.update()
         # Save
         Krita.instance().writeSetting( DOCKER_NAME, "cs_luminosity", str( cs_luminosity ) )
-    def CS_Matrix( self, cs_matrix, cs_illuminant ):
+    def CS_Matrix( self, cs_matrix ):
         # Variables
-        self.convert.Set_Matrix( cs_matrix, cs_illuminant )
+        self.convert.Set_Matrix( cs_matrix )
         # Update
         self.Panel_Convert_Update()
         self.update()
         # Save
         Krita.instance().writeSetting( DOCKER_NAME, "cs_matrix", str( cs_matrix ) )
-        Krita.instance().writeSetting( DOCKER_NAME, "cs_illuminant", str( cs_illuminant ) )
     def Panel_Convert_Update( self ):
         self.panel_square.Init_Convert( self.convert )
         self.panel_huecircle.Init_Convert( self.convert )
@@ -3068,43 +3044,43 @@ class Picker_Docker( DockWidget ):
     # Event Filter
     def Menu_Context_History( self, event ):
         # Menu
-        cmenu = QMenu( self )
-        cmenu_clear = cmenu.addAction( "CLEAR" )
+        qmenu = QMenu( self )
+        qmenu_clear = qmenu.addAction( "CLEAR" )
         # Execute
         widget = self.layout.history_set.mapToGlobal( self.layout.history_list.geometry().topLeft() )
         mouse = event.pos()
         qpoint = QPoint( widget.x()+mouse.x(), widget.y()+mouse.y() )
-        action = cmenu.exec_( qpoint )
+        action = qmenu.exec_( qpoint )
         # Triggers
-        if action == cmenu_clear:
+        if action == qmenu_clear:
             self.History_CLEAR()
     def Menu_Mode_Press( self, event ):
         # Menu
-        cmenu = QMenu( self )
+        qmenu = QMenu( self )
         # Actions
-        cmenu_on = cmenu.addAction( "ON" )
-        cmenu_write = cmenu.addAction( "WRITE" )
-        cmenu_read = cmenu.addAction( "READ" )
-        cmenu_off = cmenu.addAction( "OFF" )
+        qmenu_on = qmenu.addAction( "ON" )
+        qmenu_write = qmenu.addAction( "WRITE" )
+        qmenu_read = qmenu.addAction( "READ" )
+        qmenu_off = qmenu.addAction( "OFF" )
         # Icons
-        cmenu_on.setIcon( self.qicon_on )
-        cmenu_write.setIcon( self.qicon_write )
-        cmenu_read.setIcon( self.qicon_read )
-        cmenu_off.setIcon( self.qicon_off )
+        qmenu_on.setIcon( self.qicon_on )
+        qmenu_write.setIcon( self.qicon_write )
+        qmenu_read.setIcon( self.qicon_read )
+        qmenu_off.setIcon( self.qicon_off )
 
         # Execute
         geo = self.layout.mode.geometry()
         qpoint = geo.bottomLeft()
         position = self.layout.footer_widget.mapToGlobal( qpoint )
-        action = cmenu.exec_( position )
+        action = qmenu.exec_( position )
         # Triggers
-        if action == cmenu_on:
+        if action == qmenu_on:
             self.Mode_Index( 0 )
-        elif action == cmenu_write:
+        elif action == qmenu_write:
             self.Mode_Index( 1 )
-        elif action == cmenu_read:
+        elif action == qmenu_read:
             self.Mode_Index( 2 )
-        elif action == cmenu_off:
+        elif action == qmenu_off:
             self.Mode_Index( 3 )
     def Menu_Mode_Wheel( self, event ):
         delta = event.angleDelta()
@@ -3238,6 +3214,10 @@ class Picker_Docker( DockWidget ):
         #endregion
         #region Mixer
 
+        # POLE
+        self.pole_slider.Set_Size( self.layout.pole_slider.width(), self.layout.pole_slider.height() )
+        self.pole_pin_a.Set_Size( self.layout.pole_pin_a.width(), self.layout.pole_pin_a.height() )
+        self.pole_pin_b.Set_Size( self.layout.pole_pin_b.width(), self.layout.pole_pin_b.height() )
         # Mixer 000
         for i in range( 0, len( self.mixer_module) ):
             self.mixer_module[i]["l"].Set_Size( self.mixer_widget[i]["l"].width(), self.mixer_widget[i]["l"].height() )
@@ -3264,15 +3244,15 @@ class Picker_Docker( DockWidget ):
 
     # Communication
     def Message_Log( self, operation, message ):
-        string = f"Pigment.O Picker | { operation } { message }"
+        string = f"{ DOCKER_NAME } | { operation } { message }"
         try:QtCore.qDebug( string )
         except:pass
     def Message_Warnning( self, operation, message ):
-        string = f"Pigment.O Picker | { operation.upper() } { message }"
+        string = f"{ DOCKER_NAME } | { operation.upper() } { message }"
         QMessageBox.information( QWidget(), i18n( "Warnning" ), i18n( string ) )
     def Message_Float( self, operation, message, icon ):
         ki = Krita.instance()
-        string = f"Pigment.O Picker | { operation.upper() } { message }"
+        string = f"{ DOCKER_NAME } | { operation.upper() } { message }"
         ki.activeWindow().activeView().showFloatingMessage( string, ki.icon( icon ), 5000, 0 )
 
     # Document
@@ -3286,99 +3266,78 @@ class Picker_Docker( DockWidget ):
             ad = ki.activeDocument()
             aw = ki.activeWindow()
             av = aw.activeView()
-
             # Canvas
             vc = av.canvas()
-            # Active Document
-            d_nt = ad.activeNode().type()
-            d_nn = ad.activeNode().name()
-            d_uid = ad.activeNode().uniqueId()
-
             # Document Color
             d_cm = ad.colorModel()
             d_cd = ad.colorDepth()
             d_cp = ad.colorProfile()
             # Vector Layers
             vi = self.Vector_Index( ad )
-
+            # Node
+            an = ad.activeNode()
+            n_cm = an.colorModel()
+            n_cd = an.colorDepth()
+            n_cp = an.colorProfile()
+            n_uid = an.uniqueId()
             # Colors
             fgc = av.foregroundColor()
             bgc = av.backgroundColor()
-            # View Color Settings
-            fgc_cm = fgc.colorModel()
-            fgc_cd = fgc.colorDepth()
-            fgc_cp = fgc.colorProfile()
-            bgc_cm = bgc.colorModel()
-            bgc_cd = bgc.colorDepth()
-            bgc_cp = bgc.colorProfile()
-
+            # Biggest value for Bit Depth
+            depth = self.Node_Depth( n_cd )
             # Color Model
-            if ( d_cm == "A" or d_cm == "GRAYA" ):
-                d_cm = "A"
-            elif ( d_cm == "RGBA" or d_cm == None ):
-                d_cm = "RGB"
-            elif d_cm == "CMYKA":
-                d_cm = "CMYK"
-            elif d_cm == "YCbCr":
-                d_cm = "YUV"
-            elif d_cm == "XYZA":
-                d_cm = "XYZ"
-            elif d_cm == "LABA":
-                d_cm = "LAB"
-
-            # Biggest value for Bit Depth Document
-            if d_cd == "U16":
-                depth = 65535
-            elif ( d_cd == "F16" or d_cd == "F32" ):
-                depth = 1
-            else:
-                depth = 255
+            cmodel = self.Node_Color_Model( n_cm )
 
             # Create List
             document = {
-                "ad" : ad,
-                "vc" : vc,
-                "d_nt" : d_nt,
-                "d_nn" : d_nn,
-                "d_uid" : d_uid,
-                "d_cm" : d_cm,
-                "d_cd" : d_cd,
-                "d_cp" : d_cp,
-                "vi" : vi,
-                "fgc" : fgc,
-                "bgc" : bgc,
-                "fgc_cm" : fgc_cm,
-                "fgc_cd" : fgc_cd,
-                "fgc_cp" : fgc_cp,
-                "bgc_cm" : bgc_cm,
-                "bgc_cd" : bgc_cd,
-                "bgc_cp" : bgc_cp,
-                "depth" : depth,
+                "ad"        : ad,
+                "vc"        : vc,
+                "vi"        : vi,
+                "n_cm"      : n_cm,
+                "n_cd"      : n_cd,
+                "n_cp"      : n_cp,
+                "n_uid"     : n_uid,
+                "fgc"       : fgc,
+                "bgc"       : bgc,
+                "depth"     : depth,
+                "cmodel"    : cmodel,
                 }
         except:
             document = self.Document_None()
         return document
     def Document_None( self ):
         document = {
-            "ad" : None,
-            "vc" : None,
-            "d_nt" : None,
-            "d_nn" : None,
-            "d_cm" : None,
-            "d_cd" : None,
-            "d_cp" : None,
-            "vi" : None,
-            "fgc" : None,
-            "bgc" : None,
-            "fgc_cm" : None,
-            "fgc_cd" : None,
-            "fgc_cp" : None,
-            "bgc_cm" : None,
-            "bgc_cd" : None,
-            "bgc_cp" : None,
-            "depth" : 255,
+            "ad"        : None,
+            "vc"        : None,
+            "vi"        : None,
+            "n_cm"      : None,
+            "n_cd"      : None,
+            "n_cp"      : None,
+            "n_uid"     : None,
+            "fgc"       : None,
+            "bgc"       : None,
+            "b_cm"      : None,
+            "b_cd"      : None,
+            "b_cp"      : None,
+            "depth"     : 255,
+            "cmodel"    : None,
             }
         return document
+    def Node_Color_Model( self, mode ):
+        color_model = None
+        if mode in [ "A", "GRAYA" ]:    color_model = "A"
+        elif mode in [ "RGBA", None ]:  color_model = "RGB"
+        elif mode == "CMYKA":           color_model = "CMYK"
+        elif mode == "YCbCr":           color_model = "YUV"
+        elif mode == "XYZA":            color_model = "XYZ"
+        elif mode == "LABA":            color_model = "LAB"
+        return color_model
+    def Node_Depth( self, depth ):
+        color_depth = None
+        if depth == "U8":               color_depth = 255
+        elif depth == "U16":            color_depth = 65535
+        elif depth in [ "F16", "F32" ]: color_depth = 1
+        return color_depth
     def Vector_Index( self, ad ):
         node = ad.activeNode()
         if node.type() == "vectorlayer":
@@ -3392,17 +3351,6 @@ class Picker_Docker( DockWidget ):
         else:
             index = None
         return index
-    def Panel_inSpace( self, d_cm ):
-        # Document
-        if d_cm != "CMYK":
-            d_cm = "RGB"
-
-        # Panels
-        self.panel_square.Set_ColorModel( d_cm )
-        self.panel_huesubpanel.Set_ColorModel( d_cm )
-        self.panel_gamut.Set_ColorModel( d_cm )
-        self.panel_hexagon.Set_ColorModel( d_cm )
-        self.panel_luma.Set_ColorModel( d_cm )
 
     # Leave Event
     def Clear_Focus( self ):
@@ -3539,11 +3487,8 @@ class Picker_Docker( DockWidget ):
     # Dictionanries
     def Dict_Copy( self, active, load ):
         keys = list( active.keys() )
-        for i in range( 0, len( active ) ):
-            try:
-                active[keys[i]] = load[keys[i]]
-            except:
-                pass
+        for k in keys:
+            active[k] = load[k]
 
     # Hue
     def Hue_Index( self, mode ):
@@ -3616,9 +3561,19 @@ class Picker_Docker( DockWidget ):
         # KKK
         self.kkk_1_slider.Set_Stops( dictionary["kkk_1"] )
 
+        # POLE
+        self.pole_slider.Set_Stops( dictionary["pole_1"] )
         # Mixers
         for i in range( 0, len( self.mixer_widget ) ):
             self.mixer_module[i]["m"].Set_Stops( dictionary["mixer"] )
+
+    # Troubleshooting
+    def Inspect():
+        functions = list()
+        ins = inspect.stack()
+        for item in ins:
+            functions.append( item[3] )
+        QtCore.qDebug( f"Inspect = { functions }" )
 
     #endregion
     #region API
@@ -3699,13 +3654,14 @@ class Picker_Docker( DockWidget ):
 
         # Document Modifier
         doc = self.Current_Document()
-        d_cm = doc["d_cm"]
-        d_cd = doc["d_cd"]
-        d_cp = doc["d_cp"]
+        cmodel = doc["cmodel"]
+        n_cm = doc["n_cm"]
+        n_cd = doc["n_cd"]
+        n_cp = doc["n_cp"]
         vc = doc["vc"]
 
         # Temporary Folder
-        zipname = f"{ d_cm }_{ mode }_{ geo }"
+        zipname = f"{ cmodel }_{ mode }_{ geo }"
         temporary = os.path.join( render, zipname )
         os.mkdir( temporary, 0o666 )
 
@@ -3782,20 +3738,20 @@ class Picker_Docker( DockWidget ):
                     if mode == "ARD":
                         rgb = self.convert.ard_to_rgb( hue, sat, hsx )
 
-                    # Document Modifier
-                    if d_cm == None:
+                    # Node Modifier
+                    if cmodel == None:
                         color = rgb
-                    if d_cm == "A":
+                    if cmodel == "A":
                         aaa = self.convert.rgb_to_aaa( rgb[0], rgb[1], rgb[2] )
-                        color = self.Color_Display( d_cm, d_cd, d_cp, vc, aaa )
-                    if d_cm == "RGB":
-                        color = self.Color_Display( d_cm, d_cd, d_cp, vc, rgb )
-                    if d_cm == "CMYK":
+                        color = self.Color_Display( cmodel, n_cm, n_cd, n_cp, vc, aaa )
+                    if cmodel == "RGB":
+                        color = self.Color_Display( cmodel, n_cm, n_cd, n_cp, vc, rgb )
+                    if cmodel == "CMYK":
                         cmyk = self.convert.rgb_to_cmyk( rgb[0], rgb[1], rgb[2], None )
-                        color = self.Color_Display( d_cm, d_cd, d_cp, vc, cmyk )
-                    if d_cm == "YUV":
+                        color = self.Color_Display( cmodel, n_cm, n_cd, n_cp, vc, cmyk )
+                    if cmodel == "YUV":
                         yuv = self.convert.rgb_to_yuv( rgb[0], rgb[1], rgb[2] )
-                        color = self.Color_Display( d_cm, d_cd, d_cp, vc, yuv )
+                        color = self.Color_Display( cmodel, n_cm, n_cd, n_cp, vc, yuv )
 
                     # Write Pixels
                     qimage.setPixelColor( x, y, QColor( int( color[0] * 255 ), int( color[1] * 255 ), int( color[2] * 255 ) ) )
@@ -3862,11 +3818,11 @@ class Picker_Docker( DockWidget ):
         """
         from krita import *
 
-        d_cm = Krita.instance().activeDocument().colorModel()
-        d_cd = Krita.instance().activeDocument().colorDepth()
-        d_cp = Krita.instance().activeDocument().colorProfile()
+        n_cm = Krita.instance().activeDocument().colorModel()
+        n_cd = Krita.instance().activeDocument().colorDepth()
+        n_cp = Krita.instance().activeDocument().colorProfile()
 
-        managed_color = ManagedColor( d_cm, d_cd, d_cp )
+        managed_color = ManagedColor( n_cm, n_cd, n_cp )
         comp = managed_color.components()
         red   = 0.4
         green = 0.5
@@ -3880,65 +3836,62 @@ class Picker_Docker( DockWidget ):
     #endregion
     #region Pigmento & Krita
 
+    # Krita
     def Krita_to_Pigmento( self ):
-        # Current Document
+        # Variables
         doc = self.Current_Document()
-        if self.doc["d_cm"] != doc["d_cm"]:
-            self.Panel_inSpace( doc["d_cm"] )
-        d_cm = doc["d_cm"]
-        d_cd = doc["d_cd"]
-        d_cp = doc["d_cp"]
-        d = doc["depth"]
-
+        cmodel = doc["cmodel"]
+        n_cd = doc["n_cd"]
+        n_cp = doc["n_cp"]
+        # Current Document
+        if self.doc["cmodel"] != cmodel:
+            self.Panel_inSpace( cmodel )
         # Canvas
-        if ( ( self.canvas() is not None ) and ( self.canvas().view() is not None ) ):
+        if ( self.canvas() is not None ) and ( self.canvas().view() is not None ):
             # Read Color
-            try:
-                check = self.mode_index == 0 and ( self.widget_press == False or self.doc != doc )
-                if check == True:
-                    self.Read_Color( doc, d_cm, d_cd, d_cp, d )
-                elif self.mode_index == 2:
-                    self.Read_Only()
-            except:
-                pass
-
+            check = self.mode_index == 0 and ( self.widget_press == False or self.doc != doc )
+            # check = self.mode_index == 0 and self.widget_press == False
+            if check == True:
+                self.Read_Color()
+            elif self.mode_index == 2:
+                self.Read_Only()
             # Fill Check ( case active node changes )
             if self.Fill_Check( doc ) == False:
                 self.Fill_None()
         else:
             self.Fill_None()
-
         # Variables for next Cycle
         if self.doc != doc:
             self.doc = doc
-            self.convert.Set_Document( d_cm, d_cd, d_cp )
+            self.convert.Set_Document( cmodel, n_cd, n_cp )
     def Pigmento_to_Krita( self, release ):
-        if ( ( self.canvas() is not None ) and ( self.canvas().view() is not None ) ):
-            if ( self.mode_index in ( 0 , 1 ) and release == True ):
+        if ( self.canvas() is not None ) and ( self.canvas().view() is not None ) :
+            if self.mode_index in ( 0 , 1 ) and release == True:
                 # Check Eraser Mode ON or OFF
                 eraser = Krita.instance().action( "erase_action" )
                 # Current Document
                 doc = self.Current_Document()
-                d_cm = doc["d_cm"]
-                d_cd = doc["d_cd"]
-                d_cp = doc["d_cp"]
+                n_cm = doc["n_cm"]
+                n_cd = doc["n_cd"]
+                n_cp = doc["n_cp"]
                 vc = doc["vc"]
+                cmodel = doc["cmodel"]
 
                 # Managed Color
                 if self.ui_harmony == True:
                     if self.harmony_index == 1:
-                        self.Color_Managed( d_cm, d_cd, d_cp, vc, "FG", har_01 )
+                        self.Color_Managed( cmodel, n_cm, n_cd, n_cp, vc, "FG", har_01 )
                     if self.harmony_index == 2:
-                        self.Color_Managed( d_cm, d_cd, d_cp, vc, "FG", har_02 )
+                        self.Color_Managed( cmodel, n_cm, n_cd, n_cp, vc, "FG", har_02 )
                     if self.harmony_index == 3:
-                        self.Color_Managed( d_cm, d_cd, d_cp, vc, "FG", har_03 )
+                        self.Color_Managed( cmodel, n_cm, n_cd, n_cp, vc, "FG", har_03 )
                     if self.harmony_index == 4:
-                        self.Color_Managed( d_cm, d_cd, d_cp, vc, "FG", har_04 )
+                        self.Color_Managed( cmodel, n_cm, n_cd, n_cp, vc, "FG", har_04 )
                     if self.harmony_index == 5:
-                        self.Color_Managed( d_cm, d_cd, d_cp, vc, "FG", har_05 )
+                        self.Color_Managed( cmodel, n_cm, n_cd, n_cp, vc, "FG", har_05 )
                 else:
-                    self.Color_Managed( d_cm, d_cd, d_cp, vc, "FG", kac )
-                    self.Color_Managed( d_cm, d_cd, d_cp, vc, "BG", kbc )
+                    self.Color_Managed( cmodel, n_cm, n_cd, n_cp, vc, "FG", kac )
+                    self.Color_Managed( cmodel, n_cm, n_cd, n_cp, vc, "BG", kbc )
 
                 # Save
                 Krita.instance().writeSetting( DOCKER_NAME, "kac", str( kac ) )
@@ -3955,297 +3908,7 @@ class Picker_Docker( DockWidget ):
                     self.Fill_None()
     def Pigmento_Update( self ):
         if ( ( self.canvas() is not None ) and ( self.canvas().view() is not None ) ):
-            doc = self.Current_Document()
-            d_cm = doc["d_cm"]
-            d_cd = doc["d_cd"]
-            d_cp = doc["d_cp"]
-            d = doc["depth"]
-            self.Read_Color( doc, d_cm, d_cd, d_cp, d )
-
-    def Read_Color( self, doc, d_cm, d_cd, d_cp, d ):
-        # Variables
-        ki = Krita.instance()
-        a = kac
-        b = kbc
-
-        # Check Eraser Mode ON or OFF
-        eraser = ki.action( "erase_action" )
-        # Current Krita Active Colors
-        color_fg = ki.activeWindow().activeView().foregroundColor()
-        color_bg = ki.activeWindow().activeView().backgroundColor()
-        order_fg = color_fg.componentsOrdered()
-        order_bg = color_bg.componentsOrdered()
-
-        # Variables
-        len_fg = len( order_fg )
-        len_bg = len( order_bg )
-
-        # Depth
-        self.depth_previous = self.cor["uvd_3"]
-
-        # Harmony
-        if self.ui_harmony == True:
-            if self.harmony_index == 1:
-                a = har_01
-            if self.harmony_index == 2:
-                a = har_02
-            if self.harmony_index == 3:
-                a = har_03
-            if self.harmony_index == 4:
-                a = har_04
-            if self.harmony_index == 5:
-                a = har_05
-
-        # Read if Colors Differs
-        if doc["vi"] == None: # Pixel Read
-            if ( d_cm == "A" or len_fg == 2 ):
-                # Foreground and Background Colors ( Krita is in AAA )
-                kac_1 = order_fg[0]
-                kbc_1 = order_bg[0]
-
-                # Range
-                if ( d_cd == "U8" or d_cd == "U16" ):
-                    c_fg_1 = ( kac_1 < ( ( int( a["aaa_d1"] * d ) ) / d ) ) or ( kac_1 >= ( ( int( a["aaa_d1"] * d ) + 1 ) / d ) )
-                    c_bg_1 = ( kbc_1 < ( ( int( b["aaa_d1"] * d ) ) / d ) ) or ( kbc_1 >= ( ( int( b["aaa_d1"] * d ) + 1 ) / d ) )
-                if ( d_cd == "F16" or d_cd == "F32" ):
-                    c_fg_1 = kac_1 != a["aaa_d1"]
-                    c_bg_1 = kbc_1 != b["aaa_d1"]
-
-                # Operation
-                if c_fg_1 == True:
-                    if not eraser.isChecked():
-                        self.Pigmento_READ( "A", kac_1, 0, 0, 0, a )
-                if c_bg_1 == True:
-                    if not eraser.isChecked():
-                        self.Pigmento_READ( "A", kbc_1, 0, 0, 0, b )
-            elif ( d_cm == "RGB" or d_cm == None ):
-                # Foreground and Background Colors ( Krita is in RGB )
-                kac_1 = order_fg[0] # Red
-                kac_2 = order_fg[1] # Green
-                kac_3 = order_fg[2] # Blue
-                kbc_1 = order_bg[0]
-                kbc_2 = order_bg[1]
-                kbc_3 = order_bg[2]
-
-                # Range
-                if ( d_cd == "U8" or d_cd == "U16" ):
-                    c_fg_1 = ( kac_1 < ( ( int( a["rgb_d1"] * d ) ) / d ) ) or ( kac_1 >= ( ( int( a["rgb_d1"] * d ) + 1 ) / d ) )
-                    c_fg_2 = ( kac_2 < ( ( int( a["rgb_d2"] * d ) ) / d ) ) or ( kac_2 >= ( ( int( a["rgb_d2"] * d ) + 1 ) / d ) )
-                    c_fg_3 = ( kac_3 < ( ( int( a["rgb_d3"] * d ) ) / d ) ) or ( kac_3 >= ( ( int( a["rgb_d3"] * d ) + 1 ) / d ) )
-                    c_bg_1 = ( kbc_1 < ( ( int( b["rgb_d1"] * d ) ) / d ) ) or ( kbc_1 >= ( ( int( b["rgb_d1"] * d ) + 1 ) / d ) )
-                    c_bg_2 = ( kbc_2 < ( ( int( b["rgb_d2"] * d ) ) / d ) ) or ( kbc_2 >= ( ( int( b["rgb_d2"] * d ) + 1 ) / d ) )
-                    c_bg_3 = ( kbc_3 < ( ( int( b["rgb_d3"] * d ) ) / d ) ) or ( kbc_3 >= ( ( int( b["rgb_d3"] * d ) + 1 ) / d ) )
-                if ( d_cd == "F16" or d_cd == "F32" ):
-                    c_fg_1 = kac_1 != a["rgb_d1"]
-                    c_fg_2 = kac_2 != a["rgb_d2"]
-                    c_fg_3 = kac_3 != a["rgb_d3"]
-                    c_bg_1 = kbc_1 != b["rgb_d1"]
-                    c_bg_2 = kbc_2 != b["rgb_d2"]
-                    c_bg_3 = kbc_3 != b["rgb_d3"]
-
-                # Operation
-                if ( c_fg_1 == True or c_fg_2 == True or c_fg_3 == True ):
-                    if not eraser.isChecked():
-                        self.Pigmento_READ( "RGB", kac_1, kac_2, kac_3, 0, a )
-                if ( c_bg_1 == True or c_bg_2 == True or c_bg_3 == True ):
-                    if not eraser.isChecked():
-                        self.Pigmento_READ( "RGB", kbc_1, kbc_2, kbc_3, 0, b )
-            elif d_cm == "CMYK":
-                # Foreground and Background Colors ( Krita is in CMYK )
-                kac_1 = order_fg[0]
-                kac_2 = order_fg[1]
-                kac_3 = order_fg[2]
-                kac_4 = order_fg[3]
-                kbc_1 = order_bg[0]
-                kbc_2 = order_bg[1]
-                kbc_3 = order_bg[2]
-                kbc_4 = order_bg[3]
-
-                # Range
-                if ( d_cd == "U8" or d_cd == "U16" ):
-                    c_fg_1 = ( kac_1 < ( ( int( a["cmyk_d1"] * d ) ) / d ) ) or ( kac_1 >= ( ( math.ceil( a["cmyk_d1"] * d ) + 1 ) / d ) )
-                    c_fg_2 = ( kac_2 < ( ( int( a["cmyk_d2"] * d ) ) / d ) ) or ( kac_2 >= ( ( math.ceil( a["cmyk_d2"] * d ) + 1 ) / d ) )
-                    c_fg_3 = ( kac_3 < ( ( int( a["cmyk_d3"] * d ) ) / d ) ) or ( kac_3 >= ( ( math.ceil( a["cmyk_d3"] * d ) + 1 ) / d ) )
-                    c_fg_4 = ( kac_4 < ( ( int( a["cmyk_d4"] * d ) ) / d ) ) or ( kac_4 >= ( ( math.ceil( a["cmyk_d4"] * d ) + 1 ) / d ) )
-                    c_bg_1 = ( kbc_1 < ( ( int( b["cmyk_d1"] * d ) ) / d ) ) or ( kbc_1 >= ( ( math.ceil( b["cmyk_d1"] * d ) + 1 ) / d ) )
-                    c_bg_2 = ( kbc_2 < ( ( int( b["cmyk_d2"] * d ) ) / d ) ) or ( kbc_2 >= ( ( math.ceil( b["cmyk_d2"] * d ) + 1 ) / d ) )
-                    c_bg_3 = ( kbc_3 < ( ( int( b["cmyk_d3"] * d ) ) / d ) ) or ( kbc_3 >= ( ( math.ceil( b["cmyk_d3"] * d ) + 1 ) / d ) )
-                    c_bg_4 = ( kbc_4 < ( ( int( b["cmyk_d4"] * d ) ) / d ) ) or ( kbc_4 >= ( ( math.ceil( b["cmyk_d4"] * d ) + 1 ) / d ) )
-                if ( d_cd == "F16" or d_cd == "F32" ):
-                    c_fg_1 = kac_1 != a["cmyk_d1"]
-                    c_fg_2 = kac_2 != a["cmyk_d2"]
-                    c_fg_3 = kac_3 != a["cmyk_d3"]
-                    c_fg_4 = kac_4 != a["cmyk_d4"]
-                    c_bg_1 = kbc_1 != b["cmyk_d1"]
-                    c_bg_2 = kbc_2 != b["cmyk_d2"]
-                    c_bg_3 = kbc_3 != b["cmyk_d3"]
-                    c_bg_4 = kbc_4 != b["cmyk_d4"]
-
-                # Operation
-                if ( c_fg_1 == True or c_fg_2 == True or c_fg_3 == True or c_fg_4 == True ):
-                    if not eraser.isChecked():
-                        self.Pigmento_READ( "CMYK", kac_1, kac_2, kac_3, kac_4, a )
-                if ( c_bg_1 == True or c_bg_2 == True or c_bg_3 == True or c_bg_4 == True ):
-                    if not eraser.isChecked():
-                        self.Pigmento_READ( "CMYK", kbc_1, kbc_2, kbc_3, kbc_4, b )
-            elif d_cm == "YUV":
-                # Foreground and Background Colors ( Krita is in YUV )
-                kac_1 = order_fg[0]
-                kac_2 = order_fg[1]
-                kac_3 = order_fg[2]
-                kbc_1 = order_bg[0]
-                kbc_2 = order_bg[1]
-                kbc_3 = order_bg[2]
-
-                # Range
-                if ( d_cd == "U8" or d_cd == "U16" ):
-                    c_fg_1 = ( kac_1 < ( ( int( a["yuv_d1"] * d ) ) / d ) ) or ( kac_1 >= ( ( int( a["yuv_d1"] * d ) + 1 ) / d ) )
-                    c_fg_2 = ( kac_2 < ( ( int( a["yuv_d2"] * d ) ) / d ) ) or ( kac_2 >= ( ( int( a["yuv_d2"] * d ) + 1 ) / d ) )
-                    c_fg_3 = ( kac_3 < ( ( int( a["yuv_d3"] * d ) ) / d ) ) or ( kac_3 >= ( ( int( a["yuv_d3"] * d ) + 1 ) / d ) )
-                    c_bg_1 = ( kbc_1 < ( ( int( b["yuv_d1"] * d ) ) / d ) ) or ( kbc_1 >= ( ( int( b["yuv_d1"] * d ) + 1 ) / d ) )
-                    c_bg_2 = ( kbc_2 < ( ( int( b["yuv_d2"] * d ) ) / d ) ) or ( kbc_2 >= ( ( int( b["yuv_d2"] * d ) + 1 ) / d ) )
-                    c_bg_3 = ( kbc_3 < ( ( int( b["yuv_d3"] * d ) ) / d ) ) or ( kbc_3 >= ( ( int( b["yuv_d3"] * d ) + 1 ) / d ) )
-                if ( d_cd == "F16" or d_cd == "F32" ):
-                    c_fg_1 = kac_1 != a["yuv_d1"]
-                    c_fg_2 = kac_2 != a["yuv_d2"]
-                    c_fg_3 = kac_3 != a["yuv_d3"]
-                    c_bg_1 = kbc_1 != b["yuv_d1"]
-                    c_bg_2 = kbc_2 != b["yuv_d2"]
-                    c_bg_3 = kbc_3 != b["yuv_d3"]
-
-                # Operation
-                if ( c_fg_1 == True or c_fg_2 == True or c_fg_3 == True ):
-                    if not eraser.isChecked():
-                        self.Pigmento_READ( "YUV", kac_1, kac_2, kac_3, 0, a )
-                if ( c_bg_1 == True or c_bg_2 == True or c_bg_3 == True ):
-                    if not eraser.isChecked():
-                        self.Pigmento_READ( "YUV", kbc_1, kbc_2, kbc_3, 0, b )
-            elif d_cm == "XYZ":
-                # Foreground and Background Colors ( Krita is in XYZ )
-                kac_1 = order_fg[0]
-                kac_2 = order_fg[1]
-                kac_3 = order_fg[2]
-                kbc_1 = order_bg[0]
-                kbc_2 = order_bg[1]
-                kbc_3 = order_bg[2]
-
-                # Range
-                if ( d_cd == "U8" or d_cd == "U16" ):
-                    c_fg_1 = ( kac_1 < ( ( int( a["xyz_d1"] * d ) ) / d ) ) or ( kac_1 >= ( ( int( a["xyz_d1"] * d ) + 1 ) / d ) )
-                    c_fg_2 = ( kac_2 < ( ( int( a["xyz_d2"] * d ) ) / d ) ) or ( kac_2 >= ( ( int( a["xyz_d2"] * d ) + 1 ) / d ) )
-                    c_fg_3 = ( kac_3 < ( ( int( a["xyz_d3"] * d ) ) / d ) ) or ( kac_3 >= ( ( int( a["xyz_d3"] * d ) + 1 ) / d ) )
-                    c_bg_1 = ( kbc_1 < ( ( int( b["xyz_d1"] * d ) ) / d ) ) or ( kbc_1 >= ( ( int( b["xyz_d1"] * d ) + 1 ) / d ) )
-                    c_bg_2 = ( kbc_2 < ( ( int( b["xyz_d2"] * d ) ) / d ) ) or ( kbc_2 >= ( ( int( b["xyz_d2"] * d ) + 1 ) / d ) )
-                    c_bg_3 = ( kbc_3 < ( ( int( b["xyz_d3"] * d ) ) / d ) ) or ( kbc_3 >= ( ( int( b["xyz_d3"] * d ) + 1 ) / d ) )
-                if ( d_cd == "F16" or d_cd == "F32" ):
-                    c_fg_1 = kac_1 != a["xyz_d1"]
-                    c_fg_2 = kac_2 != a["xyz_d2"]
-                    c_fg_3 = kac_3 != a["xyz_d3"]
-                    c_bg_1 = kbc_1 != b["xyz_d1"]
-                    c_bg_2 = kbc_2 != b["xyz_d2"]
-                    c_bg_3 = kbc_3 != b["xyz_d3"]
-
-                # Operation
-                if ( c_fg_1 == True or c_fg_2 == True or c_fg_3 == True ):
-                    if not eraser.isChecked():
-                        self.Pigmento_READ( "XYZ", kac_1, kac_2, kac_3, 0, a )
-                if ( c_bg_1 == True or c_bg_2 == True or c_bg_3 == True ):
-                    if not eraser.isChecked():
-                        self.Pigmento_READ( "XYZ", kbc_1, kbc_2, kbc_3, 0, b )
-            elif d_cm == "LAB":
-                # Foreground and Background Colors ( Krita is in LAB )
-                kac_1 = order_fg[0]
-                kac_2 = order_fg[1]
-                kac_3 = order_fg[2]
-                kbc_1 = order_bg[0]
-                kbc_2 = order_bg[1]
-                kbc_3 = order_bg[2]
-
-                # Range
-                if ( d_cd == "U8" or d_cd == "U16" ):
-                    c_fg_1 = ( kac_1 < ( ( int( a["lab_d1"] * d ) ) / d ) ) or ( kac_1 >= ( ( int( a["lab_d1"] * d ) + 1 ) / d ) )
-                    c_fg_2 = ( kac_2 < ( ( int( a["lab_d2"] * d ) ) / d ) ) or ( kac_2 >= ( ( int( a["lab_d2"] * d ) + 1 ) / d ) )
-                    c_fg_3 = ( kac_3 < ( ( int( a["lab_d3"] * d ) ) / d ) ) or ( kac_3 >= ( ( int( a["lab_d3"] * d ) + 1 ) / d ) )
-                    c_bg_1 = ( kbc_1 < ( ( int( b["lab_d1"] * d ) ) / d ) ) or ( kbc_1 >= ( ( int( b["lab_d1"] * d ) + 1 ) / d ) )
-                    c_bg_2 = ( kbc_2 < ( ( int( b["lab_d2"] * d ) ) / d ) ) or ( kbc_2 >= ( ( int( b["lab_d2"] * d ) + 1 ) / d ) )
-                    c_bg_3 = ( kbc_3 < ( ( int( b["lab_d3"] * d ) ) / d ) ) or ( kbc_3 >= ( ( int( b["lab_d3"] * d ) + 1 ) / d ) )
-                if ( d_cd == "F16" or d_cd == "F32" ):
-                    c_fg_1 = kac_1 != a["lab_d1"]
-                    c_fg_2 = kac_2 != a["lab_d2"]
-                    c_fg_3 = kac_3 != a["lab_d3"]
-                    c_bg_1 = kbc_1 != b["lab_d1"]
-                    c_bg_2 = kbc_2 != b["lab_d2"]
-                    c_bg_3 = kbc_3 != b["lab_d3"]
-
-                # Operation
-                if ( c_fg_1 == True or c_fg_2 == True or c_fg_3 == True ):
-                    if not eraser.isChecked():
-                        self.Pigmento_READ( "LAB", kac_1, kac_2, kac_3, 0, a )
-                if ( c_bg_1 == True or c_bg_2 == True or c_bg_3 == True ):
-                    if not eraser.isChecked():
-                        self.Pigmento_READ( "LAB", kbc_1, kbc_2, kbc_3, 0, b )
-        else: # Vector Read
-            # Variables
-            v = 255
-
-            # Foreground Color
-            fgc_canvas = doc["fgc"].colorForCanvas( doc["vc"] )
-            kac_1 = fgc_canvas.red() / v
-            kac_2 = fgc_canvas.green() / v
-            kac_3 = fgc_canvas.blue() / v
-            # Background Color
-            bgc_canvas = doc["bgc"].colorForCanvas( doc["vc"] )
-            kbc_1 = bgc_canvas.red() / v
-            kbc_2 = bgc_canvas.green() / v
-            kbc_3 = bgc_canvas.blue() / v
-
-            # Range
-            c_fg_1 = ( kac_1 < ( ( int( a["rgb_d1"] * v ) ) / v ) ) or ( kac_1 >= ( ( int( a["rgb_d1"] * v ) + 1 ) / v ) )
-            c_fg_2 = ( kac_2 < ( ( int( a["rgb_d2"] * v ) ) / v ) ) or ( kac_2 >= ( ( int( a["rgb_d2"] * v ) + 1 ) / v ) )
-            c_fg_3 = ( kac_3 < ( ( int( a["rgb_d3"] * v ) ) / v ) ) or ( kac_3 >= ( ( int( a["rgb_d3"] * v ) + 1 ) / v ) )
-            c_bg_1 = ( kbc_1 < ( ( int( b["rgb_d1"] * v ) ) / v ) ) or ( kbc_1 >= ( ( int( b["rgb_d1"] * v ) + 1 ) / v ) )
-            c_bg_2 = ( kbc_2 < ( ( int( b["rgb_d2"] * v ) ) / v ) ) or ( kbc_2 >= ( ( int( b["rgb_d2"] * v ) + 1 ) / v ) )
-            c_bg_3 = ( kbc_3 < ( ( int( b["rgb_d3"] * v ) ) / v ) ) or ( kbc_3 >= ( ( int( b["rgb_d3"] * v ) + 1 ) / v ) )
-
-            # Operation
-            if ( c_fg_1 == True or c_fg_2 == True or c_fg_3 == True ):
-                self.Pigmento_READ( "RGB", kac_1, kac_2, kac_3, 0, a )
-            if ( c_bg_1 == True or c_bg_2 == True or c_bg_3 == True ):
-                self.Pigmento_READ( "RGB", kbc_1, kbc_2, kbc_3, 0, b )
-    def Read_Only( self ):
-        # Variables
-        c1 = krange["rgb_1"]
-        c2 = krange["rgb_2"]
-        c3 = krange["rgb_3"]
-
-        # Foreground Color
-        color_fg = Krita.instance().activeWindow().activeView().foregroundColor()
-        order_fg = color_fg.componentsOrdered()
-        fg_1 = order_fg[0] * c1
-        fg_2 = order_fg[1] * c2
-        fg_3 = order_fg[2] * c3
-
-        # Foreground Color
-        color_bg = Krita.instance().activeWindow().activeView().backgroundColor()
-        order_bg = color_bg.componentsOrdered()
-        bg_1 = order_bg[0] * c1
-        bg_2 = order_bg[1] * c2
-        bg_3 = order_bg[2] * c3
-
-        # Print Debug
-        try:
-            QtCore.qDebug( f"KRITA COLOR ( with range )" )
-            QtCore.qDebug( f"" )
-            QtCore.qDebug( f"fg_1 = { fg_1 }" )
-            QtCore.qDebug( f"fg_2 = { fg_2 }" )
-            QtCore.qDebug( f"fg_3 = { fg_3 }" )
-            QtCore.qDebug( f"" )
-            QtCore.qDebug( f"bg_1 = { bg_1 }" )
-            QtCore.qDebug( f"bg_2 = { bg_2 }" )
-            QtCore.qDebug( f"bg_3 = { bg_3 }" )
-            QtCore.qDebug( f"" )
-        except:
-            pass
+            self.Read_Color()
 
     #endregion
     #region Pigmento Paths
@@ -4267,295 +3930,7 @@ class Picker_Docker( DockWidget ):
     #endregion
     #region Color
 
-    def Color_Convert( self, mode, var_1, var_2, var_3, var_4, color ):
-        # cmyk calculation uses self.lock_cmyk_4
-        # hue calculation uses self.wheel_mode
-        # kkk calculation uses self.lock_kkk_1
-
-        #region Adjustments
-
-        if mode == "KKK":
-            color[ "kkk_percent" ] = var_1
-            color[ "kkk_scale" ] = var_2
-            self.Kelvin_Class( var_2 )
-
-        #endregion
-        #region Convert to RGB+XYZ
-
-        if mode == "A":
-            aaa = [ var_1 ]
-            rgb = [ aaa[0], aaa[0], aaa[0] ]
-            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
-            hue_d = 0
-        if mode == "RGB":
-            rgb = [ var_1, var_2, var_3 ]
-            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
-            hue_d = self.convert.rgb_to_hue( var_1, var_2, var_3 )
-        if mode == "UVD":
-            uvd = [ var_1, var_2, var_3 ]
-            rgb = self.convert.uvd_to_rgb( uvd[0], uvd[1], uvd[2] )
-            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
-            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
-        if mode == "CMY":
-            cmy = [ var_1, var_2, var_3 ]
-            rgb = self.convert.cmy_to_rgb( cmy[0], cmy[1], cmy[2] )
-            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
-            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
-        if mode == "CMYK":
-            cmyk = [ var_1, var_2, var_3, var_4 ]
-            rgb = self.convert.cmyk_to_rgb( cmyk[0], cmyk[1], cmyk[2], cmyk[3] )
-            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
-            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
-        if mode == "RYB":
-            ryb = [ var_1, var_2, var_3 ]
-            rgb = self.convert.ryb_to_rgb( ryb[0], ryb[1], ryb[2] )
-            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
-            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
-        if mode == "YUV":
-            yuv = [ var_1, var_2, var_3 ]
-            rgb = self.convert.yuv_to_rgb( yuv[0], yuv[1], yuv[2] )
-            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
-            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
-
-        if mode == "HSV":
-            hue_d = var_1
-            hsv = [ var_1, var_2, var_3 ]
-            rgb = self.convert.hsv_to_rgb( hsv[0], hsv[1], hsv[2] )
-            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
-        if mode == "HSL":
-            hue_d = var_1
-            hsl = [ var_1, var_2, var_3 ]
-            rgb = self.convert.hsl_to_rgb( hsl[0], hsl[1], hsl[2] )
-            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
-        if mode == "HCY":
-            hue_d = var_1
-            hcy = [ var_1, var_2, var_3 ]
-            rgb = self.convert.hcy_to_rgb( hcy[0], hcy[1], hcy[2] )
-            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
-        if mode == "ARD":
-            hue_d = var_1
-            ard = [ var_1, var_2, var_3 ]
-            rgb = self.convert.ard_to_rgb( ard[0], ard[1], ard[2] )
-            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
-
-        if mode == "XYZ":
-            xyz = [ var_1, var_2, var_3 ]
-            rgb = self.convert.xyz_to_rgb( xyz[0], xyz[1], xyz[2] )
-            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
-        if mode == "XYY":
-            xyy = [ var_1, var_2, var_3 ]
-            xyz = self.convert.xyy_to_xyz( xyy[0], xyy[1], xyy[2] )
-            rgb = self.convert.xyz_to_rgb( xyz[0], xyz[1], xyz[2] )
-            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
-        if mode == "LAB":
-            lab = [ var_1, var_2, var_3 ]
-            xyz = self.convert.lab_to_xyz( lab[0], lab[1], lab[2] )
-            rgb = self.convert.xyz_to_rgb( xyz[0], xyz[1], xyz[2] )
-            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
-
-        if mode == "LCH":
-            lch = [ var_1, var_2, var_3 ]
-            lab = self.convert.lch_to_lab( lch[0], lch[1], lch[2] )
-            xyz = self.convert.lab_to_xyz( lab[0], lab[1], lab[2] )
-            rgb = self.convert.xyz_to_rgb( xyz[0], xyz[1], xyz[2] )
-            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
-
-        if mode == "KKK":
-            if self.lock_kkk_1 == False:
-                kkk = self.convert.kkk_to_rgb( color["kkk_scale"], kelvin_rgb )
-                rgb = ( color["rgb_1"], color["rgb_2"], color["rgb_3"] )
-            else: # False
-                kkk = [1, 1, 1]
-                rgb = self.convert.kkk_to_rgb( color["kkk_scale"], kelvin_rgb )
-            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
-            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
-        if mode == "HEX":
-            rgb = self.convert.hex6_to_rgb( var_1 )
-            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
-            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
-
-
-        #endregion
-        #region Convert RGB+XYZ into Other
-
-        # HUE
-        self.convert.Set_Hue( hue_d )
-        hue_a = self.convert.hued_to_huea( hue_d )
-
-        if mode != "A":
-            aaa = self.convert.rgb_to_aaa( rgb[0], rgb[1], rgb[2] )
-        if mode != "RGB":
-            pass
-        if mode != "UVD":
-            uvd = self.convert.rgb_to_uvd( rgb[0], rgb[1], rgb[2] )
-        if mode != "CMY":
-            cmy = self.convert.rgb_to_cmy( rgb[0], rgb[1], rgb[2] )
-        if mode != "CMYK":
-            key = lambda k: None if k==False else color["cmyk_4"]
-            cmyk = self.convert.rgb_to_cmyk( rgb[0], rgb[1], rgb[2], key( self.lock_cmyk_4 ) )
-        if mode != "RYB":
-            ryb = self.convert.rgb_to_ryb( rgb[0], rgb[1], rgb[2] )
-        if mode != "YUV":
-            yuv = self.convert.rgb_to_yuv( rgb[0], rgb[1], rgb[2] )
-
-        if mode != "HSV":
-            hsv = self.convert.rgb_to_hsv( rgb[0], rgb[1], rgb[2] )
-        if mode != "HSL":
-            hsl = self.convert.rgb_to_hsl( rgb[0], rgb[1], rgb[2] )
-        if mode != "HCY":
-            hcy = self.convert.rgb_to_hcy( rgb[0], rgb[1], rgb[2] )
-        if mode != "ARD":
-            ard = self.convert.rgb_to_ard( rgb[0], rgb[1], rgb[2] )
-
-        if mode != "XYZ":
-            pass
-        if mode != "XYY":
-            xyy = self.convert.xyz_to_xyy( xyz[0], xyz[1], xyz[2] )
-        if mode != "LAB":
-            lab = self.convert.xyz_to_lab( xyz[0], xyz[1], xyz[2] )
-
-        if mode != "LCH":
-            lch = self.convert.lab_to_lch( lab[0], lab[1], lab[2] )
-
-        if mode != "KKK":
-            if self.lock_kkk_1 == False:
-                kkk = self.convert.kkk_to_rgb( color["kkk_scale"], kelvin_rgb )
-            else:
-                kkk = [ 1, 1, 1 ]
-
-        #endregion
-        #region Variables
-
-        # HEX
-        hex_code = self.convert.rgb_to_hex6( rgb[0], rgb[1], rgb[2] )
-        name = self.convert.hex6_to_name( hex_code, color_names )
-        color[ "hex6" ] = hex_code
-        color[ "name" ] = name
-        # RGB Depth Error Correction
-        checkdepth = uvd[2] - self.depth_previous
-        if ( checkdepth >= -( 1 / krange[ "uvd_3" ] ) and checkdepth <= ( 1 / krange[ "uvd_3" ] ) ):
-            uvd[2] = self.depth_previous
-            ard[2] = self.depth_previous
-
-        # AAA
-        color[ "aaa_1" ] = aaa[0]
-        # RGB
-        color[ "rgb_1" ] = rgb[0]
-        color[ "rgb_2" ] = rgb[1]
-        color[ "rgb_3" ] = rgb[2]
-        # UVD
-        color[ "uvd_1" ] = uvd[0]
-        color[ "uvd_2" ] = uvd[1]
-        color[ "uvd_3" ] = uvd[2]
-        # CMY
-        color[ "cmy_1" ] = cmy[0]
-        color[ "cmy_2" ] = cmy[1]
-        color[ "cmy_3" ] = cmy[2]
-        # CMYK
-        color[ "cmyk_1" ] = cmyk[0]
-        color[ "cmyk_2" ] = cmyk[1]
-        color[ "cmyk_3" ] = cmyk[2]
-        color[ "cmyk_4" ] = cmyk[3]
-        # RYB
-        color[ "ryb_1" ] = ryb[0]
-        color[ "ryb_2" ] = ryb[1]
-        color[ "ryb_3" ] = ryb[2]
-        # YUV
-        color[ "yuv_1" ] = yuv[0]
-        color[ "yuv_2" ] = yuv[1]
-        color[ "yuv_3" ] = yuv[2]
-
-        # HUE
-        color[ "hue_d" ] = hue_d
-        color[ "hue_a" ] = hue_a
-        # HSV
-        color[ "hsv_1" ] = hue_d
-        color[ "hsv_2" ] = hsv[1]
-        color[ "hsv_3" ] = hsv[2]
-        # HSL
-        color[ "hsl_1" ] = hue_d
-        color[ "hsl_2" ] = hsl[1]
-        color[ "hsl_3" ] = hsl[2]
-        # HCY
-        color[ "hcy_1" ] = hue_d
-        color[ "hcy_2" ] = hcy[1]
-        color[ "hcy_3" ] = hcy[2]
-        # ARD
-        color[ "ard_1" ] = hue_d
-        color[ "ard_2" ] = ard[1]
-        color[ "ard_3" ] = ard[2]
-
-        # XYZ
-        color[ "xyz_1" ] = xyz[0]
-        color[ "xyz_2" ] = xyz[1]
-        color[ "xyz_3" ] = xyz[2]
-        # XYY
-        color[ "xyy_1" ] = xyy[0]
-        color[ "xyy_2" ] = xyy[1]
-        color[ "xyy_3" ] = xyy[2]
-        # LAB
-        color[ "lab_1" ] = lab[0]
-        color[ "lab_2" ] = lab[1]
-        color[ "lab_3" ] = lab[2]
-
-        # LCH
-        color[ "lch_1" ] = lch[0]
-        color[ "lch_2" ] = lch[1]
-        color[ "lch_3" ] = lch[2]
-
-        #endregion
-        #region Finish
-
-        # Kelvin Multiplication
-        kr = rgb[0] * kkk[0]
-        kg = rgb[1] * kkk[1]
-        kb = rgb[2] * kkk[2]
-        display = [kr, kg, kb]
-        color[ "rgb_d1" ] = kr
-        color[ "rgb_d2" ] = kg
-        color[ "rgb_d3" ] = kb
-
-        # Display
-        doc = self.Current_Document()
-        d_cm = doc[ "d_cm" ]
-        if d_cm == "A":
-            kaaa = self.convert.rgb_to_aaa( kr, kg, kb )
-            color[ "aaa_d1" ] = kaaa[0]
-            display = kaaa
-        if d_cm == "CMYK":
-            key = lambda k: None if k==False else self.convert.rgb_to_k( kr, kg, kb )
-            kcmyk = self.convert.rgb_to_cmyk( kr, kg, kb, key( self.lock_cmyk_4 ) )
-            color[ "cmyk_d1" ] = kcmyk[0]
-            color[ "cmyk_d2" ] = kcmyk[1]
-            color[ "cmyk_d3" ] = kcmyk[2]
-            color[ "cmyk_d4" ] = kcmyk[3]
-            display = kcmyk
-        if d_cm == "YUV":
-            kyuv = self.convert.rgb_to_yuv( kr, kg, kb )
-            color[ "yuv_d1" ] = kyuv[0]
-            color[ "yuv_d2" ] = kyuv[1]
-            color[ "yuv_d3" ] = kyuv[2]
-            display = kyuv
-        if d_cm == "XYZ":
-            kxyz = self.convert.rgb_to_xyz( kr, kg, kb )
-            color[ "xyz_d1" ] = kxyz[0]
-            color[ "xyz_d2" ] = kxyz[1]
-            color[ "xyz_d3" ] = kxyz[2]
-            display = kxyz
-        if d_cm == "LAB":
-            klab = self.convert.rgb_to_lab( kr, kg, kb )
-            color[ "lab_d1" ] = klab[0]
-            color[ "lab_d2" ] = klab[1]
-            color[ "lab_d3" ] = klab[2]
-            display = klab
-        # HEX
-        disp_rgb = self.Color_Display( doc[ "d_cm" ], doc[ "d_cd" ], doc[ "d_cp" ], doc[ "vc" ], display )
-        color[ "hex6_d" ] = self.convert.rgb_to_hex6( disp_rgb[0], disp_rgb[1], disp_rgb[2] )
-
-        #endregion
-
-        # Return
-        return color
+    # Function
     def Color_Harmony( self, span, hue_1, hue_2, hue_3, hue_4, hue_5 ):
         # Variables
         comp = 0.5
@@ -4753,6 +4128,291 @@ class Picker_Docker( DockWidget ):
         Krita.instance().writeSetting( DOCKER_NAME, "har_03", str( har_03 ) )
         Krita.instance().writeSetting( DOCKER_NAME, "har_04", str( har_04 ) )
         Krita.instance().writeSetting( DOCKER_NAME, "har_05", str( har_05 ) )
+    def Color_Convert( self, mode, var_1, var_2, var_3, var_4, color ):
+        # cmyk calculation uses self.lock_cmyk_4
+        # hue calculation uses self.wheel_mode
+
+        #region Adjustments
+
+        if mode == "KKK":
+            color[ "kkk_percent" ] = var_1
+            color[ "kkk_scale" ] = var_2
+            self.Kelvin_Class( var_2 )
+
+        #endregion
+        #region Convert to RGB+XYZ
+
+        if mode == "A":
+            aaa = [ var_1 ]
+            rgb = [ aaa[0], aaa[0], aaa[0] ]
+            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+            hue_d = 0
+        if mode == "RGB":
+            rgb = [ var_1, var_2, var_3 ]
+            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+            hue_d = self.convert.rgb_to_hue( var_1, var_2, var_3 )
+        if mode == "UVD":
+            uvd = [ var_1, var_2, var_3 ]
+            rgb = self.convert.uvd_to_rgb( uvd[0], uvd[1], uvd[2] )
+            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
+        if mode == "CMY":
+            cmy = [ var_1, var_2, var_3 ]
+            rgb = self.convert.cmy_to_rgb( cmy[0], cmy[1], cmy[2] )
+            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
+        if mode == "CMYK":
+            cmyk = [ var_1, var_2, var_3, var_4 ]
+            rgb = self.convert.cmyk_to_rgb( cmyk[0], cmyk[1], cmyk[2], cmyk[3] )
+            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
+        if mode == "RYB":
+            ryb = [ var_1, var_2, var_3 ]
+            rgb = self.convert.ryb_to_rgb( ryb[0], ryb[1], ryb[2] )
+            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
+        if mode == "YUV":
+            yuv = [ var_1, var_2, var_3 ]
+            rgb = self.convert.yuv_to_rgb( yuv[0], yuv[1], yuv[2] )
+            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
+
+        if mode == "HSV":
+            hue_d = var_1
+            hsv = [ var_1, var_2, var_3 ]
+            rgb = self.convert.hsv_to_rgb( hsv[0], hsv[1], hsv[2] )
+            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+        if mode == "HSL":
+            hue_d = var_1
+            hsl = [ var_1, var_2, var_3 ]
+            rgb = self.convert.hsl_to_rgb( hsl[0], hsl[1], hsl[2] )
+            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+        if mode == "HCY":
+            hue_d = var_1
+            hcy = [ var_1, var_2, var_3 ]
+            rgb = self.convert.hcy_to_rgb( hcy[0], hcy[1], hcy[2] )
+            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+        if mode == "ARD":
+            hue_d = var_1
+            ard = [ var_1, var_2, var_3 ]
+            rgb = self.convert.ard_to_rgb( ard[0], ard[1], ard[2] )
+            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+
+        if mode == "XYZ":
+            xyz = [ var_1, var_2, var_3 ]
+            rgb = self.convert.xyz_to_rgb( xyz[0], xyz[1], xyz[2] )
+            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
+        if mode == "XYY":
+            xyy = [ var_1, var_2, var_3 ]
+            xyz = self.convert.xyy_to_xyz( xyy[0], xyy[1], xyy[2] )
+            rgb = self.convert.xyz_to_rgb( xyz[0], xyz[1], xyz[2] )
+            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
+        if mode == "LAB":
+            lab = [ var_1, var_2, var_3 ]
+            xyz = self.convert.lab_to_xyz( lab[0], lab[1], lab[2] )
+            rgb = self.convert.xyz_to_rgb( xyz[0], xyz[1], xyz[2] )
+            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
+
+        if mode == "LCH":
+            lch = [ var_1, var_2, var_3 ]
+            lab = self.convert.lch_to_lab( lch[0], lch[1], lch[2] )
+            xyz = self.convert.lab_to_xyz( lab[0], lab[1], lab[2] )
+            rgb = self.convert.xyz_to_rgb( xyz[0], xyz[1], xyz[2] )
+            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
+
+        if mode == "KKK":
+            kkk = self.convert.kkk_to_rgb( color["kkk_scale"], kelvin_rgb )
+            rgb = ( color["rgb_1"], color["rgb_2"], color["rgb_3"] )
+            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
+
+        if mode == "HEX":
+            rgb = self.convert.hex6_to_rgb( var_1 )
+            xyz = self.convert.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+            hue_d = self.convert.rgb_to_hue( rgb[0], rgb[1], rgb[2] )
+
+        #endregion
+        #region Convert RGB+XYZ into Other
+
+        # HUE
+        self.convert.Set_Hue( hue_d )
+        hue_a = self.convert.hued_to_huea( hue_d )
+
+        if mode != "A":
+            aaa = self.convert.rgb_to_aaa( rgb[0], rgb[1], rgb[2] )
+        if mode != "RGB":
+            pass
+        if mode != "UVD":
+            uvd = self.convert.rgb_to_uvd( rgb[0], rgb[1], rgb[2] )
+        if mode != "CMY":
+            cmy = self.convert.rgb_to_cmy( rgb[0], rgb[1], rgb[2] )
+        if mode != "CMYK":
+            key = lambda k: None if k==False else color["cmyk_4"]
+            cmyk = self.convert.rgb_to_cmyk( rgb[0], rgb[1], rgb[2], key( self.lock_cmyk_4 ) )
+        if mode != "RYB":
+            ryb = self.convert.rgb_to_ryb( rgb[0], rgb[1], rgb[2] )
+        if mode != "YUV":
+            yuv = self.convert.rgb_to_yuv( rgb[0], rgb[1], rgb[2] )
+
+        if mode != "HSV":
+            hsv = self.convert.rgb_to_hsv( rgb[0], rgb[1], rgb[2] )
+        if mode != "HSL":
+            hsl = self.convert.rgb_to_hsl( rgb[0], rgb[1], rgb[2] )
+        if mode != "HCY":
+            hcy = self.convert.rgb_to_hcy( rgb[0], rgb[1], rgb[2] )
+        if mode != "ARD":
+            ard = self.convert.rgb_to_ard( rgb[0], rgb[1], rgb[2] )
+
+        if mode != "XYZ":
+            pass
+        if mode != "XYY":
+            xyy = self.convert.xyz_to_xyy( xyz[0], xyz[1], xyz[2] )
+        if mode != "LAB":
+            lab = self.convert.xyz_to_lab( xyz[0], xyz[1], xyz[2] )
+
+        if mode != "LCH":
+            lch = self.convert.lab_to_lch( lab[0], lab[1], lab[2] )
+
+        if mode != "KKK":
+            kkk = self.convert.kkk_to_rgb( color["kkk_scale"], kelvin_rgb )
+
+        #endregion
+        #region Variables
+
+        # HEX
+        hex_code = self.convert.rgb_to_hex6( rgb[0], rgb[1], rgb[2] )
+        name = self.convert.hex6_to_name( hex_code, color_names )
+        color[ "hex6" ] = hex_code
+        color[ "name" ] = name
+        # RGB Depth Error Correction
+        checkdepth = uvd[2] - self.depth_previous
+        if ( checkdepth >= -( 1 / krange[ "uvd_3" ] ) and checkdepth <= ( 1 / krange[ "uvd_3" ] ) ):
+            uvd[2] = self.depth_previous
+            ard[2] = self.depth_previous
+
+        # AAA
+        color[ "aaa_1" ] = aaa[0]
+        # RGB
+        color[ "rgb_1" ] = rgb[0]
+        color[ "rgb_2" ] = rgb[1]
+        color[ "rgb_3" ] = rgb[2]
+        # UVD
+        color[ "uvd_1" ] = uvd[0]
+        color[ "uvd_2" ] = uvd[1]
+        color[ "uvd_3" ] = uvd[2]
+        # CMY
+        color[ "cmy_1" ] = cmy[0]
+        color[ "cmy_2" ] = cmy[1]
+        color[ "cmy_3" ] = cmy[2]
+        # CMYK
+        color[ "cmyk_1" ] = cmyk[0]
+        color[ "cmyk_2" ] = cmyk[1]
+        color[ "cmyk_3" ] = cmyk[2]
+        color[ "cmyk_4" ] = cmyk[3]
+        # RYB
+        color[ "ryb_1" ] = ryb[0]
+        color[ "ryb_2" ] = ryb[1]
+        color[ "ryb_3" ] = ryb[2]
+        # YUV
+        color[ "yuv_1" ] = yuv[0]
+        color[ "yuv_2" ] = yuv[1]
+        color[ "yuv_3" ] = yuv[2]
+
+        # HUE
+        color[ "hue_d" ] = hue_d
+        color[ "hue_a" ] = hue_a
+        # HSV
+        color[ "hsv_1" ] = hue_d
+        color[ "hsv_2" ] = hsv[1]
+        color[ "hsv_3" ] = hsv[2]
+        # HSL
+        color[ "hsl_1" ] = hue_d
+        color[ "hsl_2" ] = hsl[1]
+        color[ "hsl_3" ] = hsl[2]
+        # HCY
+        color[ "hcy_1" ] = hue_d
+        color[ "hcy_2" ] = hcy[1]
+        color[ "hcy_3" ] = hcy[2]
+        # ARD
+        color[ "ard_1" ] = hue_d
+        color[ "ard_2" ] = ard[1]
+        color[ "ard_3" ] = ard[2]
+
+        # XYZ
+        color[ "xyz_1" ] = xyz[0]
+        color[ "xyz_2" ] = xyz[1]
+        color[ "xyz_3" ] = xyz[2]
+        # XYY
+        color[ "xyy_1" ] = xyy[0]
+        color[ "xyy_2" ] = xyy[1]
+        color[ "xyy_3" ] = xyy[2]
+        # LAB
+        color[ "lab_1" ] = lab[0]
+        color[ "lab_2" ] = lab[1]
+        color[ "lab_3" ] = lab[2]
+
+        # LCH
+        color[ "lch_1" ] = lch[0]
+        color[ "lch_2" ] = lch[1]
+        color[ "lch_3" ] = lch[2]
+
+        # Display
+        display = [ rgb[0], rgb[1], rgb[2] ]
+
+        #endregion
+        #region Finish
+
+        # Kelvin Multiplication
+        kr = rgb[0] * kkk[0]
+        kg = rgb[1] * kkk[1]
+        kb = rgb[2] * kkk[2]
+        display = [ kr, kg, kb ]
+
+        # Display
+        doc = self.Current_Document()
+        cmodel = doc[ "cmodel" ]
+        disp_rgb = self.Color_Display( cmodel, doc[ "n_cm" ], doc[ "n_cd" ], doc[ "n_cp" ], doc[ "vc" ], display )
+        # A
+        kaaa = self.convert.rgb_to_aaa( kr, kg, kb )
+        color[ "aaa_d1" ] = kaaa[0]
+        # RGB
+        color[ "rgb_d1" ] = disp_rgb[0]
+        color[ "rgb_d2" ] = disp_rgb[1]
+        color[ "rgb_d3" ] = disp_rgb[2]
+        # CMYK
+        if cmodel == "CMYK":
+            if self.lock_cmyk_4 == True:    key = self.convert.rgb_to_k( kr, kg, kb )
+            else:                           key = None
+            kcmyk = self.convert.rgb_to_cmyk( kr, kg, kb, key )
+            color[ "cmyk_d1" ] = kcmyk[0]
+            color[ "cmyk_d2" ] = kcmyk[1]
+            color[ "cmyk_d3" ] = kcmyk[2]
+            color[ "cmyk_d4" ] = kcmyk[3]
+        # YUV
+        elif cmodel == "YUV":
+            kyuv = self.convert.rgb_to_yuv( kr, kg, kb )
+            color[ "yuv_d1" ] = kyuv[0]
+            color[ "yuv_d2" ] = kyuv[1]
+            color[ "yuv_d3" ] = kyuv[2]
+        # XYZ
+        elif cmodel == "XYZ":
+            kxyz = self.convert.rgb_to_xyz( kr, kg, kb )
+            color[ "xyz_d1" ] = kxyz[0]
+            color[ "xyz_d2" ] = kxyz[1]
+            color[ "xyz_d3" ] = kxyz[2]
+        # LAB
+        elif cmodel == "LAB":
+            klab = self.convert.rgb_to_lab( kr, kg, kb )
+            color[ "lab_d1" ] = klab[0]
+            color[ "lab_d2" ] = klab[1]
+            color[ "lab_d3" ] = klab[2]
+        # HEX
+        color[ "hex6_d" ] = self.convert.rgb_to_hex6( disp_rgb[0], disp_rgb[1], disp_rgb[2] )
+
+        #endregion
+
+        # Return
+        return color
     def Color_HEX( self, hex_code ):
         try:
             # Variables
@@ -4783,50 +4443,21 @@ class Picker_Docker( DockWidget ):
                     self.Color_Convert( "RGB", rgb[0], rgb[1], rgb[2], 0, self.cor )
                     self.Sync_Elements( True, True, True )
             elif ( color_space in [ "A", "GRAY" ] and vector == 1 ): # GRAY(100)
-                self.Color_Convert(
-                    color_space,
-                    int( values[0] ) / 255,
-                    0,
-                    0,
-                    0,
-                    self.cor
-                    )
+                self.Color_Convert( color_space, int( values[0] ) / 255, 0, 0, 0, self.cor )
                 self.Sync_Elements( True, True, True )
             elif ( color_space in [ "RGB", "CMY", "RYB", "YUV", "XYZ", "XYY", "LAB", "LCH" ] and vector == 3 ): # RGB(100, 100, 100)
-                self.Color_Convert(
-                    color_space,
-                    int( values[0] ) / 255,
-                    int( values[1] ) / 255,
-                    int( values[2] ) / 255,
-                    0,
-                    self.cor
-                    )
+                self.Color_Convert( color_space, int( values[0] ) / 255, int( values[1] ) / 255, int( values[2] ) / 255, 0, self.cor )
                 self.Sync_Elements( True, True, True )
             elif ( color_space in [ "CMYK" ] and vector == 4 ): # CMYK(100, 100, 100, 100)
-                self.Color_Convert(
-                    color_space,
-                    int( values[0] ) / 255,
-                    int( values[1] ) / 255,
-                    int( values[2] ) / 255,
-                    int( values[3] ) / 255,
-                    self.cor
-                    )
+                self.Color_Convert( color_space, int( values[0] ) / 255, int( values[1] ) / 255, int( values[2] ) / 255, int( values[3] ) / 255, self.cor )
                 self.Sync_Elements( True, True, True )
             elif ( color_space in [ "HSV", "HSL","HCY" ] and vector == 3 ): #HSV(100, 100, 100)
-                self.Color_Convert(
-                    color_space,
-                    int( values[0] ) / 360,
-                    int( values[1] ) / 100,
-                    int( values[2] ) / 100,
-                    0,
-                    self.cor
-                    )
+                self.Color_Convert( color_space, int( values[0] ) / 360, int( values[1] ) / 100, int( values[2] ) / 100, 0, self.cor )
                 self.Sync_Elements( True, True, True )
             else:# Red Green Blue
                 # Variables
                 name = hex_code.lower()
                 item = list( color_names.items() )
-
                 # Search Dictionary with color names
                 for i in range( 0, len( item ) ):
                     key_i = item[i][0]
@@ -4840,48 +4471,401 @@ class Picker_Docker( DockWidget ):
         except:
             Message_Log( self, "ERROR", "input value" )
 
-    def Color_Managed( self, d_cm, d_cd, d_cp, vc, side, color ):
-        #region Color Management
-        color_model = Krita.instance().activeDocument().colorModel()
-        managed_color = ManagedColor( color_model, d_cd, d_cp )
+    # Read
+    def Read_Color( self ):
+        try:
+            # Variables
+            ki = Krita.instance()
+            # Document
+            doc = self.Current_Document()
+            cmodel = doc["cmodel"]
+            n_cd = doc["n_cd"]
+            n_cp = doc["n_cp"]
+            d = doc["depth"]
+
+            # Check Eraser Mode ON or OFF
+            eraser = ki.action( "erase_action" )
+            # Current Krita Active Colors
+            active_view = ki.activeWindow().activeView()
+            color_fg = active_view.foregroundColor()
+            color_bg = active_view.backgroundColor()
+            order_fg = color_fg.componentsOrdered()
+            order_bg = color_bg.componentsOrdered()
+
+            # Depth
+            self.depth_previous = self.cor["uvd_3"]
+
+            # Harmony
+            if self.ui_harmony == True:
+                if self.harmony_index == 1:
+                    ka = har_01
+                if self.harmony_index == 2:
+                    ka = har_02
+                if self.harmony_index == 3:
+                    ka = har_03
+                if self.harmony_index == 4:
+                    ka = har_04
+                if self.harmony_index == 5:
+                    ka = har_05
+            else:
+                ka = kac
+                kb = kbc
+
+            # Read if Colors Differs
+            if doc["vi"] == None: # Pixel Read
+                if cmodel == "A":
+                    # Foreground and Background Colors ( Krita is in AAA )
+                    a1 = order_fg[0]
+                    b1 = order_bg[0]
+                    m1 = self.pole_mix["aaa_d1"]
+
+                    # Range
+                    if n_cd in [ "U8", "U16" ]:
+                        ca1 = ( a1 < ( ( int( ka["aaa_d1"] * d ) ) / d ) ) or ( a1 >= ( ( int( ka["aaa_d1"] * d ) + 1 ) / d ) )
+                        cb1 = ( b1 < ( ( int( kb["aaa_d1"] * d ) ) / d ) ) or ( b1 >= ( ( int( kb["aaa_d1"] * d ) + 1 ) / d ) )
+                    if n_cd in [ "F16", "F32" ]:
+                        ca1 = a1 != a["aaa_d1"]
+                        cb1 = b1 != b["aaa_d1"]
+
+                    # Operation
+                    if ca1 == True:
+                        if not eraser.isChecked():
+                            self.Pigmento_READ( "A", a1, 0, 0, 0, ka )
+                        if a1 != m1:
+                            self.Pole_Neutral()
+                    if cb1 == True:
+                        if not eraser.isChecked():
+                            self.Pigmento_READ( "A", b1, 0, 0, 0, kb )
+                elif cmodel in [ "RGB", None ]:
+                    # Foreground and Background Colors ( Krita is in RGB )
+                    a1 = order_fg[0] # Red
+                    a2 = order_fg[1] # Green
+                    a3 = order_fg[2] # Blue
+                    b1 = order_bg[0]
+                    b2 = order_bg[1]
+                    b3 = order_bg[2]
+                    m1 = self.pole_mix["rgb_d1"]
+                    m2 = self.pole_mix["rgb_d2"]
+                    m3 = self.pole_mix["rgb_d3"]
+
+                    # Range
+                    if n_cd in [ "U8", "U16" ]:
+                        ca1 = ( a1 < ( ( int( ka["rgb_d1"] * d ) ) / d ) ) or ( a1 >= ( ( int( ka["rgb_d1"] * d ) + 1 ) / d ) )
+                        ca2 = ( a2 < ( ( int( ka["rgb_d2"] * d ) ) / d ) ) or ( a2 >= ( ( int( ka["rgb_d2"] * d ) + 1 ) / d ) )
+                        ca3 = ( a3 < ( ( int( ka["rgb_d3"] * d ) ) / d ) ) or ( a3 >= ( ( int( ka["rgb_d3"] * d ) + 1 ) / d ) )
+                        cb1 = ( b1 < ( ( int( kb["rgb_d1"] * d ) ) / d ) ) or ( b1 >= ( ( int( kb["rgb_d1"] * d ) + 1 ) / d ) )
+                        cb2 = ( b2 < ( ( int( kb["rgb_d2"] * d ) ) / d ) ) or ( b2 >= ( ( int( kb["rgb_d2"] * d ) + 1 ) / d ) )
+                        cb3 = ( b3 < ( ( int( kb["rgb_d3"] * d ) ) / d ) ) or ( b3 >= ( ( int( kb["rgb_d3"] * d ) + 1 ) / d ) )
+                    if n_cd in [ "F16", "F32" ]:
+                        ca1 = a1 != ka["rgb_d1"]
+                        ca2 = a2 != ka["rgb_d2"]
+                        ca3 = a3 != ka["rgb_d3"]
+                        cb1 = b1 != kb["rgb_d1"]
+                        cb2 = b2 != kb["rgb_d2"]
+                        cb3 = b3 != kb["rgb_d3"]
+
+                    # Operation
+                    if ca1 == True or ca2 == True or ca3 == True:
+                        if not eraser.isChecked():
+                            self.Pigmento_READ( "RGB", a1, a2, a3, 0, ka )
+                        if a1 != m1 or a2 != m2 or a3 != m3:
+                            self.Pole_Neutral()
+                    if cb1 == True or cb2 == True or cb3 == True:
+                        if not eraser.isChecked():
+                            self.Pigmento_READ( "RGB", b1, b2, b3, 0, kb )
+                elif cmodel == "CMYK":
+                    # Foreground and Background Colors ( Krita is in CMYK )
+                    a1 = order_fg[0]
+                    a2 = order_fg[1]
+                    a3 = order_fg[2]
+                    a4 = order_fg[3]
+                    b1 = order_bg[0]
+                    b2 = order_bg[1]
+                    b3 = order_bg[2]
+                    b4 = order_bg[3]
+                    m1 = self.pole_mix["cmyk_d1"]
+                    m2 = self.pole_mix["cmyk_d2"]
+                    m3 = self.pole_mix["cmyk_d3"]
+                    m4 = self.pole_mix["cmyk_d4"]
+
+                    # Range
+                    if n_cd in [ "U8", "U16" ]:
+                        ca1 = ( a1 < ( ( int( ka["cmyk_d1"] * d ) ) / d ) ) or ( a1 >= ( ( int( ka["cmyk_d1"] * d ) + 1 ) / d ) )
+                        ca2 = ( a2 < ( ( int( ka["cmyk_d2"] * d ) ) / d ) ) or ( a2 >= ( ( int( ka["cmyk_d2"] * d ) + 1 ) / d ) )
+                        ca3 = ( a3 < ( ( int( ka["cmyk_d3"] * d ) ) / d ) ) or ( a3 >= ( ( int( ka["cmyk_d3"] * d ) + 1 ) / d ) )
+                        ca4 = ( a4 < ( ( int( ka["cmyk_d4"] * d ) ) / d ) ) or ( a4 >= ( ( int( ka["cmyk_d4"] * d ) + 1 ) / d ) )
+                        cb1 = ( b1 < ( ( int( kb["cmyk_d1"] * d ) ) / d ) ) or ( b1 >= ( ( int( kb["cmyk_d1"] * d ) + 1 ) / d ) )
+                        cb2 = ( b2 < ( ( int( kb["cmyk_d2"] * d ) ) / d ) ) or ( b2 >= ( ( int( kb["cmyk_d2"] * d ) + 1 ) / d ) )
+                        cb3 = ( b3 < ( ( int( kb["cmyk_d3"] * d ) ) / d ) ) or ( b3 >= ( ( int( kb["cmyk_d3"] * d ) + 1 ) / d ) )
+                        cb4 = ( b4 < ( ( int( kb["cmyk_d4"] * d ) ) / d ) ) or ( b4 >= ( ( int( kb["cmyk_d4"] * d ) + 1 ) / d ) )
+                    if n_cd in [ "F16", "F32" ]:
+                        ca1 = a1 != ka["cmyk_d1"]
+                        ca2 = a2 != ka["cmyk_d2"]
+                        ca3 = a3 != ka["cmyk_d3"]
+                        ca4 = a4 != ka["cmyk_d4"]
+                        cb1 = b1 != kb["cmyk_d1"]
+                        cb2 = b2 != kb["cmyk_d2"]
+                        cb3 = b3 != kb["cmyk_d3"]
+                        cb4 = b4 != kb["cmyk_d4"]
+
+                    # Operation
+                    if ca1 == True or ca2 == True or ca3 == True or ca4 == True:
+                        if not eraser.isChecked():
+                            self.Pigmento_READ( "CMYK", a1, a2, a3, a4, a )
+                        if a1 != m1 or a2 != m2 or a3 != m3 or a4 != m4:
+                            self.Pole_Neutral()
+                    if cb1 == True or cb2 == True or cb3 == True or cb4 == True:
+                        if not eraser.isChecked():
+                            self.Pigmento_READ( "CMYK", b1, b2, b3, b4, b )
+                elif cmodel == "YUV":
+                    # Foreground and Background Colors ( Krita is in YUV )
+                    a1 = order_fg[0]
+                    a2 = order_fg[1]
+                    a3 = order_fg[2]
+                    b1 = order_bg[0]
+                    b2 = order_bg[1]
+                    b3 = order_bg[2]
+                    m1 = self.pole_mix["yuv_d1"]
+                    m2 = self.pole_mix["yuv_d2"]
+                    m3 = self.pole_mix["yuv_d3"]
+
+                    # Range
+                    if n_cd in [ "U8", "U16" ]:
+                        ca1 = ( a1 < ( ( int( a["yuv_d1"] * kd ) ) / d ) ) or ( a1 >= ( ( int( ka["yuv_d1"] * d ) + 1 ) / d ) )
+                        ca2 = ( a2 < ( ( int( a["yuv_d2"] * kd ) ) / d ) ) or ( a2 >= ( ( int( ka["yuv_d2"] * d ) + 1 ) / d ) )
+                        ca3 = ( a3 < ( ( int( a["yuv_d3"] * kd ) ) / d ) ) or ( a3 >= ( ( int( ka["yuv_d3"] * d ) + 1 ) / d ) )
+                        cb1 = ( b1 < ( ( int( b["yuv_d1"] * kd ) ) / d ) ) or ( b1 >= ( ( int( kb["yuv_d1"] * d ) + 1 ) / d ) )
+                        cb2 = ( b2 < ( ( int( b["yuv_d2"] * kd ) ) / d ) ) or ( b2 >= ( ( int( kb["yuv_d2"] * d ) + 1 ) / d ) )
+                        cb3 = ( b3 < ( ( int( b["yuv_d3"] * kd ) ) / d ) ) or ( b3 >= ( ( int( kb["yuv_d3"] * d ) + 1 ) / d ) )
+                    if n_cd in [ "F16", "F32" ]:
+                        ca1 = a1 != ka["yuv_d1"]
+                        ca2 = a2 != ka["yuv_d2"]
+                        ca3 = a3 != ka["yuv_d3"]
+                        cb1 = b1 != kb["yuv_d1"]
+                        cb2 = b2 != kb["yuv_d2"]
+                        cb3 = b3 != kb["yuv_d3"]
+
+                    # Operation
+                    if ca1 == True or ca2 == True or ca3 == True:
+                        if not eraser.isChecked():
+                            self.Pigmento_READ( "YUV", a1, a2, a3, 0, ka )
+                        if a1 != m1 or a2 != m2 or a3 != m3:
+                            self.Pole_Neutral()
+                    if cb1 == True or cb2 == True or cb3 == True:
+                        if not eraser.isChecked():
+                            self.Pigmento_READ( "YUV", b1, b2, b3, 0, kb )
+                elif cmodel == "XYZ":
+                    # Foreground and Background Colors ( Krita is in XYZ )
+                    a1 = order_fg[0]
+                    a2 = order_fg[1]
+                    a3 = order_fg[2]
+                    b1 = order_bg[0]
+                    b2 = order_bg[1]
+                    b3 = order_bg[2]
+                    m1 = self.pole_mix["xyz_d1"]
+                    m2 = self.pole_mix["xyz_d2"]
+                    m3 = self.pole_mix["xyz_d3"]
+
+                    # Range
+                    if n_cd in [ "U8", "U16" ]:
+                        ca1 = ( a1 < ( ( int( ka["xyz_d1"] * d ) ) / d ) ) or ( a1 >= ( ( int( ka["xyz_d1"] * d ) + 1 ) / d ) )
+                        ca2 = ( a2 < ( ( int( ka["xyz_d2"] * d ) ) / d ) ) or ( a2 >= ( ( int( ka["xyz_d2"] * d ) + 1 ) / d ) )
+                        ca3 = ( a3 < ( ( int( ka["xyz_d3"] * d ) ) / d ) ) or ( a3 >= ( ( int( ka["xyz_d3"] * d ) + 1 ) / d ) )
+                        cb1 = ( b1 < ( ( int( kb["xyz_d1"] * d ) ) / d ) ) or ( b1 >= ( ( int( kb["xyz_d1"] * d ) + 1 ) / d ) )
+                        cb2 = ( b2 < ( ( int( kb["xyz_d2"] * d ) ) / d ) ) or ( b2 >= ( ( int( kb["xyz_d2"] * d ) + 1 ) / d ) )
+                        cb3 = ( b3 < ( ( int( kb["xyz_d3"] * d ) ) / d ) ) or ( b3 >= ( ( int( kb["xyz_d3"] * d ) + 1 ) / d ) )
+                    if n_cd in [ "F16", "F32" ]:
+                        ca1 = a1 != ka["xyz_d1"]
+                        ca2 = a2 != ka["xyz_d2"]
+                        ca3 = a3 != ka["xyz_d3"]
+                        cb1 = b1 != kb["xyz_d1"]
+                        cb2 = b2 != kb["xyz_d2"]
+                        cb3 = b3 != kb["xyz_d3"]
+
+                    # Operation
+                    if ca1 == True or ca2 == True or ca3 == True:
+                        if not eraser.isChecked():
+                            self.Pigmento_READ( "XYZ", a1, a2, a3, 0, ka )
+                        if a1 != m1 or a2 != m2 or a3 != m3:
+                            self.Pole_Neutral()
+                    if cb1 == True or cb2 == True or cb3 == True:
+                        if not eraser.isChecked():
+                            self.Pigmento_READ( "XYZ", b1, b2, b3, 0, kb )
+                elif cmodel == "LAB":
+                    # Foreground and Background Colors ( Krita is in LAB )
+                    a1 = order_fg[0]
+                    a2 = order_fg[1]
+                    a3 = order_fg[2]
+                    b1 = order_bg[0]
+                    b2 = order_bg[1]
+                    b3 = order_bg[2]
+                    m1 = self.pole_mix["lab_d1"]
+                    m2 = self.pole_mix["lab_d2"]
+                    m3 = self.pole_mix["lab_d3"]
+
+                    # Range
+                    if n_cd in [ "U8", "U16" ]:
+                        ca1 = ( a1 < ( ( int( ka["lab_d1"] * d ) ) / d ) ) or ( a1 >= ( ( int( ka["lab_d1"] * d ) + 1 ) / d ) )
+                        ca2 = ( a2 < ( ( int( ka["lab_d2"] * d ) ) / d ) ) or ( a2 >= ( ( int( ka["lab_d2"] * d ) + 1 ) / d ) )
+                        ca3 = ( a3 < ( ( int( ka["lab_d3"] * d ) ) / d ) ) or ( a3 >= ( ( int( ka["lab_d3"] * d ) + 1 ) / d ) )
+                        cb1 = ( b1 < ( ( int( kb["lab_d1"] * d ) ) / d ) ) or ( b1 >= ( ( int( kb["lab_d1"] * d ) + 1 ) / d ) )
+                        cb2 = ( b2 < ( ( int( kb["lab_d2"] * d ) ) / d ) ) or ( b2 >= ( ( int( kb["lab_d2"] * d ) + 1 ) / d ) )
+                        cb3 = ( b3 < ( ( int( kb["lab_d3"] * d ) ) / d ) ) or ( b3 >= ( ( int( kb["lab_d3"] * d ) + 1 ) / d ) )
+                    if n_cd in [ "F16", "F32" ]:
+                        ca1 = a1 != ka["lab_d1"]
+                        ca2 = a2 != ka["lab_d2"]
+                        ca3 = a3 != ka["lab_d3"]
+                        cb1 = b1 != kb["lab_d1"]
+                        cb2 = b2 != kb["lab_d2"]
+                        cb3 = b3 != kb["lab_d3"]
+
+                    # Operation
+                    if ca1 == True or ca2 == True or ca3 == True:
+                        if not eraser.isChecked():
+                            self.Pigmento_READ( "LAB", a1, a2, a3, 0, ka )
+                        if a1 != m1 or a2 != m2 or a3 != m3:
+                            self.Pole_Neutral()
+                    if cb1 == True or cb2 == True or cb3 == True:
+                        if not eraser.isChecked():
+                            self.Pigmento_READ( "LAB", b1, b2, b3, 0, kb )
+            else: # Vector Read
+                # Variables
+                v = 255
+
+                # Foreground Color
+                fgc_canvas = doc["fgc"].colorForCanvas( doc["vc"] )
+                a1 = fgc_canvas.red() / v
+                a2 = fgc_canvas.green() / v
+                a3 = fgc_canvas.blue() / v
+                # Background Color
+                bgc_canvas = doc["bgc"].colorForCanvas( doc["vc"] )
+                b1 = bgc_canvas.red() / v
+                b2 = bgc_canvas.green() / v
+                b3 = bgc_canvas.blue() / v
+                # Pole
+                m1 = self.pole_mix["rgb_d1"]
+                m2 = self.pole_mix["rgb_d2"]
+                m3 = self.pole_mix["rgb_d3"]
+
+                # Range
+                ca1 = ( a1 < ( ( int( ka["rgb_d1"] * v ) ) / v ) ) or ( a1 >= ( ( int( ka["rgb_d1"] * v ) + 1 ) / v ) )
+                ca2 = ( a2 < ( ( int( ka["rgb_d2"] * v ) ) / v ) ) or ( a2 >= ( ( int( ka["rgb_d2"] * v ) + 1 ) / v ) )
+                ca3 = ( a3 < ( ( int( ka["rgb_d3"] * v ) ) / v ) ) or ( a3 >= ( ( int( ka["rgb_d3"] * v ) + 1 ) / v ) )
+                cb1 = ( b1 < ( ( int( kb["rgb_d1"] * v ) ) / v ) ) or ( b1 >= ( ( int( kb["rgb_d1"] * v ) + 1 ) / v ) )
+                cb2 = ( b2 < ( ( int( kb["rgb_d2"] * v ) ) / v ) ) or ( b2 >= ( ( int( kb["rgb_d2"] * v ) + 1 ) / v ) )
+                cb3 = ( b3 < ( ( int( kb["rgb_d3"] * v ) ) / v ) ) or ( b3 >= ( ( int( kb["rgb_d3"] * v ) + 1 ) / v ) )
+
+                # Operation
+                if ca1 == True or ca2 == True or ca3 == True:
+                    self.Pigmento_READ( "RGB", a1, a2, a3, 0, ka )
+                    if a1 != m1 or a2 != m2 or a3 != m3:
+                        self.Pole_Neutral()
+                if cb1 == True or cb2 == True or cb3 == True:
+                    self.Pigmento_READ( "RGB", b1, b2, b3, 0, kb )
+        except:
+            pass
+    def Read_Only( self ):
+        # Variables
+        c1 = krange["rgb_1"]
+        c2 = krange["rgb_2"]
+        c3 = krange["rgb_3"]
+
+        # Foreground Color
+        color_fg = Krita.instance().activeWindow().activeView().foregroundColor()
+        order_fg = color_fg.componentsOrdered()
+        fg_1 = order_fg[0] * c1
+        fg_2 = order_fg[1] * c2
+        fg_3 = order_fg[2] * c3
+
+        # Foreground Color
+        color_bg = Krita.instance().activeWindow().activeView().backgroundColor()
+        order_bg = color_bg.componentsOrdered()
+        bg_1 = order_bg[0] * c1
+        bg_2 = order_bg[1] * c2
+        bg_3 = order_bg[2] * c3
+
+        # Print Debug
+        try:
+            QtCore.qDebug( f"KRITA COLOR ( with range )" )
+            QtCore.qDebug( f"" )
+            QtCore.qDebug( f"fg_1 = { fg_1 }" )
+            QtCore.qDebug( f"fg_2 = { fg_2 }" )
+            QtCore.qDebug( f"fg_3 = { fg_3 }" )
+            QtCore.qDebug( f"" )
+            QtCore.qDebug( f"bg_1 = { bg_1 }" )
+            QtCore.qDebug( f"bg_2 = { bg_2 }" )
+            QtCore.qDebug( f"bg_3 = { bg_3 }" )
+            QtCore.qDebug( f"" )
+        except:
+            pass
+
+    # Write
+    def Color_Display( self, cmodel, n_cm, n_cd, n_cp, vc, color ):
+        if ( self.performance_inaccurate == False and ( self.canvas() is not None ) and ( self.canvas().view() is not None ) ):
+            mc = ManagedColor( n_cm, n_cd, n_cp )
+            if cmodel == "A":
+                mc.setComponents( [ color[0], 1.0 ] )
+            elif cmodel in ["RGB", None ]:
+                if n_cd in [ "U8", "U16" ]:
+                    mc.setComponents( [ color[2], color[1], color[0], 1.0 ] )
+                if n_cd in [ "F16", "F32" ]:
+                    mc.setComponents( [ color[0], color[1], color[2], 1.0 ] )
+            elif cmodel == "CMYK":
+                mc.setComponents( [ color[0], color[1], color[2], color[3], 1.0 ] )
+            elif cmodel == "YUV":
+                mc.setComponents( [ color[0], color[1], color[2], 1.0 ] )
+            elif cmodel == "XYZ":
+                mc.setComponents( [ color[0], color[1], color[2], 1.0 ] )
+            elif cmodel == "LAB":
+                mc.setComponents( [ color[0], color[1], color[2], 1.0 ] )
+            qcolor = mc.colorForCanvas( vc )
+            r = qcolor.redF()
+            g = qcolor.greenF()
+            b = qcolor.blueF()
+        else:
+            r = color[0]
+            g = color[1]
+            b = color[2]
+        # Return
+        return [r, g, b]
+    def Color_Managed( self, cmodel, n_cm, n_cd, n_cp, vc, side, color ):
+        # Managed Colors
+        managed_color = ManagedColor( n_cm, n_cd, n_cp )
         comp = managed_color.components()
-        if d_cm == "A":
+        if cmodel == "A":
             kac_1 = color["aaa_d1"]
             comp = [kac_1, 1]
-        if ( d_cm == "RGB" or d_cm == None ):
+        elif cmodel in [ "RGB", None ]:
             kac_1 = color["rgb_d1"]
             kac_2 = color["rgb_d2"]
             kac_3 = color["rgb_d3"]
-            if ( d_cd == "U8" or d_cd == "U16" ):
+            if n_cd in [ "U8", "U16" ]:
                 comp = [kac_3, kac_2, kac_1, 1]
-            if ( d_cd == "F16" or d_cd == "F32" ):
+            if n_cd in [ "F16", "F32" ]:
                 comp = [kac_1, kac_2, kac_3, 1]
-        if d_cm == "CMYK":
+        elif cmodel == "CMYK":
             kac_1 = color["cmyk_d1"]
             kac_2 = color["cmyk_d2"]
             kac_3 = color["cmyk_d3"]
             kac_4 = color["cmyk_d4"]
             comp = [kac_1, kac_2, kac_3, kac_4, 1]
-        if d_cm == "YUV":
+        elif cmodel == "YUV":
             kac_1 = color["yuv_d1"]
             kac_2 = color["yuv_d2"]
             kac_3 = color["yuv_d3"]
             comp = [kac_1, kac_2, kac_3, 1]
-        if d_cm == "XYZ":
+        elif cmodel == "XYZ":
             kac_1 = color["xyz_d1"]
             kac_2 = color["xyz_d2"]
             kac_3 = color["xyz_d3"]
             comp = [kac_1, kac_2, kac_3, 1]
-        if d_cm == "LAB":
+        elif cmodel == "LAB":
             kac_1 = color["lab_d1"]
             kac_2 = color["lab_d2"]
             kac_3 = color["lab_d3"]
             comp = [kac_1, kac_2, kac_3, 1]
         managed_color.setComponents( comp )
-
-        #endregion
-        #region Color for Canvas
-
+        # Color for Canvas
         if self.performance_inaccurate == False:
             display = managed_color.colorForCanvas( vc )
             r = display.redF()
@@ -4892,73 +4876,18 @@ class Picker_Docker( DockWidget ):
             g = color["rgb_2"]
             b = color["rgb_3"]
         color["hex6_d"] = self.convert.rgb_to_hex6( r, g, b )
+        # Operation
+        if side == "FG":    Krita.instance().activeWindow().activeView().setForeGroundColor( managed_color )
+        if side == "BG":    Krita.instance().activeWindow().activeView().setBackGroundColor( managed_color )
 
-        #endregion
-        #region Operation
-
-        if side == "FG":
-            Krita.instance().activeWindow().activeView().setForeGroundColor( managed_color )
-        if side == "BG":
-            Krita.instance().activeWindow().activeView().setBackGroundColor( managed_color )
-
-        #endregion
-    def Color_Display( self, d_cm, d_cd, d_cp, vc, color ):
-        if ( self.performance_inaccurate == False and ( self.canvas() is not None ) and ( self.canvas().view() is not None ) ):
-            color_model = Krita.instance().activeDocument().colorModel()
-            mc = ManagedColor( color_model, d_cd, d_cp )
-            if d_cm == "A":
-                mc.setComponents( [color[0], 1.0] )
-            if ( d_cm == "RGB" or d_cm == None ):
-                if ( d_cd == "U8" or d_cd == "U16" ):
-                    mc.setComponents( [color[2], color[1], color[0], 1.0] )
-                if ( d_cd == "F16" or d_cd == "F32" ):
-                    mc.setComponents( [color[0], color[1], color[2], 1.0] )
-            if d_cm == "CMYK":
-                mc.setComponents( [color[0], color[1], color[2], color[3], 1.0] )
-            if d_cm == "YUV":
-                mc.setComponents( [color[0], color[1], color[2], 1.0] )
-            if d_cm == "XYZ":
-                mc.setComponents( [color[0], color[1], color[2], 1.0] )
-            if d_cm == "LAB":
-                mc.setComponents( [color[0], color[1], color[2], 1.0] )
-            color_canvas = mc.colorForCanvas( vc )
-            r = color_canvas.redF()
-            g = color_canvas.greenF()
-            b = color_canvas.blueF()
-        else:
-            r = color[0]
-            g = color[1]
-            b = color[2]
-        # Return
-        return [r, g, b]
-
-    def Color_Interpolate( self, mode, color_a, color_b, factor ):
-        # Parse
-        color_a = self.convert.color_vector( mode, color_a )
-        color_b = self.convert.color_vector( mode, color_b )
-        # Interpolation
-        channels = len( color_a )
-        lerp = self.convert.color_lerp( mode, channels, color_a, color_b, factor )
-        # Conversion
-        color = color_true.copy()
-        if mode == "A":
-            color = self.Color_Convert( mode, lerp[0], 0, 0, 0, color )
-        elif ( mode == "CMYK" or mode == "CMYK" ):
-            color = self.Color_Convert( mode, lerp[0], lerp[1], lerp[2], lerp[3], color )
-        else:
-            color = self.Color_Convert( mode, lerp[0], lerp[1], lerp[2], 0, color )
-        # Return
-        return color
-
+    # Elements
     def Color_Swap( self ):
-        # Transfer Dict
-        ab = color_true.copy()
-        ba = color_true.copy()
-        # Copy Swap
-        self.Dict_Copy( ab, kac )
-        self.Dict_Copy( ba, kbc )
-        self.Dict_Copy( kac, ba )
-        self.Dict_Copy( kbc, ab )
+        keys = list( kac.keys() )
+        for k in keys:
+            aa = kac[k]
+            bb = kbc[k]
+            kac[k] = bb
+            kbc[k] = aa
     def Color_Random( self ):
         r = random.randrange( 0,255,1 ) / 255
         g = random.randrange( 0,255,1 ) / 255
@@ -4980,6 +4909,44 @@ class Picker_Docker( DockWidget ):
             self.Pigmento_APPLY( "HCY", hue, self.cor["hcy_2"], self.cor["hcy_3"], 0, self.cor )
         if self.wheel_space == "ARD":
             self.Pigmento_APPLY( "ARD", hue, self.cor["ard_2"], self.cor["ard_3"], 0, self.cor )
+    def Color_Interpolate( self, mode, color_a, color_b, factor ):
+        # Parse
+        color_a = self.convert.color_vector( mode, color_a )
+        color_b = self.convert.color_vector( mode, color_b )
+        # Interpolation
+        channels = len( color_a )
+        lerp = self.convert.color_lerp( mode, channels, color_a, color_b, factor )
+        # Conversion
+        color = color_true.copy()
+        if mode == "A":
+            color = self.Color_Convert( mode, lerp[0], 0, 0, 0, color )
+        elif ( mode == "CMYK" or mode == "CMYK" ):
+            color = self.Color_Convert( mode, lerp[0], lerp[1], lerp[2], lerp[3], color )
+        else:
+            color = self.Color_Convert( mode, lerp[0], lerp[1], lerp[2], 0, color )
+        # Return
+        return color
+    def Color_Vector( self, mode, cor ):
+        # RGB Linear
+        if mode == "A":         vector = [ cor["aaa_1"], ]
+        elif mode == "RGB":     vector = [ cor["rgb_1"],  cor["rgb_2"],  cor["rgb_3"] ]
+        elif mode == "CMY":     vector = [ cor["cmy_1"],  cor["cmy_2"],  cor["cmy_3"] ]
+        elif mode == "CMYK":    vector = [ cor["cmyk_1"], cor["cmyk_2"], cor["cmyk_3"], cor["cmyk_4"] ]
+        elif mode == "RYB":     vector = [ cor["ryb_1"],  cor["ryb_2"],  cor["ryb_3"] ]
+        elif mode == "YUV":     vector = [ cor["yuv_1"],  cor["yuv_2"],  cor["yuv_3"] ]
+        # RGB Hue
+        elif mode == "HSV":     vector = [ cor["hsv_1"],  cor["hsv_2"],  cor["hsv_3"] ]
+        elif mode == "HSL":     vector = [ cor["hsl_1"],  cor["hsl_2"],  cor["hsl_3"] ]
+        elif mode == "HCY":     vector = [ cor["hcy_1"],  cor["hcy_2"],  cor["hcy_3"] ]
+        elif mode == "ARD":     vector = [ cor["ard_1"],  cor["ard_2"],  cor["ard_3"] ]
+        # XYZ Linear
+        elif mode == "XYZ":     vector = [ cor["xyz_1"],  cor["xyz_2"],  cor["xyz_3"] ]
+        elif mode == "XYY":     vector = [ cor["xyy_1"],  cor["xyy_2"],  cor["xyy_3"] ]
+        elif mode == "LAB":     vector = [ cor["lab_1"],  cor["lab_2"],  cor["lab_3"] ]
+        # XYZ Hue
+        elif mode == "LCH":     vector = [ cor["lch_1"],  cor["lch_2"],  cor["lch_3"] ]
+        # Return
+        return vector
 
     #endregion
     #region Syncronization
@@ -4987,24 +4954,20 @@ class Picker_Docker( DockWidget ):
     def Sync_Elements( self, p2k, color_active, color_previous ):
         # Signals
         self.Block_Channels( True )
-
         # Layout
         self.Pigmento_to_Krita( p2k )
         self.Harmony_Header( har_01, har_02, har_03, har_04, har_05 )
         self.Update_Header( color_active, color_previous )
         self.Panels_Set_Value()
         self.Update_Values()
-        self.Channels_Set_Style()
-        self.Mixers_Set_Style()
+        self.Channel_Set_Style()
+        self.Mixer_Set_Style()
         self.Pin_Active()
         self.History_List( self.cor["rgb_d1"], self.cor["rgb_d2"], self.cor["rgb_d3"] )
-
         # Signals
         self.Block_Channels( False )
-
         # Dialog
         self.Reference_Name()
-
         # Save
         Krita.instance().writeSetting( DOCKER_NAME, "kac", str( kac ) )
         Krita.instance().writeSetting( DOCKER_NAME, "kbc", str( kbc ) )
@@ -5133,12 +5096,12 @@ class Picker_Docker( DockWidget ):
             if self.harmony_index == 5:
                 self.color_header.Set_Color_A1( har_05["hex6_d"] )
         else:
-            if self.mode_ab == True:
+            if self.active_ab == True:
                 if active == True:
                     self.color_header.Set_Color_A1( kac["hex6_d"] )
                 if previous == True:
                     self.color_header.Set_Color_B1( kbc["hex6_d"] )
-            if self.mode_ab == False:
+            if self.active_ab == False:
                 if active == True:
                     self.color_header.Set_Color_B1( kbc["hex6_d"] )
                 if previous == True:
@@ -5170,22 +5133,14 @@ class Picker_Docker( DockWidget ):
             self.Label_String( "" )
     def Panels_Set_Value( self ):
         # Place Cursor
-        if self.panel_index == "Display : Fill":
-            self.Update_Panel_Fill()
-        if self.panel_index == "Selector : Square":
-            self.Update_Panel_Square()
-        if self.panel_index == "Selector : Hue":
-            self.Update_Panel_HueCircle()
-        if self.panel_index == "Selector : Gamut":
-            self.Update_Panel_Gamut()
-        if self.panel_index == "Selector : Hexagon":
-            self.Update_Panel_Hexagon()
-        if self.panel_index == "Selector : Luma":
-            self.Update_Panel_Luma()
-        if self.panel_index == "Mixer : Dot":
-            pass # only changes when the dot color changes
-        if self.panel_index == "Mixer : Mask":
-            self.Mask_Live_Update()
+        if self.panel_index == panel_fill:      self.Update_Panel_Fill()
+        if self.panel_index == panel_square:    self.Update_Panel_Square()
+        if self.panel_index == panel_hue:       self.Update_Panel_HueCircle()
+        if self.panel_index == panel_gamut:     self.Update_Panel_Gamut()
+        if self.panel_index == panel_hexagon:   self.Update_Panel_Hexagon()
+        if self.panel_index == panel_luma:      self.Update_Panel_Luma()
+        if self.panel_index == panel_dot:       pass # only changes when the dot color changes
+        if self.panel_index == panel_mask:      self.Mask_Live_Update()
     def Update_Values( self ):
         # AAA
         if self.chan_aaa == True:
@@ -5308,22 +5263,27 @@ class Picker_Docker( DockWidget ):
 
         # Mixers
         if self.ui_mixer == True:
+            # Pole
+            self.pole_slider.Set_Value( self.pole_percent )
+            # Custom
             for i in range( 0, len( self.mixer_colors ) ):
                 try:self.mixer_module[i]["m"].Set_Value( self.mixer_colors[i]["m"] )
                 except:pass
 
         # HEX
         if self.chan_hex == True:
-            hex_text = self.cor["hex6_d"]
-            if self.hex_sum == True:
-                percentage = self.convert.cmyk_to_tic( self.cor["cmyk_1"], self.cor["cmyk_2"], self.cor["cmyk_3"], self.cor["cmyk_4"] )
-                hex_text += " Σ" + str( percentage ).zfill(3)
-            self.layout.hex_string.setText( hex_text )
-    def Channels_Set_Style( self ):
+            hex_code = self.cor["hex6_d"]
+            self.layout.hex_string.setText( hex_code )
+        if self.chan_sum == True:
+            percentage = self.convert.cmyk_to_tic( self.cor["cmyk_1"], self.cor["cmyk_2"], self.cor["cmyk_3"], self.cor["cmyk_4"] )
+            sum_text = "Σ" + str( percentage ).zfill(3)
+            self.layout.sum_string.setText( sum_text )
+
+    def Channel_Set_Style( self ):
         # Variables
-        linear = 20 # 4 stops
-        circular = 18 # 6 stops
-        # Channels Update
+        linear = 8 # 4 stops
+        circular = 12 # 6 stops
+        # RGB Linear
         if self.chan_aaa == True:
             aaa_1 = self.Gradient_Style( "A", False, linear, [0], [1] )
             self.aaa_1_slider.Set_Colors( aaa_1, 1 )
@@ -5364,7 +5324,7 @@ class Picker_Docker( DockWidget ):
             self.yuv_1_slider.Set_Colors( yuv_1, 1 )
             self.yuv_2_slider.Set_Colors( yuv_2, 1 )
             self.yuv_3_slider.Set_Colors( yuv_3, 1 )
-
+        # RGB Hue
         if self.chan_hsv == True:
             if self.hue_shine == True:
                 hsv_1 = self.Gradient_Style( "HSV", False, circular, [0, 1, 1], [1, 1, 1] )
@@ -5405,7 +5365,7 @@ class Picker_Docker( DockWidget ):
             self.ard_1_slider.Set_Colors( ard_1, 1 )
             self.ard_2_slider.Set_Colors( ard_2, 1 )
             self.ard_3_slider.Set_Colors( ard_3, 1 )
-
+        # XYZ Linear
         if self.chan_xyz == True:
             xyz_1 = self.Gradient_Style( "XYZ", False, linear, [0, self.cor["xyz_2"], self.cor["xyz_3"]], [1, self.cor["xyz_2"], self.cor["xyz_3"]] )
             xyz_2 = self.Gradient_Style( "XYZ", False, linear, [self.cor["xyz_1"], 0, self.cor["xyz_3"]], [self.cor["xyz_1"], 1, self.cor["xyz_3"]] )
@@ -5427,7 +5387,7 @@ class Picker_Docker( DockWidget ):
             self.lab_1_slider.Set_Colors( lab_1, 1 )
             self.lab_2_slider.Set_Colors( lab_2, 1 )
             self.lab_3_slider.Set_Colors( lab_3, 1 )
-
+        # XYZ Hue
         if self.chan_lch == True:
             lch_1 = self.Gradient_Style( "LCH", False, linear, [0, self.cor["lch_2"], self.cor["lch_3"]], [1, self.cor["lch_2"], self.cor["lch_3"]] )
             lch_2 = self.Gradient_Style( "LCH", False, linear, [self.cor["lch_1"], 0, self.cor["lch_3"]], [self.cor["lch_1"], 1, self.cor["lch_3"]] )
@@ -5435,12 +5395,16 @@ class Picker_Docker( DockWidget ):
             self.lch_1_slider.Set_Colors( lch_1, 1 )
             self.lch_2_slider.Set_Colors( lch_2, 1 )
             self.lch_3_slider.Set_Colors( lch_3, 1 )
-
+        # Non Color
         if self.chan_kkk == True:
-            kkk_1 = self.Gradient_Kelvin( self.lock_kkk_1, linear, self.cor["rgb_1"], self.cor["rgb_2"], self.cor["rgb_3"] )
+            kkk_1 = self.Gradient_Kelvin( linear, self.cor["rgb_1"], self.cor["rgb_2"], self.cor["rgb_3"] )
             self.kkk_1_slider.Set_Colors( kkk_1, 1 )
 
-    def Mixers_Set_Style( self ):
+            # pass
+    def Mixer_Set_Style( self ):
+        # Channels
+        self.Channel_Pole_Style()
+        # Mixer
         for i in range( 0, len( self.mixer_colors ) ):
             # Variables
             mode = self.mixer_space
@@ -5448,7 +5412,6 @@ class Picker_Docker( DockWidget ):
             stops = 20
             ll = self.mixer_colors[i]["l"]
             rr = self.mixer_colors[i]["r"]
-
             # Active
             al = ll["active"]
             ar = rr["active"]
@@ -5458,40 +5421,24 @@ class Picker_Docker( DockWidget ):
                     self.mixer_module[i]["m"].Set_Colors( None, 1 )
                 elif ( al == True and ar == True ):
                     # Variables
-                    if mode == "A":
-                        mixed = self.Gradient_Style( mode, short, stops, [ ll["aaa_1"] ], [ rr["aaa_1"] ] )
-                    elif ( mode == "RGB" or mode == None ):
-                        mixed = self.Gradient_Style( "RGB", short, stops, [ ll["rgb_1"], ll["rgb_2"], ll["rgb_3"] ], [ rr["rgb_1"], rr["rgb_2"], rr["rgb_3"] ] )
-                    elif mode == "CMY":
-                        mixed = self.Gradient_Style( mode, short, stops, [ ll["cmy_1"], ll["cmy_2"], ll["cmy_3"] ], [ rr["cmy_1"], rr["cmy_2"], rr["cmy_3"] ] )
-                    elif mode == "CMYK":
-                        mixed = self.Gradient_Style( mode, short, stops, [ ll["cmyk_1"], ll["cmyk_2"], ll["cmyk_3"], ll["cmyk_4"] ], [ rr["cmyk_1"], rr["cmyk_2"], rr["cmyk_3"], rr["cmyk_4"] ] )
-                    elif mode == "RYB":
-                        mixed = self.Gradient_Style( mode, short, stops, [ ll["ryb_1"], ll["ryb_2"], ll["ryb_3"] ], [ rr["ryb_1"], rr["ryb_2"], rr["ryb_3"] ] )
-                    elif mode == "YUV":
-                        mixed = self.Gradient_Style( mode, short, stops, [ ll["yuv_1"], ll["yuv_2"], ll["yuv_3"] ], [ rr["yuv_1"], rr["yuv_2"], rr["yuv_3"] ] )
-                    elif mode == "HSV":
-                        mixed = self.Gradient_Style( mode, short, stops, [ ll["hsv_1"], ll["hsv_2"], ll["hsv_3"] ], [ rr["hsv_1"], rr["hsv_2"], rr["hsv_3"] ] )
-                    elif mode == "HSL":
-                        mixed = self.Gradient_Style( mode, short, stops, [ ll["hsl_1"], ll["hsl_2"], ll["hsl_3"] ], [ rr["hsl_1"], rr["hsl_2"], rr["hsl_3"] ] )
-                    elif mode == "HCY":
-                        mixed = self.Gradient_Style( mode, short, stops, [ ll["hcy_1"], ll["hcy_2"], ll["hcy_3"] ], [ rr["hcy_1"], rr["hcy_2"], rr["hcy_3"] ] )
-                    elif mode == "ARD":
-                        mixed = self.Gradient_Style( mode, short, stops, [ ll["ard_1"], ll["ard_2"], ll["ard_3"] ], [ rr["ard_1"], rr["ard_2"], rr["ard_3"] ] )
-                    elif mode == "XYZ":
-                        mixed = self.Gradient_Style( mode, short, stops, [ ll["xyz_1"], ll["xyz_2"], ll["xyz_3"] ], [ rr["xyz_1"], rr["xyz_2"], rr["xyz_3"] ] )
-                    elif mode == "XYY":
-                        mixed = self.Gradient_Style( mode, short, stops, [ ll["xyy_1"], ll["xyy_2"], ll["xyy_3"] ], [ rr["xyy_1"], rr["xyy_2"], rr["xyy_3"] ] )
-                    elif mode == "LAB":
-                        mixed = self.Gradient_Style( mode, short, stops, [ ll["lab_1"], ll["lab_2"], ll["lab_3"] ], [ rr["lab_1"], rr["lab_2"], rr["lab_3"] ] )
-                    elif mode == "LCH":
-                        mixed = self.Gradient_Style( mode, short, stops, [ ll["lch_1"], ll["lch_2"], ll["lch_3"] ], [ rr["lch_1"], rr["lch_2"], rr["lch_3"] ] )
-
+                    if mode == "A":                 mixed = self.Gradient_Style( mode, short, stops, [ ll["aaa_1"] ], [ rr["aaa_1"] ] )
+                    elif mode in [ "RGB", None ]:   mixed = self.Gradient_Style( "RGB", short, stops, [ ll["rgb_1"], ll["rgb_2"], ll["rgb_3"] ], [ rr["rgb_1"], rr["rgb_2"], rr["rgb_3"] ] )
+                    elif mode == "CMY":             mixed = self.Gradient_Style( mode, short, stops, [ ll["cmy_1"], ll["cmy_2"], ll["cmy_3"] ], [ rr["cmy_1"], rr["cmy_2"], rr["cmy_3"] ] )
+                    elif mode == "CMYK":            mixed = self.Gradient_Style( mode, short, stops, [ ll["cmyk_1"], ll["cmyk_2"], ll["cmyk_3"], ll["cmyk_4"] ], [ rr["cmyk_1"], rr["cmyk_2"], rr["cmyk_3"], rr["cmyk_4"] ] )
+                    elif mode == "RYB":             mixed = self.Gradient_Style( mode, short, stops, [ ll["ryb_1"], ll["ryb_2"], ll["ryb_3"] ], [ rr["ryb_1"], rr["ryb_2"], rr["ryb_3"] ] )
+                    elif mode == "YUV":             mixed = self.Gradient_Style( mode, short, stops, [ ll["yuv_1"], ll["yuv_2"], ll["yuv_3"] ], [ rr["yuv_1"], rr["yuv_2"], rr["yuv_3"] ] )
+                    elif mode == "HSV":             mixed = self.Gradient_Style( mode, short, stops, [ ll["hsv_1"], ll["hsv_2"], ll["hsv_3"] ], [ rr["hsv_1"], rr["hsv_2"], rr["hsv_3"] ] )
+                    elif mode == "HSL":             mixed = self.Gradient_Style( mode, short, stops, [ ll["hsl_1"], ll["hsl_2"], ll["hsl_3"] ], [ rr["hsl_1"], rr["hsl_2"], rr["hsl_3"] ] )
+                    elif mode == "HCY":             mixed = self.Gradient_Style( mode, short, stops, [ ll["hcy_1"], ll["hcy_2"], ll["hcy_3"] ], [ rr["hcy_1"], rr["hcy_2"], rr["hcy_3"] ] )
+                    elif mode == "ARD":             mixed = self.Gradient_Style( mode, short, stops, [ ll["ard_1"], ll["ard_2"], ll["ard_3"] ], [ rr["ard_1"], rr["ard_2"], rr["ard_3"] ] )
+                    elif mode == "XYZ":             mixed = self.Gradient_Style( mode, short, stops, [ ll["xyz_1"], ll["xyz_2"], ll["xyz_3"] ], [ rr["xyz_1"], rr["xyz_2"], rr["xyz_3"] ] )
+                    elif mode == "XYY":             mixed = self.Gradient_Style( mode, short, stops, [ ll["xyy_1"], ll["xyy_2"], ll["xyy_3"] ], [ rr["xyy_1"], rr["xyy_2"], rr["xyy_3"] ] )
+                    elif mode == "LAB":             mixed = self.Gradient_Style( mode, short, stops, [ ll["lab_1"], ll["lab_2"], ll["lab_3"] ], [ rr["lab_1"], rr["lab_2"], rr["lab_3"] ] )
+                    elif mode == "LCH":             mixed = self.Gradient_Style( mode, short, stops, [ ll["lch_1"], ll["lch_2"], ll["lch_3"] ], [ rr["lch_1"], rr["lch_2"], rr["lch_3"] ] )
                     # Render
                     self.mixer_module[i]["m"].Set_Colors( mixed, 1 )
             except:
                 pass
-
     def Pin_Active( self ):
         # Variables
         rgb_cor = self.cor["hex6"]
@@ -5511,108 +5458,20 @@ class Picker_Docker( DockWidget ):
     #endregion
     #region Gradients 
 
-    def Gradient_Style( self, mode, short, stops, left, right ):
+    def Gradient_Style( self, mode, short, stops, cl, cr ):
         # mode = color space
         # short = straight ahead or shortest distance
         # stops = amount of divisions
-        # left and right = colors in 0-1 format
+        # cl and cr = colors in 0-1 format
 
-        # Variables
-        hue = [ "HSV", "HSL", "HCY", "ARD" ]
-
-        # Length
-        len_left = len( left )
-        len_right = len( right )
-        if len_left == len_right:
-            # Size
-            length = len_left
-
-            # Round Left to 0.000
-            l1 = round( left[0],3 )
-            if length >= 3:
-                l2 = round( left[1],3 )
-                l3 = round( left[2],3 )
-            if length >= 4:
-                l4 = round( left[3],3 )
-            # Round Right to 0.000
-            r1 = round( right[0],3 )
-            if length >= 3:
-                r2 = round( right[1],3 )
-                r3 = round( right[2],3 )
-            if length >= 4:
-                r4 = round( right[3],3 )
-
-            # delta
-            if ( mode in hue and short == True ):
-                dist_a = r1 - l1
-                if l1 < r1:
-                    dist_b = ( r1 - 1 ) - l1
-                    unit = - 1 / 360
-                else:
-                    dist_b = ( r1 + 1 ) - l1
-                    unit = 1 / 360
-                dist = [ ( abs( dist_a ), dist_a ), ( abs( dist_b + unit ), dist_b ) ]
-                d1 = sorted( dist )[0][1] / stops
-            else:
-                d1 = ( r1 - l1 ) / stops
-            if length >= 3:
-                d2 = ( r2 - l2 ) / stops
-                d3 = ( r3 - l3 ) / stops
-            if length >= 4:
-                d4 = ( r4 - l4 ) / stops
-
-            # Output
-            output = []
-            for i in range( 0, stops+1 ):
-                # Value Interpolated
-                stop_i = [ self.geometry.Limit_Looper( l1 + ( d1 * i ), 1 ) ]
-                if length >= 3:
-                    stop_i.append( l2 + ( d2 * i ) )
-                    stop_i.append( l3 + ( d3 * i ) )
-                if length >= 4:
-                    stop_i.append( l4 + ( d4 * i ) )
-
-                # Calculate RGB
-                if mode == "A":
-                    rgb = self.convert.aaa_to_rgb( *stop_i )
-                if mode == "RGB":
-                    rgb = stop_i
-                if mode == "CMY":
-                    rgb = self.convert.cmy_to_rgb( *stop_i )
-                if mode == "CMYK":
-                    rgb = self.convert.cmyk_to_rgb( *stop_i )
-                if mode == "RYB":
-                    rgb = self.convert.ryb_to_rgb( *stop_i )
-                if mode == "YUV":
-                    rgb = self.convert.yuv_to_rgb( *stop_i )
-
-                if mode == "HSV":
-                    rgb = self.convert.hsv_to_rgb( *stop_i )
-                if mode == "HSL":
-                    rgb = self.convert.hsl_to_rgb( *stop_i )
-                if mode == "HCY":
-                    rgb = self.convert.hcy_to_rgb( *stop_i )
-                if mode == "ARD":
-                    rgb = self.convert.ard_to_rgb( *stop_i )
-
-                if mode == "XYZ":
-                    rgb = self.convert.xyz_to_rgb( *stop_i )
-                if mode == "XYY":
-                    rgb = self.convert.xyy_to_rgb( *stop_i )
-                if mode == "LAB":
-                    rgb = self.convert.lab_to_rgb( *stop_i )
-
-                if mode == "LCH":
-                    rgb = self.convert.lch_to_rgb( *stop_i )
-
-                # Display
-
-
-                # Output
-                output.append( rgb )
-            # Return
+        len_l = len( cl )
+        len_r = len( cr )
+        if len_l == len_r:
+            length = len_l
+            pl, dl = self.Gradient_Point_Delta( mode, short, stops, cl, cr, length )
+            output = self.Gradient_Stops( mode, stops, length, pl, dl )
             return output
-    def Gradient_Kelvin( self, lock, stops, red, green, blue ):
+    def Gradient_Kelvin( self, stops, red, green, blue ):
         # Variables
         delta = kkk_delta / stops
         # Calculations
@@ -5621,14 +5480,92 @@ class Picker_Docker( DockWidget ):
             # Temperature
             temp = kkk_min_scale + ( delta * i )
             rgb = self.convert.kkk_to_rgb( temp, kelvin_rgb )
-            # Lock
-            if self.lock_kkk_1 == False:
-                rgb = [rgb[0] * red, rgb[1] * green, rgb[2] * blue]
-            # Display
-
+            rgb = [ rgb[0] * red, rgb[1] * green, rgb[2] * blue ]
             # Output
             output.append( rgb )
         # Return
+        return output
+    def Gradient_Pole( self, mode, short, stops, cl, cn, cr ):
+        # Vector
+        vl = self.Color_Vector( mode, cl )
+        vn = self.Color_Vector( mode, cn )
+        vr = self.Color_Vector( mode, cr )
+        # Variables
+        len_l = len( vl )
+        len_n = len( vn )
+        len_r = len( vr )
+        if len_l == len_n == len_r:
+            # Size
+            length = len_l
+            # Left to Neutral
+            pl, dl = self.Gradient_Point_Delta( mode, short, stops, vl, vn, length )
+            output = self.Gradient_Stops( mode, stops, length, pl, dl )
+            # Neutral to Right
+            pn, dn = self.Gradient_Point_Delta( mode, short, stops, vn, vr, length )
+            extra = self.Gradient_Stops( mode, stops, length, pn, dn )
+            # Construct
+            output.extend( extra )
+            return output
+
+    def Gradient_Point_Delta( self, mode, short, stops, cl, cr, length ):
+        # Variables
+        hue = [ "HSV", "HSL", "HCY", "ARD" ]
+        pl = list()
+        dl = list()
+
+        # Left End
+        pl.append( cl[0] )
+        if length >= 3:
+            pl.append( cl[1] )
+            pl.append( cl[2] )
+        if length >= 4:
+            pl.append( cl[3] )
+
+        # Delta from Left
+        d1 = ( cr[0] - cl[0] ) / stops
+        dl.append( d1 )
+        if length >= 3:
+            d2 = ( cr[1] - cl[1] ) / stops
+            d3 = ( cr[2] - cl[2] ) / stops
+            dl.append( d2 )
+            dl.append( d3 )
+        if length >= 4:
+            d4 = ( cr[3] - cl[3] ) / stops
+            dl.append( d4 )
+        return pl, dl
+    def Gradient_Stops( self, mode, stops, length, left, delta ):
+        # Output
+        output = list()
+        for i in range( 0, stops + 1 ):
+            # Value Interpolated
+            stop_i = [ self.geometry.Limit_Looper( left[0] + ( delta[0] * i ), 1 ) ]
+            if length >= 3:
+                stop_i.append( left[1] + ( delta[1] * i ) )
+                stop_i.append( left[2] + ( delta[2] * i ) )
+            if length >= 4:
+                stop_i.append( left[3] + ( delta[3] * i ) )
+
+            # Calculate RGB Linear
+            if mode == "A":     rgb = self.convert.aaa_to_rgb( *stop_i )
+            if mode == "RGB":   rgb = stop_i
+            if mode == "CMY":   rgb = self.convert.cmy_to_rgb( *stop_i )
+            if mode == "CMYK":  rgb = self.convert.cmyk_to_rgb( *stop_i )
+            if mode == "RYB":   rgb = self.convert.ryb_to_rgb( *stop_i )
+            if mode == "YUV":   rgb = self.convert.yuv_to_rgb( *stop_i )
+            # Calculate RGB Hue
+            if mode == "HSV":   rgb = self.convert.hsv_to_rgb( *stop_i )
+            if mode == "HSL":   rgb = self.convert.hsl_to_rgb( *stop_i )
+            if mode == "HCY":   rgb = self.convert.hcy_to_rgb( *stop_i )
+            if mode == "ARD":   rgb = self.convert.ard_to_rgb( *stop_i )
+            # Calculate XYZ Linear
+            if mode == "XYZ":   rgb = self.convert.xyz_to_rgb( *stop_i )
+            if mode == "XYY":   rgb = self.convert.xyy_to_rgb( *stop_i )
+            if mode == "LAB":   rgb = self.convert.lab_to_rgb( *stop_i )
+            # Calculate XYZ Hue
+            if mode == "LCH":   rgb = self.convert.lch_to_rgb( *stop_i )
+
+            # Output
+            output.append( rgb )
         return output
 
     #endregion
@@ -5642,7 +5579,7 @@ class Picker_Docker( DockWidget ):
             self.cor = kbc
 
         # Save Mode
-        self.mode_ab = SIGNAL_SHIFT
+        self.active_ab = SIGNAL_SHIFT
         self.Pigmento_RELEASE()
     def Header_Swap( self ):
         self.Color_Swap()
@@ -5690,9 +5627,9 @@ class Picker_Docker( DockWidget ):
                 self.harmony_index = 1
                 self.cor = har_01
         else:
-            if self.mode_ab == True:
+            if self.active_ab == True:
                 self.cor = kac
-            if self.mode_ab == False:
+            if self.active_ab == False:
                 self.cor = kbc
 
     # Send
@@ -5707,6 +5644,20 @@ class Picker_Docker( DockWidget ):
             parts = 5
             colors = [ har_01["hex6"], har_02["hex6"], har_03["hex6"], har_04["hex6"], har_05["hex6"] ]
         self.harmony_swatch.Set_Harmony_Parts( parts, colors )
+
+    #endregion
+    #region Panel
+
+    def Panel_inSpace( self, cmodel ):
+        # Document
+        if cmodel != "CMYK":
+            cmodel = "RGB"
+        # Panels
+        self.panel_square.Set_ColorModel( cmodel )
+        self.panel_huesubpanel.Set_ColorModel( cmodel )
+        self.panel_gamut.Set_ColorModel( cmodel )
+        self.panel_hexagon.Set_ColorModel( cmodel )
+        self.panel_luma.Set_ColorModel( cmodel )
 
     #endregion
     #region Panel Fill
@@ -6037,7 +5988,7 @@ class Picker_Docker( DockWidget ):
         Krita.instance().writeSetting( DOCKER_NAME, "pin_cor", str( self.pin_cor ) )
 
     #endregion
-    #region Panel DOT
+    #region Panel Dot
 
     # UI
     def Dot_Widget( self, boolean ):
@@ -6250,7 +6201,7 @@ class Picker_Docker( DockWidget ):
         self.Dot_Update()
 
     #endregion
-    #region Panel MASK
+    #region Panel Mask
 
     # UI
     def Mask_Widget( self, boolean ):
@@ -6314,15 +6265,13 @@ class Picker_Docker( DockWidget ):
                 self.Mask_Pin_Color( self.mask_color )
                 self.Mask_Pin_Alpha( self.mask_alpha )
     def Mask_Read( self, SIGNAL_RESET ):
-        if self.panel_index == "Mask":
+        if self.panel_index == panel_mask:
             # Live
             self.Mask_Live_Close()
-
             # Open File
             path = os.path.join( self.mask_set, "color.eo" )
             with open( path, "r" ) as color:
                 data = color.readlines()
-
                 for i in range( len( data ) ):
                     index = data[i]
                     if SIGNAL_RESET == True:
@@ -6346,7 +6295,7 @@ class Picker_Docker( DockWidget ):
                 self.Mask_Pin_Color( self.mask_color )
                 self.Mask_Pin_Alpha( self.mask_alpha )
     def Mask_Write( self ):
-        if ( self.panel_index == "Mask" and self.mask_write == False ):
+        if ( self.panel_index == panel_mask and self.mask_write == False ):
             # Variables
             self.mask_write = True
             path = os.path.join( self.mask_set, "color.eo" )
@@ -6410,59 +6359,34 @@ class Picker_Docker( DockWidget ):
     # Live
     def Mask_Live_Update( self ):
         # Live
-        if self.mask_live["b1"] == True:
-            self.Mask_Save_B1( 0 )
-        if self.mask_live["b2"] == True:
-            self.Mask_Save_B2( 0 )
-        if self.mask_live["b3"] == True:
-            self.Mask_Save_B3( 0 )
-        if self.mask_live["d1"] == True:
-            self.Mask_Save_D1( 0 )
-        if self.mask_live["d2"] == True:
-            self.Mask_Save_D2( 0 )
-        if self.mask_live["d3"] == True:
-            self.Mask_Save_D3( 0 )
-        if self.mask_live["d4"] == True:
-            self.Mask_Save_D4( 0 )
-        if self.mask_live["d5"] == True:
-            self.Mask_Save_D5( 0 )
-        if self.mask_live["d6"] == True:
-            self.Mask_Save_D6( 0 )
-        if self.mask_live["f1"] == True:
-            self.Mask_Save_F1( 0 )
-        if self.mask_live["f2"] == True:
-            self.Mask_Save_F2( 0 )
-        if self.mask_live["f3"] == True:
-            self.Mask_Save_F3( 0 )
+        if self.mask_live["b1"] == True:    self.Mask_Save_B1( 0 )
+        if self.mask_live["b2"] == True:    self.Mask_Save_B2( 0 )
+        if self.mask_live["b3"] == True:    self.Mask_Save_B3( 0 )
+        if self.mask_live["d1"] == True:    self.Mask_Save_D1( 0 )
+        if self.mask_live["d2"] == True:    self.Mask_Save_D2( 0 )
+        if self.mask_live["d3"] == True:    self.Mask_Save_D3( 0 )
+        if self.mask_live["d4"] == True:    self.Mask_Save_D4( 0 )
+        if self.mask_live["d5"] == True:    self.Mask_Save_D5( 0 )
+        if self.mask_live["d6"] == True:    self.Mask_Save_D6( 0 )
+        if self.mask_live["f1"] == True:    self.Mask_Save_F1( 0 )
+        if self.mask_live["f2"] == True:    self.Mask_Save_F2( 0 )
+        if self.mask_live["f3"] == True:    self.Mask_Save_F3( 0 )
 
         # Update
-        if True in self.mask_live:
-            self.Update_Panel_Mask()
+        if True in self.mask_live:          self.Update_Panel_Mask()
     def Mask_Live_Uncheck( self, item ):
-        if item != "b1":
-            self.layout.bg_1_live.setChecked( False )
-        if item != "b2":
-            self.layout.bg_2_live.setChecked( False )
-        if item != "b3":
-            self.layout.bg_3_live.setChecked( False )
-        if item != "d1":
-            self.layout.dif_1_live.setChecked( False )
-        if item != "d2":
-            self.layout.dif_2_live.setChecked( False )
-        if item != "d3":
-            self.layout.dif_3_live.setChecked( False )
-        if item != "d4":
-            self.layout.dif_4_live.setChecked( False )
-        if item != "d5":
-            self.layout.dif_5_live.setChecked( False )
-        if item != "d6":
-            self.layout.dif_6_live.setChecked( False )
-        if item != "f1":
-            self.layout.fg_1_live.setChecked( False )
-        if item != "f2":
-            self.layout.fg_2_live.setChecked( False )
-        if item != "f3":
-            self.layout.fg_3_live.setChecked( False )
+        if item != "b1":    self.layout.bg_1_live.setChecked( False )
+        if item != "b2":    self.layout.bg_2_live.setChecked( False )
+        if item != "b3":    self.layout.bg_3_live.setChecked( False )
+        if item != "d1":    self.layout.dif_1_live.setChecked( False )
+        if item != "d2":    self.layout.dif_2_live.setChecked( False )
+        if item != "d3":    self.layout.dif_3_live.setChecked( False )
+        if item != "d4":    self.layout.dif_4_live.setChecked( False )
+        if item != "d5":    self.layout.dif_5_live.setChecked( False )
+        if item != "d6":    self.layout.dif_6_live.setChecked( False )
+        if item != "f1":    self.layout.fg_1_live.setChecked( False )
+        if item != "f2":    self.layout.fg_2_live.setChecked( False )
+        if item != "f3":    self.layout.fg_3_live.setChecked( False )
 
     # Live
     def Mask_Live_Close( self ):
@@ -6568,72 +6492,84 @@ class Picker_Docker( DockWidget ):
         cor = self.cor["hex6"]
         self.mask_color["b1"] = cor
         self.mask_b1.Set_Color( cor )
+        self.mask_b1.Set_Alpha( 1 )
         self.Update_Panel_Mask()
         Krita.instance().writeSetting( DOCKER_NAME, "mask_color", str( self.mask_color ) )
     def Mask_Save_B2( self, SIGNAL_SAVE ):
         cor = self.cor["hex6"]
         self.mask_color["b2"] = cor
         self.mask_b2.Set_Color( cor )
+        self.mask_b2.Set_Alpha( 1 )
         self.Update_Panel_Mask()
         Krita.instance().writeSetting( DOCKER_NAME, "mask_color", str( self.mask_color ) )
     def Mask_Save_B3( self, SIGNAL_SAVE ):
         cor = self.cor["hex6"]
         self.mask_color["b3"] = cor
         self.mask_b3.Set_Color( cor )
+        self.mask_b3.Set_Alpha( 1 )
         self.Update_Panel_Mask()
         Krita.instance().writeSetting( DOCKER_NAME, "mask_color", str( self.mask_color ) )
     def Mask_Save_D1( self, SIGNAL_SAVE ):
         cor = self.cor["hex6"]
         self.mask_color["d1"] = cor
         self.mask_d1.Set_Color( cor )
+        self.mask_d1.Set_Alpha( 1 )
         self.Update_Panel_Mask()
         Krita.instance().writeSetting( DOCKER_NAME, "mask_color", str( self.mask_color ) )
     def Mask_Save_D2( self, SIGNAL_SAVE ):
         cor = self.cor["hex6"]
         self.mask_color["d2"] = cor
         self.mask_d2.Set_Color( cor )
+        self.mask_d2.Set_Alpha( 1 )
         self.Update_Panel_Mask()
         Krita.instance().writeSetting( DOCKER_NAME, "mask_color", str( self.mask_color ) )
     def Mask_Save_D3( self, SIGNAL_SAVE ):
         cor = self.cor["hex6"]
         self.mask_color["d3"] = cor
         self.mask_d3.Set_Color( cor )
+        self.mask_d3.Set_Alpha( 1 )
         self.Update_Panel_Mask()
         Krita.instance().writeSetting( DOCKER_NAME, "mask_color", str( self.mask_color ) )
     def Mask_Save_D4( self, SIGNAL_SAVE ):
         cor = self.cor["hex6"]
         self.mask_color["d4"] = cor
         self.mask_d4.Set_Color( cor )
+        self.mask_d4.Set_Alpha( 1 )
         self.Update_Panel_Mask()
         Krita.instance().writeSetting( DOCKER_NAME, "mask_color", str( self.mask_color ) )
     def Mask_Save_D5( self, SIGNAL_SAVE ):
         cor = self.cor["hex6"]
         self.mask_color["d5"] = cor
         self.mask_d5.Set_Color( cor )
+        self.mask_d5.Set_Alpha( 1 )
         self.Update_Panel_Mask()
         Krita.instance().writeSetting( DOCKER_NAME, "mask_color", str( self.mask_color ) )
     def Mask_Save_D6( self, SIGNAL_SAVE ):
         cor = self.cor["hex6"]
         self.mask_color["d6"] = cor
         self.mask_d6.Set_Color( cor )
+        self.mask_d6.Set_Alpha( 1 )
         self.Update_Panel_Mask()
         Krita.instance().writeSetting( DOCKER_NAME, "mask_color", str( self.mask_color ) )
     def Mask_Save_F1( self, SIGNAL_SAVE ):
         cor = self.cor["hex6"]
         self.mask_color["f1"] = cor
         self.mask_f1.Set_Color( cor )
+        self.mask_f1.Set_Alpha( 1 )
         self.Update_Panel_Mask()
         Krita.instance().writeSetting( DOCKER_NAME, "mask_color", str( self.mask_color ) )
     def Mask_Save_F2( self, SIGNAL_SAVE ):
         cor = self.cor["hex6"]
         self.mask_color["f2"] = cor
         self.mask_f2.Set_Color( cor )
+        self.mask_f2.Set_Alpha( 1 )
         self.Update_Panel_Mask()
         Krita.instance().writeSetting( DOCKER_NAME, "mask_color", str( self.mask_color ) )
     def Mask_Save_F3( self, SIGNAL_SAVE ):
         cor = self.cor["hex6"]
         self.mask_color["f3"] = cor
         self.mask_f3.Set_Color( cor )
+        self.mask_f3.Set_Alpha( 1 )
         self.Update_Panel_Mask()
         Krita.instance().writeSetting( DOCKER_NAME, "mask_color", str( self.mask_color ) )
     # Clean
@@ -6799,246 +6735,246 @@ class Picker_Docker( DockWidget ):
     #region Channel Sliders
 
     # AAA
-    def Channels_AAA_1_Slider( self, sv ):
-        self.Pigmento_PRESS( "A", sv["value"], 0, 0, 0, self.cor )
+    def Channel_AAA_1_Slider( self, index, value ):
+        self.Pigmento_PRESS( "A", value, 0, 0, 0, self.cor )
     # RGB
-    def Channels_RGB_1_Slider( self, sv ):
-        self.Pigmento_PRESS( "RGB", sv["value"], self.cor["rgb_2"], self.cor["rgb_3"], 0, self.cor )
-    def Channels_RGB_2_Slider( self, sv ):
-        self.Pigmento_PRESS( "RGB", self.cor["rgb_1"], sv["value"], self.cor["rgb_3"], 0, self.cor )
-    def Channels_RGB_3_Slider( self, sv ):
-        self.Pigmento_PRESS( "RGB", self.cor["rgb_1"], self.cor["rgb_2"], sv["value"], 0, self.cor )
+    def Channel_RGB_1_Slider( self, index, value ):
+        self.Pigmento_PRESS( "RGB", value, self.cor["rgb_2"], self.cor["rgb_3"], 0, self.cor )
+    def Channel_RGB_2_Slider( self, index, value ):
+        self.Pigmento_PRESS( "RGB", self.cor["rgb_1"], value, self.cor["rgb_3"], 0, self.cor )
+    def Channel_RGB_3_Slider( self, index, value ):
+        self.Pigmento_PRESS( "RGB", self.cor["rgb_1"], self.cor["rgb_2"], value, 0, self.cor )
     # CMY
-    def Channels_CMY_1_Slider( self, sv ):
-        self.Pigmento_PRESS( "CMY", sv["value"], self.cor["cmy_2"], self.cor["cmy_3"], 0, self.cor )
-    def Channels_CMY_2_Slider( self, sv ):
-        self.Pigmento_PRESS( "CMY", self.cor["cmy_1"], sv["value"], self.cor["cmy_3"], 0, self.cor )
-    def Channels_CMY_3_Slider( self, sv ):
-        self.Pigmento_PRESS( "CMY", self.cor["cmy_1"], self.cor["cmy_2"], sv["value"], 0, self.cor )
+    def Channel_CMY_1_Slider( self, index, value ):
+        self.Pigmento_PRESS( "CMY", value, self.cor["cmy_2"], self.cor["cmy_3"], 0, self.cor )
+    def Channel_CMY_2_Slider( self, index, value ):
+        self.Pigmento_PRESS( "CMY", self.cor["cmy_1"], value, self.cor["cmy_3"], 0, self.cor )
+    def Channel_CMY_3_Slider( self, index, value ):
+        self.Pigmento_PRESS( "CMY", self.cor["cmy_1"], self.cor["cmy_2"], value, 0, self.cor )
     # CMYK
-    def Channels_CMYK_1_Slider( self, sv ):
-        self.Pigmento_PRESS( "CMYK", sv["value"], self.cor["cmyk_2"], self.cor["cmyk_3"], self.cor["cmyk_4"], self.cor )
-    def Channels_CMYK_2_Slider( self, sv ):
-        self.Pigmento_PRESS( "CMYK", self.cor["cmyk_1"], sv["value"], self.cor["cmyk_3"], self.cor["cmyk_4"], self.cor )
-    def Channels_CMYK_3_Slider( self, sv ):
-        self.Pigmento_PRESS( "CMYK", self.cor["cmyk_1"], self.cor["cmyk_2"], sv["value"], self.cor["cmyk_4"], self.cor )
-    def Channels_CMYK_4_Slider( self, sv ):
-        self.Pigmento_PRESS( "CMYK", self.cor["cmyk_1"], self.cor["cmyk_2"], self.cor["cmyk_3"], sv["value"], self.cor )
+    def Channel_CMYK_1_Slider( self, index, value ):
+        self.Pigmento_PRESS( "CMYK", value, self.cor["cmyk_2"], self.cor["cmyk_3"], self.cor["cmyk_4"], self.cor )
+    def Channel_CMYK_2_Slider( self, index, value ):
+        self.Pigmento_PRESS( "CMYK", self.cor["cmyk_1"], value, self.cor["cmyk_3"], self.cor["cmyk_4"], self.cor )
+    def Channel_CMYK_3_Slider( self, index, value ):
+        self.Pigmento_PRESS( "CMYK", self.cor["cmyk_1"], self.cor["cmyk_2"], value, self.cor["cmyk_4"], self.cor )
+    def Channel_CMYK_4_Slider( self, index, value ):
+        self.Pigmento_PRESS( "CMYK", self.cor["cmyk_1"], self.cor["cmyk_2"], self.cor["cmyk_3"], value, self.cor )
     # RYB
-    def Channels_RYB_1_Slider( self, sv ):
-        self.Pigmento_PRESS( "RYB", sv["value"], self.cor["ryb_2"], self.cor["ryb_3"], 0, self.cor )
-    def Channels_RYB_2_Slider( self, sv ):
-        self.Pigmento_PRESS( "RYB", self.cor["ryb_1"], sv["value"], self.cor["ryb_3"], 0, self.cor )
-    def Channels_RYB_3_Slider( self, sv ):
-        self.Pigmento_PRESS( "RYB", self.cor["ryb_1"], self.cor["ryb_2"], sv["value"], 0, self.cor )
+    def Channel_RYB_1_Slider( self, index, value ):
+        self.Pigmento_PRESS( "RYB", value, self.cor["ryb_2"], self.cor["ryb_3"], 0, self.cor )
+    def Channel_RYB_2_Slider( self, index, value ):
+        self.Pigmento_PRESS( "RYB", self.cor["ryb_1"], value, self.cor["ryb_3"], 0, self.cor )
+    def Channel_RYB_3_Slider( self, index, value ):
+        self.Pigmento_PRESS( "RYB", self.cor["ryb_1"], self.cor["ryb_2"], value, 0, self.cor )
     # YUV
-    def Channels_YUV_1_Slider( self, sv ):
-        self.Pigmento_PRESS( "YUV", sv["value"], self.cor["yuv_2"], self.cor["yuv_3"], 0, self.cor )
-    def Channels_YUV_2_Slider( self, sv ):
-        self.Pigmento_PRESS( "YUV", self.cor["yuv_1"], sv["value"], self.cor["yuv_3"], 0, self.cor )
-    def Channels_YUV_3_Slider( self, sv ):
-        self.Pigmento_PRESS( "YUV", self.cor["yuv_1"], self.cor["yuv_2"], sv["value"], 0, self.cor )
+    def Channel_YUV_1_Slider( self, index, value ):
+        self.Pigmento_PRESS( "YUV", value, self.cor["yuv_2"], self.cor["yuv_3"], 0, self.cor )
+    def Channel_YUV_2_Slider( self, index, value ):
+        self.Pigmento_PRESS( "YUV", self.cor["yuv_1"], value, self.cor["yuv_3"], 0, self.cor )
+    def Channel_YUV_3_Slider( self, index, value ):
+        self.Pigmento_PRESS( "YUV", self.cor["yuv_1"], self.cor["yuv_2"], value, 0, self.cor )
 
     # HSV
-    def Channels_HSV_1_Slider( self, sv ):
-        self.Pigmento_PRESS( "HSV", sv["value"], self.cor["hsv_2"], self.cor["hsv_3"], 0, self.cor )
-    def Channels_HSV_2_Slider( self, sv ):
-        self.Pigmento_PRESS( "HSV", self.cor["hsv_1"], sv["value"], self.cor["hsv_3"], 0, self.cor )
-    def Channels_HSV_3_Slider( self, sv ):
-        self.Pigmento_PRESS( "HSV", self.cor["hsv_1"], self.cor["hsv_2"], sv["value"], 0, self.cor )
+    def Channel_HSV_1_Slider( self, index, value ):
+        self.Pigmento_PRESS( "HSV", value, self.cor["hsv_2"], self.cor["hsv_3"], 0, self.cor )
+    def Channel_HSV_2_Slider( self, index, value ):
+        self.Pigmento_PRESS( "HSV", self.cor["hsv_1"], value, self.cor["hsv_3"], 0, self.cor )
+    def Channel_HSV_3_Slider( self, index, value ):
+        self.Pigmento_PRESS( "HSV", self.cor["hsv_1"], self.cor["hsv_2"], value, 0, self.cor )
     # HSL
-    def Channels_HSL_1_Slider( self, sv ):
-        self.Pigmento_PRESS( "HSL", sv["value"], self.cor["hsl_2"], self.cor["hsl_3"], 0, self.cor )
-    def Channels_HSL_2_Slider( self, sv ):
-        self.Pigmento_PRESS( "HSL", self.cor["hsl_1"], sv["value"], self.cor["hsl_3"], 0, self.cor )
-    def Channels_HSL_3_Slider( self, sv ):
-        self.Pigmento_PRESS( "HSL", self.cor["hsl_1"], self.cor["hsl_2"], sv["value"], 0, self.cor )
+    def Channel_HSL_1_Slider( self, index, value ):
+        self.Pigmento_PRESS( "HSL", value, self.cor["hsl_2"], self.cor["hsl_3"], 0, self.cor )
+    def Channel_HSL_2_Slider( self, index, value ):
+        self.Pigmento_PRESS( "HSL", self.cor["hsl_1"], value, self.cor["hsl_3"], 0, self.cor )
+    def Channel_HSL_3_Slider( self, index, value ):
+        self.Pigmento_PRESS( "HSL", self.cor["hsl_1"], self.cor["hsl_2"], value, 0, self.cor )
     # HCY
-    def Channels_HCY_1_Slider( self, sv ):
-        self.Pigmento_PRESS( "HCY", sv["value"], self.cor["hcy_2"], self.cor["hcy_3"], 0, self.cor )
-    def Channels_HCY_2_Slider( self, sv ):
-        self.Pigmento_PRESS( "HCY", self.cor["hcy_1"], sv["value"], self.cor["hcy_3"], 0, self.cor )
-    def Channels_HCY_3_Slider( self, sv ):
-        self.Pigmento_PRESS( "HCY", self.cor["hcy_1"], self.cor["hcy_2"], sv["value"], 0, self.cor )
+    def Channel_HCY_1_Slider( self, index, value ):
+        self.Pigmento_PRESS( "HCY", value, self.cor["hcy_2"], self.cor["hcy_3"], 0, self.cor )
+    def Channel_HCY_2_Slider( self, index, value ):
+        self.Pigmento_PRESS( "HCY", self.cor["hcy_1"], value, self.cor["hcy_3"], 0, self.cor )
+    def Channel_HCY_3_Slider( self, index, value ):
+        self.Pigmento_PRESS( "HCY", self.cor["hcy_1"], self.cor["hcy_2"], value, 0, self.cor )
     # ARD
-    def Channels_ARD_1_Slider( self, sv ):
-        self.Pigmento_PRESS( "ARD", sv["value"], self.cor["ard_2"], self.cor["ard_3"], 0, self.cor )
-    def Channels_ARD_2_Slider( self, sv ):
-        self.Pigmento_PRESS( "ARD", self.cor["ard_1"], sv["value"], self.cor["ard_3"], 0, self.cor )
-    def Channels_ARD_3_Slider( self, sv ):
-        self.Pigmento_PRESS( "ARD", self.cor["ard_1"], self.cor["ard_2"], sv["value"], 0, self.cor )
+    def Channel_ARD_1_Slider( self, index, value ):
+        self.Pigmento_PRESS( "ARD", value, self.cor["ard_2"], self.cor["ard_3"], 0, self.cor )
+    def Channel_ARD_2_Slider( self, index, value ):
+        self.Pigmento_PRESS( "ARD", self.cor["ard_1"], value, self.cor["ard_3"], 0, self.cor )
+    def Channel_ARD_3_Slider( self, index, value ):
+        self.Pigmento_PRESS( "ARD", self.cor["ard_1"], self.cor["ard_2"], value, 0, self.cor )
 
     # XYZ
-    def Channels_XYZ_1_Slider( self, sv ):
-        self.Pigmento_PRESS( "XYZ", sv["value"], self.cor["xyz_2"], self.cor["xyz_3"], 0, self.cor )
-    def Channels_XYZ_2_Slider( self, sv ):
-        self.Pigmento_PRESS( "XYZ", self.cor["xyz_1"], sv["value"], self.cor["xyz_3"], 0, self.cor )
-    def Channels_XYZ_3_Slider( self, sv ):
-        self.Pigmento_PRESS( "XYZ", self.cor["xyz_1"], self.cor["xyz_2"], sv["value"], 0, self.cor )
+    def Channel_XYZ_1_Slider( self, index, value ):
+        self.Pigmento_PRESS( "XYZ", value, self.cor["xyz_2"], self.cor["xyz_3"], 0, self.cor )
+    def Channel_XYZ_2_Slider( self, index, value ):
+        self.Pigmento_PRESS( "XYZ", self.cor["xyz_1"], value, self.cor["xyz_3"], 0, self.cor )
+    def Channel_XYZ_3_Slider( self, index, value ):
+        self.Pigmento_PRESS( "XYZ", self.cor["xyz_1"], self.cor["xyz_2"], value, 0, self.cor )
     # XYY
-    def Channels_XYY_1_Slider( self, sv ):
-        self.Pigmento_PRESS( "XYY", sv["value"], self.cor["xyy_2"], self.cor["xyy_3"], 0, self.cor )
-    def Channels_XYY_2_Slider( self, sv ):
-        self.Pigmento_PRESS( "XYY", self.cor["xyy_1"], sv["value"], self.cor["xyy_3"], 0, self.cor )
-    def Channels_XYY_3_Slider( self, sv ):
-        self.Pigmento_PRESS( "XYY", self.cor["xyy_1"], self.cor["xyy_2"], sv["value"], 0, self.cor )
+    def Channel_XYY_1_Slider( self, index, value ):
+        self.Pigmento_PRESS( "XYY", value, self.cor["xyy_2"], self.cor["xyy_3"], 0, self.cor )
+    def Channel_XYY_2_Slider( self, index, value ):
+        self.Pigmento_PRESS( "XYY", self.cor["xyy_1"], value, self.cor["xyy_3"], 0, self.cor )
+    def Channel_XYY_3_Slider( self, index, value ):
+        self.Pigmento_PRESS( "XYY", self.cor["xyy_1"], self.cor["xyy_2"], value, 0, self.cor )
     # LAB
-    def Channels_LAB_1_Slider( self, sv ):
-        self.Pigmento_PRESS( "LAB", sv["value"], self.cor["lab_2"], self.cor["lab_3"], 0, self.cor )
-    def Channels_LAB_2_Slider( self, sv ):
-        self.Pigmento_PRESS( "LAB", self.cor["lab_1"], sv["value"], self.cor["lab_3"], 0, self.cor )
-    def Channels_LAB_3_Slider( self, sv ):
-        self.Pigmento_PRESS( "LAB", self.cor["lab_1"], self.cor["lab_2"], sv["value"], 0, self.cor )
+    def Channel_LAB_1_Slider( self, index, value ):
+        self.Pigmento_PRESS( "LAB", value, self.cor["lab_2"], self.cor["lab_3"], 0, self.cor )
+    def Channel_LAB_2_Slider( self, index, value ):
+        self.Pigmento_PRESS( "LAB", self.cor["lab_1"], value, self.cor["lab_3"], 0, self.cor )
+    def Channel_LAB_3_Slider( self, index, value ):
+        self.Pigmento_PRESS( "LAB", self.cor["lab_1"], self.cor["lab_2"], value, 0, self.cor )
 
     # LCH
-    def Channels_LCH_1_Slider( self, sv ):
-        self.Pigmento_PRESS( "LCH", sv["value"], self.cor["lch_2"], self.cor["lch_3"], 0, self.cor )
-    def Channels_LCH_2_Slider( self, sv ):
-        self.Pigmento_PRESS( "LCH", self.cor["lch_1"], sv["value"], self.cor["lch_3"], 0, self.cor )
-    def Channels_LCH_3_Slider( self, sv ):
-        self.Pigmento_PRESS( "LCH", self.cor["lch_1"], self.cor["lch_2"], sv["value"], 0, self.cor )
+    def Channel_LCH_1_Slider( self, index, value ):
+        self.Pigmento_PRESS( "LCH", value, self.cor["lch_2"], self.cor["lch_3"], 0, self.cor )
+    def Channel_LCH_2_Slider( self, index, value ):
+        self.Pigmento_PRESS( "LCH", self.cor["lch_1"], value, self.cor["lch_3"], 0, self.cor )
+    def Channel_LCH_3_Slider( self, index, value ):
+        self.Pigmento_PRESS( "LCH", self.cor["lch_1"], self.cor["lch_2"], value, 0, self.cor )
 
     #endregion
     #region Channel Stops
 
     # AAA
-    def Channels_AAA_1_Stops( self, ss ):
+    def Channel_AAA_1_Stops( self, ss ):
         stops["aaa_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
     # RGB
-    def Channels_RGB_1_Stops( self, ss ):
+    def Channel_RGB_1_Stops( self, ss ):
         stops["rgb_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_RGB_2_Stops( self, ss ):
+    def Channel_RGB_2_Stops( self, ss ):
         stops["rgb_2"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_RGB_3_Stops( self, ss ):
+    def Channel_RGB_3_Stops( self, ss ):
         stops["rgb_3"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
     # CMY
-    def Channels_CMY_1_Stops( self, ss ):
+    def Channel_CMY_1_Stops( self, ss ):
         stops["cmy_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_CMY_2_Stops( self, ss ):
+    def Channel_CMY_2_Stops( self, ss ):
         stops["cmy_2"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_CMY_3_Stops( self, ss ):
+    def Channel_CMY_3_Stops( self, ss ):
         stops["cmy_3"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
     # CMYK
-    def Channels_CMYK_1_Stops( self, ss ):
+    def Channel_CMYK_1_Stops( self, ss ):
         stops["cmyk_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_CMYK_2_Stops( self, ss ):
+    def Channel_CMYK_2_Stops( self, ss ):
         stops["cmyk_2"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_CMYK_3_Stops( self, ss ):
+    def Channel_CMYK_3_Stops( self, ss ):
         stops["cmyk_3"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_CMYK_4_Stops( self, ss ):
+    def Channel_CMYK_4_Stops( self, ss ):
         stops["cmyk_4"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
     # RYB
-    def Channels_RYB_1_Stops( self, ss ):
+    def Channel_RYB_1_Stops( self, ss ):
         stops["ryb_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_RYB_2_Stops( self, ss ):
+    def Channel_RYB_2_Stops( self, ss ):
         stops["ryb_2"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_RYB_3_Stops( self, ss ):
+    def Channel_RYB_3_Stops( self, ss ):
         stops["ryb_3"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
     # YUV
-    def Channels_YUV_1_Stops( self, ss ):
+    def Channel_YUV_1_Stops( self, ss ):
         stops["yuv_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_YUV_2_Stops( self, ss ):
+    def Channel_YUV_2_Stops( self, ss ):
         stops["yuv_2"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_YUV_3_Stops( self, ss ):
+    def Channel_YUV_3_Stops( self, ss ):
         stops["yuv_3"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
 
     # HSV
-    def Channels_HSV_1_Stops( self, ss ):
+    def Channel_HSV_1_Stops( self, ss ):
         stops["hsv_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_HSV_2_Stops( self, ss ):
+    def Channel_HSV_2_Stops( self, ss ):
         stops["hsv_2"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_HSV_3_Stops( self, ss ):
+    def Channel_HSV_3_Stops( self, ss ):
         stops["hsv_3"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
     # HSL
-    def Channels_HSL_1_Stops( self, ss ):
+    def Channel_HSL_1_Stops( self, ss ):
         stops["hsl_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_HSL_2_Stops( self, ss ):
+    def Channel_HSL_2_Stops( self, ss ):
         stops["hsl_2"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_HSL_3_Stops( self, ss ):
+    def Channel_HSL_3_Stops( self, ss ):
         stops["hsl_3"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
     # HCY
-    def Channels_HCY_1_Stops( self, ss ):
+    def Channel_HCY_1_Stops( self, ss ):
         stops["hcy_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_HCY_2_Stops( self, ss ):
+    def Channel_HCY_2_Stops( self, ss ):
         stops["hcy_2"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_HCY_3_Stops( self, ss ):
+    def Channel_HCY_3_Stops( self, ss ):
         stops["hcy_3"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
     # ARD
-    def Channels_ARD_1_Stops( self, ss ):
+    def Channel_ARD_1_Stops( self, ss ):
         stops["ard_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_ARD_2_Stops( self, ss ):
+    def Channel_ARD_2_Stops( self, ss ):
         stops["ard_2"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_ARD_3_Stops( self, ss ):
+    def Channel_ARD_3_Stops( self, ss ):
         stops["ard_3"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
 
     # XYZ
-    def Channels_XYZ_1_Stops( self, ss ):
+    def Channel_XYZ_1_Stops( self, ss ):
         stops["xyz_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_XYZ_2_Stops( self, ss ):
+    def Channel_XYZ_2_Stops( self, ss ):
         stops["xyz_2"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_XYZ_3_Stops( self, ss ):
+    def Channel_XYZ_3_Stops( self, ss ):
         stops["xyz_3"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
     # XYY
-    def Channels_XYY_1_Stops( self, ss ):
+    def Channel_XYY_1_Stops( self, ss ):
         stops["xyy_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_XYY_2_Stops( self, ss ):
+    def Channel_XYY_2_Stops( self, ss ):
         stops["xyy_2"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_XYY_3_Stops( self, ss ):
+    def Channel_XYY_3_Stops( self, ss ):
         stops["xyy_3"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
     # LAB
-    def Channels_LAB_1_Stops( self, ss ):
+    def Channel_LAB_1_Stops( self, ss ):
         stops["lab_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_LAB_2_Stops( self, ss ):
+    def Channel_LAB_2_Stops( self, ss ):
         stops["lab_2"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_LAB_3_Stops( self, ss ):
+    def Channel_LAB_3_Stops( self, ss ):
         stops["lab_3"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
 
     # LCH
-    def Channels_LCH_1_Stops( self, ss ):
+    def Channel_LCH_1_Stops( self, ss ):
         stops["lch_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_LCH_2_Stops( self, ss ):
+    def Channel_LCH_2_Stops( self, ss ):
         stops["lch_2"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_LCH_3_Stops( self, ss ):
+    def Channel_LCH_3_Stops( self, ss ):
         stops["lch_3"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
 
@@ -7046,204 +6982,203 @@ class Picker_Docker( DockWidget ):
     #region Channel Values
 
     # AAA
-    def Channels_AAA_1_Value( self, sv ):
+    def Channel_AAA_1_Value( self, sv ):
         value = sv / krange["aaa_1"]
         self.Pigmento_PRESS( "A", value, 0, 0, 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
     # RGB
-    def Channels_RGB_1_Value( self, sv ):
+    def Channel_RGB_1_Value( self, sv ):
         value = sv / krange["rgb_1"]
         self.Pigmento_PRESS( "RGB", value, self.cor["rgb_2"], self.cor["rgb_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_RGB_2_Value( self, sv ):
+    def Channel_RGB_2_Value( self, sv ):
         value = sv / krange["rgb_2"]
         self.Pigmento_PRESS( "RGB", self.cor["rgb_1"], value, self.cor["rgb_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_RGB_3_Value( self, sv ):
+    def Channel_RGB_3_Value( self, sv ):
         value = sv / krange["rgb_3"]
         self.Pigmento_PRESS( "RGB", self.cor["rgb_1"], self.cor["rgb_2"], value, 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
     # CMY
-    def Channels_CMY_1_Value( self, sv ):
+    def Channel_CMY_1_Value( self, sv ):
         value = sv / krange["cmy_1"]
         self.Pigmento_PRESS( "CMY", value, self.cor["cmy_2"], self.cor["cmy_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_CMY_2_Value( self, sv ):
+    def Channel_CMY_2_Value( self, sv ):
         value = sv / krange["cmy_2"]
         self.Pigmento_PRESS( "CMY", self.cor["cmy_1"], value, self.cor["cmy_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_CMY_3_Value( self, sv ):
+    def Channel_CMY_3_Value( self, sv ):
         value = sv / krange["cmy_3"]
         self.Pigmento_PRESS( "CMY", self.cor["cmy_1"], self.cor["cmy_2"], value, 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
     # CMYK
-    def Channels_CMYK_1_Value( self, sv ):
+    def Channel_CMYK_1_Value( self, sv ):
         value = sv / krange["cmyk_1"]
         self.Pigmento_PRESS( "CMYK", value, self.cor["cmyk_2"], self.cor["cmyk_3"], self.cor["cmyk_4"], self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_CMYK_2_Value( self, sv ):
+    def Channel_CMYK_2_Value( self, sv ):
         value = sv / krange["cmyk_2"]
         self.Pigmento_PRESS( "CMYK", self.cor["cmyk_1"], value, self.cor["cmyk_3"], self.cor["cmyk_4"], self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_CMYK_3_Value( self, sv ):
+    def Channel_CMYK_3_Value( self, sv ):
         value = sv / krange["cmyk_3"]
         self.Pigmento_PRESS( "CMYK", self.cor["cmyk_1"], self.cor["cmyk_2"], value, self.cor["cmyk_4"], self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_CMYK_4_Value( self, sv ):
+    def Channel_CMYK_4_Value( self, sv ):
         value = sv / krange["cmyk_4"]
         self.Pigmento_PRESS( "CMYK", self.cor["cmyk_1"], self.cor["cmyk_2"], self.cor["cmyk_3"], value, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
     # RYB
-    def Channels_RYB_1_Value( self, sv ):
+    def Channel_RYB_1_Value( self, sv ):
         value = sv / krange["ryb_1"]
         self.Pigmento_PRESS( "RYB", value, self.cor["ryb_2"], self.cor["ryb_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_RYB_2_Value( self, sv ):
+    def Channel_RYB_2_Value( self, sv ):
         value = sv / krange["ryb_2"]
         self.Pigmento_PRESS( "RYB", self.cor["ryb_1"], value, self.cor["ryb_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_RYB_3_Value( self, sv ):
+    def Channel_RYB_3_Value( self, sv ):
         value = sv / krange["ryb_3"]
         self.Pigmento_PRESS( "RYB", self.cor["ryb_1"], self.cor["ryb_2"], value, 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
     # YUV
-    def Channels_YUV_1_Value( self, sv ):
+    def Channel_YUV_1_Value( self, sv ):
         value = sv / krange["yuv_1"]
         self.Pigmento_PRESS( "YUV", value, self.cor["yuv_2"], self.cor["yuv_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_YUV_2_Value( self, sv ):
+    def Channel_YUV_2_Value( self, sv ):
         value = sv / krange["yuv_2"]
         self.Pigmento_PRESS( "YUV", self.cor["yuv_1"], value, self.cor["yuv_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_YUV_3_Value( self, sv ):
+    def Channel_YUV_3_Value( self, sv ):
         value = sv / krange["yuv_3"]
         self.Pigmento_PRESS( "YUV", self.cor["yuv_1"], self.cor["yuv_2"], value, 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
 
     # HSV
-    def Channels_HSV_1_Value( self, sv ):
+    def Channel_HSV_1_Value( self, sv ):
         value = sv / krange["hsv_1"]
         self.Pigmento_PRESS( "HSV", value, self.cor["hsv_2"], self.cor["hsv_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_HSV_2_Value( self, sv ):
+    def Channel_HSV_2_Value( self, sv ):
         value = sv / krange["hsv_2"]
         self.Pigmento_PRESS( "HSV", self.cor["hsv_1"], value, self.cor["hsv_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_HSV_3_Value( self, sv ):
+    def Channel_HSV_3_Value( self, sv ):
         value = sv / krange["hsv_3"]
         self.Pigmento_PRESS( "HSV", self.cor["hsv_1"], self.cor["hsv_2"], value, 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
     # HSL
-    def Channels_HSL_1_Value( self, sv ):
+    def Channel_HSL_1_Value( self, sv ):
         value = sv / krange["hsl_1"]
         self.Pigmento_PRESS( "HSL", value, self.cor["hsl_2"], self.cor["hsl_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_HSL_2_Value( self, sv ):
+    def Channel_HSL_2_Value( self, sv ):
         value = sv / krange["hsl_2"]
         self.Pigmento_PRESS( "HSL", self.cor["hsl_1"], value, self.cor["hsl_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_HSL_3_Value( self, sv ):
+    def Channel_HSL_3_Value( self, sv ):
         value = sv / krange["hsl_3"]
         self.Pigmento_PRESS( "HSL", self.cor["hsl_1"], self.cor["hsl_2"], value, 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
     # HCY
-    def Channels_HCY_1_Value( self, sv ):
+    def Channel_HCY_1_Value( self, sv ):
         value = sv / krange["hcy_1"]
         self.Pigmento_PRESS( "HCY", value, self.cor["hcy_2"], self.cor["hcy_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_HCY_2_Value( self, sv ):
+    def Channel_HCY_2_Value( self, sv ):
         value = sv / krange["hcy_2"]
         self.Pigmento_PRESS( "HCY", self.cor["hcy_1"], value, self.cor["hcy_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_HCY_3_Value( self, sv ):
+    def Channel_HCY_3_Value( self, sv ):
         value = sv / krange["hcy_3"]
         self.Pigmento_PRESS( "HCY", self.cor["hcy_1"], self.cor["hcy_2"], value, 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
     # ARD
-    def Channels_ARD_1_Value( self, sv ):
+    def Channel_ARD_1_Value( self, sv ):
         value = sv / krange["ard_1"]
         self.Pigmento_PRESS( "ARD", value, self.cor["ard_2"], self.cor["ard_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_ARD_2_Value( self, sv ):
+    def Channel_ARD_2_Value( self, sv ):
         value = sv / krange["ard_2"]
         self.Pigmento_PRESS( "ARD", self.cor["ard_1"], value, self.cor["ard_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_ARD_3_Value( self, sv ):
+    def Channel_ARD_3_Value( self, sv ):
         value = sv / krange["ard_3"]
         self.Pigmento_PRESS( "ARD", self.cor["ard_1"], self.cor["ard_2"], value, 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
 
     # XYZ
-    def Channels_XYZ_1_Value( self, sv ):
+    def Channel_XYZ_1_Value( self, sv ):
         value = sv / krange["xyz_1"]
         self.Pigmento_PRESS( "XYZ", value, self.cor["xyz_2"], self.cor["xyz_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_XYZ_2_Value( self, sv ):
+    def Channel_XYZ_2_Value( self, sv ):
         value = sv / krange["xyz_2"]
         self.Pigmento_PRESS( "XYZ", self.cor["xyz_1"], value, self.cor["xyz_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_XYZ_3_Value( self, sv ):
+    def Channel_XYZ_3_Value( self, sv ):
         value = sv / krange["xyz_3"]
         self.Pigmento_PRESS( "XYZ", self.cor["xyz_1"], self.cor["xyz_2"], value, 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
     # XYY
-    def Channels_XYY_1_Value( self, sv ):
+    def Channel_XYY_1_Value( self, sv ):
         value = sv / krange["xyy_1"]
         self.Pigmento_PRESS( "XYY", value, self.cor["xyy_2"], self.cor["xyy_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_XYY_2_Value( self, sv ):
+    def Channel_XYY_2_Value( self, sv ):
         value = sv / krange["xyy_2"]
         self.Pigmento_PRESS( "XYY", self.cor["xyy_1"], value, self.cor["xyy_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_XYY_3_Value( self, sv ):
+    def Channel_XYY_3_Value( self, sv ):
         value = sv / krange["xyy_3"]
         self.Pigmento_PRESS( "XYY", self.cor["xyy_1"], self.cor["xyy_2"], value, 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
     # LAB
-    def Channels_LAB_1_Value( self, sv ):
+    def Channel_LAB_1_Value( self, sv ):
         value = sv / krange["lab_1"]
         self.Pigmento_PRESS( "LAB", value, self.cor["lab_2"], self.cor["lab_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_LAB_2_Value( self, sv ):
+    def Channel_LAB_2_Value( self, sv ):
         value = sv / krange["lab_2"]
         self.Pigmento_PRESS( "LAB", self.cor["lab_1"], value, self.cor["lab_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_LAB_3_Value( self, sv ):
+    def Channel_LAB_3_Value( self, sv ):
         value = sv / krange["lab_3"]
         self.Pigmento_PRESS( "LAB", self.cor["lab_1"], self.cor["lab_2"], value, 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
 
     # LCH
-    def Channels_LCH_1_Value( self, sv ):
+    def Channel_LCH_1_Value( self, sv ):
         value = sv / krange["lch_1"]
         self.Pigmento_PRESS( "LCH", value, self.cor["lch_2"], self.cor["lch_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_LCH_2_Value( self, sv ):
+    def Channel_LCH_2_Value( self, sv ):
         value = sv / krange["lch_2"]
         self.Pigmento_PRESS( "LCH", self.cor["lch_1"], value, self.cor["lch_3"], 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
-    def Channels_LCH_3_Value( self, sv ):
+    def Channel_LCH_3_Value( self, sv ):
         value = sv / krange["lch_3"]
         self.Pigmento_PRESS( "LCH", self.cor["lch_1"], self.cor["lch_2"], value, 0, self.cor )
         self.Label_String( f"{ round( value * 100, 2 ) } %" )
 
     #endregion
-    #region Channel Non Color
+    #region Channel Kelvin
 
     # KKK
-    def Channels_KKK_1_Slider( self, sv ):
-        percent = sv["value"]
-        scale = self.convert.kkk_percent_to_scale( sv["value"] )
+    def Channel_KKK_1_Slider( self, index, value ):
+        percent = value
+        scale = self.convert.kkk_percent_to_scale( value )
         self.Pigmento_PRESS( "KKK", percent, scale, 0, 0, self.cor )
-    def Channels_KKK_1_Stops( self, ss ):
+    def Channel_KKK_1_Stops( self, ss ):
         stops["kkk_1"] = ss
         Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
-    def Channels_KKK_1_Value( self, sv ):
+    def Channel_KKK_1_Value( self, sv ):
         percent = self.convert.kkk_scale_to_percent( sv )
         scale = sv
         self.Pigmento_PRESS( "KKK", percent, scale, 0, 0, self.cor )
         self.Label_String( str( round( percent*100, 2 ) ) + " %" )
-
     def Kelvin_Class( self, scale ):
         # Variables
         cd = self.convert.kkk_to_cd( scale, kelvin_illuminants )
@@ -7253,6 +7188,74 @@ class Picker_Docker( DockWidget ):
 
     #endregion
     #region Mixer
+
+    # Pole Slider
+    def Channel_Pole_Slider( self, index, value ):
+        self.pole_percent = value
+        ms = self.mixer_space
+        factor = 2 * abs( value - 0.5 )
+        if value <= 0.5:    cor = self.Color_Interpolate( self.mixer_space, self.pole_cor_n, self.pole_cor_a, 2 * abs( 0.5 - value ) )
+        elif value > 0.5:   cor = self.Color_Interpolate( self.mixer_space, self.pole_cor_n, self.pole_cor_b, 2 * abs( value - 0.5 ) )
+        self.Pigmento_PRESS( "RGB", cor["rgb_1"], cor["rgb_2"], cor["rgb_3"], 0, self.cor )
+        self.Dict_Copy( self.pole_mix, self.cor )
+    def Channel_Pole_Stops( self, ss ):
+        stops["pole_1"] = ss
+        Krita.instance().writeSetting( DOCKER_NAME, "stops", str( stops ) )
+    # Pole
+    def Pole_LOAD( self, cor_a, cor_b ):
+        if cor_a["active"] == True: self.pole_pin_a.Set_Color( cor_a["hex6"] )
+        else:                       self.pole_pin_a.Set_Clean()
+        if cor_b["active"] == True: self.pole_pin_b.Set_Color( cor_b["hex6"] )
+        else:                       self.pole_pin_b.Set_Clean()
+    # Pole A
+    def Pole_Apply_1A( self ):
+        if self.pole_cor_a["active"] == True:
+            self.pole_percent = 0
+            self.pole_slider.Set_Value( self.pole_percent )
+            self.Dict_Copy( self.cor, self.pole_cor_a )
+            self.Pigmento_RELEASE()
+    def Pole_Save_1A( self ):
+        self.Dict_Copy( self.pole_cor_a, self.cor )
+        self.pole_pin_a.Set_Color( self.pole_cor_a["hex6"] )
+        self.Pigmento_RELEASE()
+        Krita.instance().writeSetting( DOCKER_NAME, "pole_cor_a", str( self.pole_cor_a ) )
+    def Pole_Clean_1A( self ):
+        self.pole_percent = 0.5
+        self.pole_slider.Set_Value( self.pole_percent )
+        self.Dict_Copy( self.pole_cor_a, self.zorn_white )
+        self.pole_pin_a.Set_Color( self.pole_cor_a["hex6"] )
+        self.Pigmento_RELEASE()
+        Krita.instance().writeSetting( DOCKER_NAME, "pole_cor_a", str( self.pole_cor_a ) )
+    # Pole B
+    def Pole_Apply_1B( self ):
+        if self.pole_cor_b["active"] == True:
+            self.pole_percent = 1
+            self.pole_slider.Set_Value( self.pole_percent )
+            self.Dict_Copy( self.cor, self.pole_cor_b )
+            self.Pigmento_RELEASE()
+    def Pole_Save_1B( self ):
+        self.Dict_Copy( self.pole_cor_b, self.cor )
+        self.pole_pin_b.Set_Color( self.pole_cor_b["hex6"] )
+        self.Pigmento_RELEASE()
+        Krita.instance().writeSetting( DOCKER_NAME, "pole_cor_b", str( self.pole_cor_b ) )
+    def Pole_Clean_1B( self ):
+        self.pole_percent = 0.5
+        self.pole_slider.Set_Value( self.pole_percent )
+        self.Dict_Copy( self.pole_cor_b, self.zorn_black )
+        self.pole_pin_b.Set_Color( self.pole_cor_b["hex6"] )
+        self.Pigmento_RELEASE()
+        Krita.instance().writeSetting( DOCKER_NAME, "pole_cor_b", str( self.pole_cor_b ) )
+    # Pole Neutral
+    def Pole_Neutral( self ):
+        self.pole_percent = 0.5
+        self.pole_slider.Set_Value( self.pole_percent )
+        self.Dict_Copy( self.pole_mix, self.cor )
+        self.Dict_Copy( self.pole_cor_n, self.cor )
+        self.Channel_Pole_Style()
+    def Channel_Pole_Style( self ):
+        pole_1 = self.Gradient_Pole( self.mixer_space, False, 8, self.pole_cor_a, self.pole_cor_n, self.pole_cor_b )
+        alpha = int( self.pole_cor_a["active"] * self.pole_cor_n["active"] * self.pole_cor_b["active"] )
+        self.pole_slider.Set_Colors( pole_1, alpha )
 
     # Load
     def Mixer_LOAD( self ):
@@ -7272,7 +7275,6 @@ class Picker_Docker( DockWidget ):
                 except:pass
             try:self.mixer_module[i]["m"].Set_Value( item["m"] )
             except:pass
-
     # Pin LEFT
     def Mixer_Apply_L( self, index ):
         if self.mixer_colors[index]["l"]["active"] == True:
@@ -7282,13 +7284,11 @@ class Picker_Docker( DockWidget ):
         self.Dict_Copy( self.mixer_colors[index]["l"], self.cor )
         self.mixer_module[index]["l"].Set_Color( self.cor["hex6"] )
         self.Pigmento_RELEASE()
-        # Save
         Krita.instance().writeSetting( DOCKER_NAME, "mixer_colors", str( self.mixer_colors ) )
     def Mixer_Clean_L( self, index ):
         self.Dict_Copy( self.mixer_colors[index]["l"], color_false )
         self.mixer_module[index]["l"].Set_Clean()
         self.Pigmento_RELEASE()
-        # Save
         Krita.instance().writeSetting( DOCKER_NAME, "mixer_colors", str( self.mixer_colors ) )
     # Pin RIGHT
     def Mixer_Apply_R( self, index ):
@@ -7299,60 +7299,34 @@ class Picker_Docker( DockWidget ):
         self.Dict_Copy( self.mixer_colors[index]["r"], self.cor )
         self.mixer_module[index]["r"].Set_Color( self.cor["hex6"] )
         self.Pigmento_RELEASE()
-        # Save
         Krita.instance().writeSetting( DOCKER_NAME, "mixer_colors", str( self.mixer_colors ) )
     def Mixer_Clean_R( self, index ):
         self.Dict_Copy( self.mixer_colors[index]["r"], color_false )
         self.mixer_module[index]["r"].Set_Clean()
         self.Pigmento_RELEASE()
-        # Save
         Krita.instance().writeSetting( DOCKER_NAME, "mixer_colors", str( self.mixer_colors ) )
     # Slider
-    def Mixer_Slider_M( self, sv ):
-        # Variables
-        index = sv["index"]
-        value = sv["value"]
+    def Mixer_Slider_M( self, index, value ):
         mode = self.mixer_space
-
-        # Write
         self.mixer_colors[index]["m"] = value
-
-        # Active
         al = self.mixer_colors[index]["l"]["active"]
         ar = self.mixer_colors[index]["r"]["active"]
         if ( al == True and ar == True ):
-            # Color Apply
             color = self.Color_Interpolate( mode, self.mixer_colors[index]["l"], self.mixer_colors[index]["r"], value )
-            if mode == "A":
-                self.Pigmento_PRESS( mode, color["aaa_1"], 0, 0, 0, self.cor )
-            if mode == "RGB":
-                self.Pigmento_PRESS( mode, color["rgb_1"], color["rgb_2"], color["rgb_3"], 0, self.cor )
-            if mode == "CMY":
-                self.Pigmento_PRESS( mode, color["cmy_1"], color["cmy_2"], color["cmy_3"], 0, self.cor )
-            if mode == "CMYK":
-                self.Pigmento_PRESS( mode, color["cmyk_1"], color["cmyk_2"], color["cmyk_3"], color["cmyk_4"], self.cor )
-            if mode == "RYB":
-                self.Pigmento_PRESS( mode, color["ryb_1"], color["ryb_2"], color["ryb_3"], 0, self.cor )
-            if mode == "YUV":
-                self.Pigmento_PRESS( mode, color["yuv_1"], color["yuv_2"], color["yuv_3"], 0, self.cor )
-            if mode == "HSV":
-                self.Pigmento_PRESS( mode, color["hsv_1"], color["hsv_2"], color["hsv_3"], 0, self.cor )
-            if mode == "HSL":
-                self.Pigmento_PRESS( mode, color["hsl_1"], color["hsl_2"], color["hsl_3"], 0, self.cor )
-            if mode == "HCY":
-                self.Pigmento_PRESS( mode, color["hcy_1"], color["hcy_2"], color["hcy_3"], 0, self.cor )
-            if mode == "ARD":
-                self.Pigmento_PRESS( mode, color["ard_1"], color["ard_2"], color["ard_3"], 0, self.cor )
-            if mode == "XYZ":
-                self.Pigmento_PRESS( mode, color["xyz_1"], color["xyz_2"], color["xyz_3"], 0, self.cor )
-            if mode == "XYY":
-                self.Pigmento_PRESS( mode, color["xyy_1"], color["xyy_2"], color["xyy_3"], 0, self.cor )
-            if mode == "LAB":
-                self.Pigmento_PRESS( mode, color["lab_1"], color["lab_2"], color["lab_3"], 0, self.cor )
-            if mode == "LCH":
-                self.Pigmento_PRESS( mode, color["lch_1"], color["lch_2"], color["lch_3"], 0, self.cor )
-
-        # Save
+            if mode == "A":     self.Pigmento_PRESS( mode, color["aaa_1"], 0, 0, 0, self.cor )
+            if mode == "RGB":   self.Pigmento_PRESS( mode, color["rgb_1"], color["rgb_2"], color["rgb_3"], 0, self.cor )
+            if mode == "CMY":   self.Pigmento_PRESS( mode, color["cmy_1"], color["cmy_2"], color["cmy_3"], 0, self.cor )
+            if mode == "CMYK":  self.Pigmento_PRESS( mode, color["cmyk_1"], color["cmyk_2"], color["cmyk_3"], color["cmyk_4"], self.cor )
+            if mode == "RYB":   self.Pigmento_PRESS( mode, color["ryb_1"], color["ryb_2"], color["ryb_3"], 0, self.cor )
+            if mode == "YUV":   self.Pigmento_PRESS( mode, color["yuv_1"], color["yuv_2"], color["yuv_3"], 0, self.cor )
+            if mode == "HSV":   self.Pigmento_PRESS( mode, color["hsv_1"], color["hsv_2"], color["hsv_3"], 0, self.cor )
+            if mode == "HSL":   self.Pigmento_PRESS( mode, color["hsl_1"], color["hsl_2"], color["hsl_3"], 0, self.cor )
+            if mode == "HCY":   self.Pigmento_PRESS( mode, color["hcy_1"], color["hcy_2"], color["hcy_3"], 0, self.cor )
+            if mode == "ARD":   self.Pigmento_PRESS( mode, color["ard_1"], color["ard_2"], color["ard_3"], 0, self.cor )
+            if mode == "XYZ":   self.Pigmento_PRESS( mode, color["xyz_1"], color["xyz_2"], color["xyz_3"], 0, self.cor )
+            if mode == "XYY":   self.Pigmento_PRESS( mode, color["xyy_1"], color["xyy_2"], color["xyy_3"], 0, self.cor )
+            if mode == "LAB":   self.Pigmento_PRESS( mode, color["lab_1"], color["lab_2"], color["lab_3"], 0, self.cor )
+            if mode == "LCH":   self.Pigmento_PRESS( mode, color["lch_1"], color["lch_2"], color["lch_3"], 0, self.cor )
         Krita.instance().writeSetting( DOCKER_NAME, "mixer_colors", str( self.mixer_colors ) )
     def Mixer_Stops_M( self, ss ):
         stops["mixer"] = ss
@@ -7392,22 +7366,22 @@ class Picker_Docker( DockWidget ):
         if last_item == None:
             self.History_Add( red, green, blue )
         else:
-            if ( self.widget_press == False and self.inbound == False ):
+            if ( self.widget_press == False and self.cursor_inside == False ):
                 # Input Color
-                input_red = int( red * 255 )
-                input_green = int( green * 255 )
-                input_blue = int( blue * 255 )
+                input_r = int( red * 255 )
+                input_g = int( green * 255 )
+                input_b = int( blue * 255 )
                 # Last Colors
                 last_color = last_item.background().color()
-                last_red = int( last_color.red() )
-                last_green = int( last_color.green() )
-                last_blue = int( last_color.blue() )
-
+                last_r = int( last_color.red() )
+                last_g = int( last_color.green() )
+                last_b = int( last_color.blue() )
                 # Apply Colors Values
-                if ( ( input_red != last_red ) or ( input_green != last_green ) or ( input_blue != last_blue ) ):
+                if ( input_r != last_r ) or ( input_g != last_g ) or ( input_b != last_b ):
                     self.History_Add( red, green, blue )
+                    self.HEX_Copy( self.cor["hex6"] )
     def History_Add( self, red, green, blue ):
-        color = QColor( int(red * 255), int(green * 255), int(blue * 255) )
+        color = QColor( int( red * 255 ), int( green * 255 ), int( blue * 255 ) )
         pixmap = QPixmap( 10,20 )
         pixmap.fill( color )
         item = QListWidgetItem()
@@ -7430,7 +7404,7 @@ class Picker_Docker( DockWidget ):
     def Fill_Check( self, doc ):
         try:
             check_alpha = Krita.instance().activeDocument().nodeByUniqueID( fill["node_uid"] ).alphaLocked()
-            check_fill = fill["active"] == True and fill["node_uid"] == doc["d_uid"] and check_alpha == True
+            check_fill = fill["active"] == True and fill["node_uid"] == doc["n_uid"] and check_alpha == True
         except:
             check_fill = False
         return check_fill
@@ -7457,17 +7431,16 @@ class Picker_Docker( DockWidget ):
     #region HEX Codes
 
     # Copy-Paste
-    def HEX_Copy( self ):
-        hc = QApplication.clipboard()
-        hc.clear()
-        hc.setText( str( self.cor["hex6"] ) )
-        self.Label_String( "HEX COPY" )
+    def HEX_Copy( self, hex_code ):
+        clip_board = QApplication.clipboard()
+        clip_board.setText( str( hex_code ) )
     def HEX_Paste( self ):
-        array = [6, 7]
-        hc = QApplication.clipboard()
-        hex_code = hc.text()
-        self.Color_HEX( hex_code )
-        self.Label_String( "HEX PASTE" )
+        clip_board = QApplication.clipboard()
+        hex_code = clip_board.text()
+        check_hex6 = self.HEX_Valid( hex_code, 6 )
+        check_hex3 = self.HEX_Valid( hex_code, 3 )
+        if check_hex6 == True or check_hex3 == True:
+            self.Color_HEX( hex_code )
 
     # Operators
     def HEX_Valid( self, hex_code, length ):
@@ -7476,7 +7449,6 @@ class Picker_Docker( DockWidget ):
         else:
             # Variables
             valid = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"]
-            
             # Checks
             checks = []
             if hex_code[0] == "#":
@@ -7490,14 +7462,12 @@ class Picker_Docker( DockWidget ):
                         checks.append( False )
             else:
                 checks.append( False )
-
             # Validity
             valid = True
             for i in range( 0, len( checks ) ):
                 if checks[i] == False:
                     valid = False
                     break
-
             # Return
             return valid
     def HEX_Closest( self ):
@@ -7516,6 +7486,12 @@ class Picker_Docker( DockWidget ):
         rgb = self.convert.hex6_to_rgb( lista[index[0]] )
         # Move Location to Closest Point
         self.Pigmento_APPLY( "RGB", rgb[0], rgb[1], rgb[2], 0, self.cor )
+
+    # Non Color
+    def HEX_Sum( self, boolean ):
+        self.hex_sum = boolean
+        self.Update_Values()
+        Krita.instance().writeSetting( DOCKER_NAME, "hex_sum", str( self.hex_sum ) )
 
     #endregion
     #region Extension
@@ -7717,8 +7693,6 @@ class Picker_Docker( DockWidget ):
         self.window.activeViewChanged.connect( self.View_Changed )
         self.window.themeChanged.connect( self.Theme_Changed )
         self.window.windowClosed.connect( self.Window_Closed )
-        # Start Position
-        self.Theme_Changed()
     def Window_IsBeingCreated( self ):
         pass
 
@@ -7726,82 +7700,140 @@ class Picker_Docker( DockWidget ):
     def View_Changed( self ):
         pass
     def Theme_Changed( self ):
-        # Krita Theme
-        color_theme = QApplication.palette().color( QPalette.Window )
-        if color_theme.value() > 128:
-            self.color_1 = QColor( "#191919" )
-            self.color_2 = QColor( "#e5e5e5" )
-        else:
-            self.color_1 = QColor( "#e5e5e5" )
-            self.color_2 = QColor( "#191919" )
+        """
+        Theme Breeze Dark
+        alternateBase = #31363b
+        base = #232629
+        brightText = #ffffff
+        button = #31363b
+        buttonText = #eff0f1
+        dark = #1d2023
+        highlight = #3daee9
+        highlightedText = #eff0f1
+        light = #464d54
+        link = #2980b9
+        linkVisited = #7f8c8d
+        mid = #2b3034
+        midlight = #3c4248
+        placeholderText = #eff0f1
+        shadow = #151719
+        text = #eff0f1
+        toolTipBase = #31363b
+        toolTipText = #eff0f1
+        window = #31363b
+        windowText = #eff0f1
+        """
+
+        # Read
+        palette = QApplication.palette()
+        # Theme Colors
+        # Window ( Dark )
+        w_alternate   = palette.alternateBase().color().name()
+        w_base        = palette.base().color().name()
+        w_button      = palette.button().color().name()
+        w_dark        = palette.dark().color().name()
+        w_light       = palette.light().color().name()
+        w_mid         = palette.mid().color().name()
+        w_midlight    = palette.midlight().color().name()
+        w_shadow      = palette.shadow().color().name()
+        w_tool_tip    = palette.toolTipBase().color().name()
+        w_window      = palette.window().color().name()
+        # Text ( Bright )
+        t_bright      = palette.brightText().color().name()
+        t_button      = palette.buttonText().color().name()
+        t_highlighted = palette.highlightedText().color().name()
+        t_placeholder = palette.placeholderText().color().name()
+        t_text        = palette.text().color().name()
+        t_tool_tip    = palette.toolTipText().color().name()
+        t_window      = palette.windowText().color().name()
+        # Color
+        c_highlight   = palette.highlight().color().name()
+        c_link        = palette.link().color().name()
+        c_visited     = palette.linkVisited().color().name()
+        # c_accent      = palette.accent().color().name() # qt6
 
         # Panels
-        self.panel_huecircle.Set_Theme( self.color_1, self.color_2, color_theme )
-        self.panel_gamut.Set_Theme( self.color_1, self.color_2, color_theme )
+        self.panel_huecircle.Set_Theme( t_button, w_dark, w_midlight )
+        self.panel_gamut.Set_Theme( t_button, w_dark, w_midlight )
+        # Panel Backgrounds
+        self.layout.panel_fill.setStyleSheet( "#panel_fill{ background-color: " + w_base + "; }" )
+        self.layout.panel_square.setStyleSheet( "#panel_square{ background-color: " + w_base + "; }" )
+        self.layout.panel_hue.setStyleSheet( "#panel_hue{ background-color: " + w_base + "; }" )
+        self.layout.panel_gamut.setStyleSheet( "#panel_gamut{ background-color: " + w_base + "; }" )
+        self.layout.panel_hexagon.setStyleSheet( "#panel_hexagon{ background-color: " + w_base + "; }" )
+        self.layout.panel_luma.setStyleSheet( "#panel_luma{ background-color: " + w_base + "; }" )
+        self.layout.panel_dot.setStyleSheet( "#panel_dot{ background-color: " + w_base + "; }" )
+        self.layout.panel_mask.setStyleSheet( "#panel_mask{ background-color: " + w_base + "; }" )
 
         # AAA
-        self.aaa_1_slider.Set_Theme( self.color_1, self.color_2 )
+        self.aaa_1_slider.Set_Theme( t_button, w_dark )
         # RGB
-        self.rgb_1_slider.Set_Theme( self.color_1, self.color_2 )
-        self.rgb_2_slider.Set_Theme( self.color_1, self.color_2 )
-        self.rgb_3_slider.Set_Theme( self.color_1, self.color_2 )
+        self.rgb_1_slider.Set_Theme( t_button, w_dark )
+        self.rgb_2_slider.Set_Theme( t_button, w_dark )
+        self.rgb_3_slider.Set_Theme( t_button, w_dark )
         # CMY
-        self.cmy_1_slider.Set_Theme( self.color_1, self.color_2 )
-        self.cmy_2_slider.Set_Theme( self.color_1, self.color_2 )
-        self.cmy_3_slider.Set_Theme( self.color_1, self.color_2 )
+        self.cmy_1_slider.Set_Theme( t_button, w_dark )
+        self.cmy_2_slider.Set_Theme( t_button, w_dark )
+        self.cmy_3_slider.Set_Theme( t_button, w_dark )
         # CMYK
-        self.cmyk_1_slider.Set_Theme( self.color_1, self.color_2 )
-        self.cmyk_2_slider.Set_Theme( self.color_1, self.color_2 )
-        self.cmyk_3_slider.Set_Theme( self.color_1, self.color_2 )
-        self.cmyk_4_slider.Set_Theme( self.color_1, self.color_2 )
+        self.cmyk_1_slider.Set_Theme( t_button, w_dark )
+        self.cmyk_2_slider.Set_Theme( t_button, w_dark )
+        self.cmyk_3_slider.Set_Theme( t_button, w_dark )
+        self.cmyk_4_slider.Set_Theme( t_button, w_dark )
         # RYB
-        self.ryb_1_slider.Set_Theme( self.color_1, self.color_2 )
-        self.ryb_2_slider.Set_Theme( self.color_1, self.color_2 )
-        self.ryb_3_slider.Set_Theme( self.color_1, self.color_2 )
+        self.ryb_1_slider.Set_Theme( t_button, w_dark )
+        self.ryb_2_slider.Set_Theme( t_button, w_dark )
+        self.ryb_3_slider.Set_Theme( t_button, w_dark )
         # YUV
-        self.yuv_1_slider.Set_Theme( self.color_1, self.color_2 )
-        self.yuv_2_slider.Set_Theme( self.color_1, self.color_2 )
-        self.yuv_3_slider.Set_Theme( self.color_1, self.color_2 )
+        self.yuv_1_slider.Set_Theme( t_button, w_dark )
+        self.yuv_2_slider.Set_Theme( t_button, w_dark )
+        self.yuv_3_slider.Set_Theme( t_button, w_dark )
         # HSV
-        self.hsv_1_slider.Set_Theme( self.color_1, self.color_2 )
-        self.hsv_2_slider.Set_Theme( self.color_1, self.color_2 )
-        self.hsv_3_slider.Set_Theme( self.color_1, self.color_2 )
+        self.hsv_1_slider.Set_Theme( t_button, w_dark )
+        self.hsv_2_slider.Set_Theme( t_button, w_dark )
+        self.hsv_3_slider.Set_Theme( t_button, w_dark )
         # HSL
-        self.hsl_1_slider.Set_Theme( self.color_1, self.color_2 )
-        self.hsl_2_slider.Set_Theme( self.color_1, self.color_2 )
-        self.hsl_3_slider.Set_Theme( self.color_1, self.color_2 )
+        self.hsl_1_slider.Set_Theme( t_button, w_dark )
+        self.hsl_2_slider.Set_Theme( t_button, w_dark )
+        self.hsl_3_slider.Set_Theme( t_button, w_dark )
         # HCY
-        self.hcy_1_slider.Set_Theme( self.color_1, self.color_2 )
-        self.hcy_2_slider.Set_Theme( self.color_1, self.color_2 )
-        self.hcy_3_slider.Set_Theme( self.color_1, self.color_2 )
+        self.hcy_1_slider.Set_Theme( t_button, w_dark )
+        self.hcy_2_slider.Set_Theme( t_button, w_dark )
+        self.hcy_3_slider.Set_Theme( t_button, w_dark )
         # ARD
-        self.ard_1_slider.Set_Theme( self.color_1, self.color_2 )
-        self.ard_2_slider.Set_Theme( self.color_1, self.color_2 )
-        self.ard_3_slider.Set_Theme( self.color_1, self.color_2 )
+        self.ard_1_slider.Set_Theme( t_button, w_dark )
+        self.ard_2_slider.Set_Theme( t_button, w_dark )
+        self.ard_3_slider.Set_Theme( t_button, w_dark )
         # XYZ
-        self.xyz_1_slider.Set_Theme( self.color_1, self.color_2 )
-        self.xyz_2_slider.Set_Theme( self.color_1, self.color_2 )
-        self.xyz_3_slider.Set_Theme( self.color_1, self.color_2 )
+        self.xyz_1_slider.Set_Theme( t_button, w_dark )
+        self.xyz_2_slider.Set_Theme( t_button, w_dark )
+        self.xyz_3_slider.Set_Theme( t_button, w_dark )
         # XYY
-        self.xyy_1_slider.Set_Theme( self.color_1, self.color_2 )
-        self.xyy_2_slider.Set_Theme( self.color_1, self.color_2 )
-        self.xyy_3_slider.Set_Theme( self.color_1, self.color_2 )
+        self.xyy_1_slider.Set_Theme( t_button, w_dark )
+        self.xyy_2_slider.Set_Theme( t_button, w_dark )
+        self.xyy_3_slider.Set_Theme( t_button, w_dark )
         # LAB
-        self.lab_1_slider.Set_Theme( self.color_1, self.color_2 )
-        self.lab_2_slider.Set_Theme( self.color_1, self.color_2 )
-        self.lab_3_slider.Set_Theme( self.color_1, self.color_2 )
+        self.lab_1_slider.Set_Theme( t_button, w_dark )
+        self.lab_2_slider.Set_Theme( t_button, w_dark )
+        self.lab_3_slider.Set_Theme( t_button, w_dark )
         # LCH
-        self.lch_1_slider.Set_Theme( self.color_1, self.color_2 )
-        self.lch_2_slider.Set_Theme( self.color_1, self.color_2 )
-        self.lch_3_slider.Set_Theme( self.color_1, self.color_2 )
+        self.lch_1_slider.Set_Theme( t_button, w_dark )
+        self.lch_2_slider.Set_Theme( t_button, w_dark )
+        self.lch_3_slider.Set_Theme( t_button, w_dark )
         # Kelvin
-        self.kkk_1_slider.Set_Theme( self.color_1, self.color_2 )
+        self.kkk_1_slider.Set_Theme( t_button, w_dark )
 
+        # Pole
+        self.pole_slider.Set_Theme( t_button, w_dark )
         # Mixer
         for item in self.mixer_module:
-            try:item["m"].Set_Theme( self.color_1, self.color_2 )
+            try:item["m"].Set_Theme( t_button, w_dark )
             except:pass
 
+        # Style Sheets Dialog
+        self.dialog.scroll_area_contents_option.setStyleSheet( "#scroll_area_contents_option{background-color: " + w_mid + ";}" )
+        self.dialog.scroll_area_contents_color.setStyleSheet( "#scroll_area_contents_color{background-color: " + w_mid + ";}" )
+        self.dialog.scroll_area_contents_system.setStyleSheet( "#scroll_area_contents_system{background-color: " + w_mid + ";}" )
     def Window_Closed( self ):
         pass
 
@@ -7819,24 +7851,19 @@ class Picker_Docker( DockWidget ):
         self.Update_Size()
     def enterEvent( self, event ):
         # Variables
-        self.inbound = True
+        self.cursor_inside = True
         # Check Krita/Clipboard Once before editing Pigmento
-        if self.hex_copy_paste == True:
-            self.HEX_Paste()
-        if ( self.hex_copy_paste == False and self.mode_index == 0 ):
+        if self.mode_index == 0:
             self.Pigmento_RELEASE()
         # Update
         if self.mode_index == 1:
             self.Pigmento_Update()
     def leaveEvent( self, event ):
         # Variables
-        self.inbound = False
+        self.cursor_inside = False
         # Widgets
         self.Pigmento_RELEASE()
         self.Clear_Focus()
-        # Hex Copy
-        if self.hex_copy_paste == True:
-            self.HEX_Copy()
         # Save
         self.Mask_Write()
     def closeEvent( self, event ):
@@ -7866,6 +7893,7 @@ class Picker_Docker( DockWidget ):
             self.layout.lch_slider,
             self.layout.kkk_slider,
 
+            self.layout.pole_slider,
             self.layout.mixer_set,
             ]
         if ( event.type() == QEvent.Resize and source in panels ):
@@ -7909,6 +7937,17 @@ class Picker_Docker( DockWidget ):
     # qimage = QImage( byte_array, width, height, QImage.Format_RGBA8888 )
     """
 
+    """
+    # Krita Theme
+    color_theme = QApplication.palette().color( QPalette.Window )
+    if color_theme.value() > 128:
+        self.color_1 = QColor( "#191919" )
+        self.color_2 = QColor( "#e5e5e5" )
+    else:
+        self.color_1 = QColor( "#e5e5e5" )
+        self.color_2 = QColor( "#191919" )
+    """
+
     #endregion
 
 
@@ -7929,17 +7968,17 @@ O U16
 - F16
 - F32
 - Profile UVD / ARD LUTs
-- Color Picking outside Krita
 - Implement OKLAB and OKHSV
+- Hexagon have 2 cursors, one for Gamma and another projected in sRGB to correct the conversion
 
 New:
-- Fixed the Cursor display bug. circles not matching the same location.
-- Panel Hue ring displays the pinned colors
-- Panel Gamut ring displays the pinned colors
-- Harmony Range requires Shift to change. Shift Locked
-- Fixed the Panel Hue Pin Snapping on Triangle and Diamond Shapes
-- Indicator when a pin color slot is empty
-- Color Samples into a new docker
-- Color Analyze document button
-
+- Sample Screen
+- Faster display ( circles and cursor )
+- New implementation of copy paste hex
+- new masks on Hue and Gamut
+- Sum is a seperate entity
+- Pole Mixer with 3 colors. 1 dynamic color
+- auto hex copy with new history color
+- bug fixed mask reset
+- qol Panel Mask Pin when saved sets the Alpha back to 1
 """
