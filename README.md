@@ -2,16 +2,17 @@
 
 # Purpose
 
-Pigment.O is a Krita plugin Color Picker and Mixer.
+Pigment.O is a Krita plugin Color Picker, Mixer and Sampler.
 
 # Features
 
 * Harmony Colors
-* Various GUI Panels ( Display, Selectors, Mixers and Channels )
+* Various GUI Panels ( Display, Selectors, Mixers )
 * Various Channel Sliders
-* Color Mixer
+* Color Mixer ( Pole, Linear )
 * Pinned Colors
 * Color History
+* Color Sampler
 * Read ![wiki](https://github.com/EyeOdin/Pigment.O/wiki) for more information
 
 # Preview
@@ -34,4 +35,3 @@ Support with donations to keep the project alive and maintained.
 <a href="https://www.paypal.com/donate/?hosted_button_id=9FARNUYBC9R3J">
   <img src="https://pics.paypal.com/00/s/NjA2OWU0ZmEtNjQ4MC00MWZhLTk5YzctM2VhZDA1MzgyMDQ0/file.PNG" width="200" alt="Donation Link">
 </a>
-
