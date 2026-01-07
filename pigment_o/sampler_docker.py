@@ -152,6 +152,11 @@ class Sampler_Docker( DockWidget ):
         self.dialog.license.clicked.connect( self.Menu_License )
 
         #endregion
+        #region Event Filters
+
+        self.layout.settings.installEventFilter( self ) # Photoshoot
+
+        #endregion
     def Modules( self ):
         #region Notifier
 
@@ -821,6 +826,10 @@ class Sampler_Docker( DockWidget ):
                 self.range_3.Set_Cor( None )
 
     # Widgets
+    def Standard_Size( self ):
+        if self.isFloating() == True:
+            self.resize( QSize( 500, 500 ) )
+            self.Update_Size()
     def Update_Size( self ):
         # Modules
         self.display_map.Set_Size( self.layout.display_map.width(), self.layout.display_map.height() )
@@ -1158,9 +1167,10 @@ class Sampler_Docker( DockWidget ):
         pass
 
     def eventFilter( self, source, event ):
-        # Mode
-        if ( event.type() == QEvent.MouseButtonPress and source is self.layout.mode ):
-            self.Menu_Mode_Press( event )
+        # Settings
+        modifier_all = QtCore.Qt.ShiftModifier | QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier
+        if ( event.type() == QEvent.MouseButtonPress and event.modifiers() == modifier_all and source is self.layout.settings ):
+            self.Standard_Size()
             return True
 
         return super().eventFilter( source, event )

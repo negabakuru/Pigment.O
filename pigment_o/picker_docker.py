@@ -654,6 +654,7 @@ class Picker_Docker( DockWidget ):
         # Footer
         self.layout.mode.installEventFilter( self ) # Mode Index
         self.layout.history_list.installEventFilter( self ) # History Clear
+        self.layout.settings.installEventFilter( self ) # Photoshoot
 
         #endregion
     def Modules( self ):
@@ -3096,149 +3097,6 @@ class Picker_Docker( DockWidget ):
                 if self.mode_index != new_index:
                     self.Mode_Index( new_index )
 
-    # Resize Event
-    def Update_Size( self ):
-        #region Header
-
-        self.color_header.Set_Size( self.layout.color_header.width(), self.layout.color_header.height() )
-        self.harmony_swatch.Set_Size( self.layout.harmony_swatch.width(), self.layout.harmony_swatch.height() )
-        self.harmony_spread.Set_Size( self.layout.harmony_spread.width(), self.layout.harmony_spread.height() )
-
-        #endregion
-        #region Panels
-
-        # Fill
-        self.panel_fill.Set_Size( self.layout.panel_fill.width(), self.layout.panel_fill.height() )
-        # Square
-        self.panel_square.Set_Size( self.layout.panel_square.width(), self.layout.panel_square.height() )
-        # Hue
-        self.panel_huecircle.Set_Size( self.layout.panel_hue.width(), self.layout.panel_hue.height(), self.huecircle_shape )
-        self.HueCircle_Geo( self.layout.panel_hue.width(), self.layout.panel_hue.height() )
-        # Gamut
-        self.panel_gamut.Set_Size( self.layout.panel_gamut.width(), self.layout.panel_gamut.height() )
-        # Hexagon
-        self.panel_hexagon.Set_Size( self.layout.panel_hexagon.width(), self.layout.panel_hexagon.height() )
-        # Yuv
-        self.panel_luma.Set_Size( self.layout.panel_luma.width(), self.layout.panel_luma.height() )
-        # Dot
-        self.panel_dot.Set_Size( self.layout.panel_dot.width(), self.layout.panel_dot.height() )
-        self.pin_d1.Set_Size( self.layout.dot_1.width(), self.layout.dot_1.height() )
-        self.pin_d2.Set_Size( self.layout.dot_2.width(), self.layout.dot_2.height() )
-        self.pin_d3.Set_Size( self.layout.dot_3.width(), self.layout.dot_3.height() )
-        self.pin_d4.Set_Size( self.layout.dot_4.width(), self.layout.dot_4.height() )
-        # Mask
-        self.panel_mask.Set_Size( self.layout.panel_mask.width(), self.layout.panel_mask.height() )
-        self.mask_f3.Set_Size( self.layout.fg_3_color.width(), self.layout.fg_3_color.height() )
-        self.mask_f2.Set_Size( self.layout.fg_2_color.width(), self.layout.fg_2_color.height() )
-        self.mask_f1.Set_Size( self.layout.fg_1_color.width(), self.layout.fg_1_color.height() )
-        self.mask_d6.Set_Size( self.layout.dif_6_color.width(), self.layout.dif_6_color.height() )
-        self.mask_d5.Set_Size( self.layout.dif_5_color.width(), self.layout.dif_5_color.height() )
-        self.mask_d4.Set_Size( self.layout.dif_4_color.width(), self.layout.dif_4_color.height() )
-        self.mask_d3.Set_Size( self.layout.dif_3_color.width(), self.layout.dif_3_color.height() )
-        self.mask_d2.Set_Size( self.layout.dif_2_color.width(), self.layout.dif_2_color.height() )
-        self.mask_d1.Set_Size( self.layout.dif_1_color.width(), self.layout.dif_1_color.height() )
-        self.mask_b3.Set_Size( self.layout.bg_3_color.width(), self.layout.bg_3_color.height() )
-        self.mask_b2.Set_Size( self.layout.bg_2_color.width(), self.layout.bg_2_color.height() )
-        self.mask_b1.Set_Size( self.layout.bg_1_color.width(), self.layout.bg_1_color.height() )
-
-        self.Panels_Set_Value()
-
-        #endregion
-        #region Channels
-
-        # AAA
-        self.aaa_1_slider.Set_Size( self.layout.aaa_1_slider.width(), self.layout.aaa_1_slider.height() )
-        # RGB
-        self.rgb_1_slider.Set_Size( self.layout.rgb_1_slider.width(), self.layout.rgb_1_slider.height() )
-        self.rgb_2_slider.Set_Size( self.layout.rgb_2_slider.width(), self.layout.rgb_2_slider.height() )
-        self.rgb_3_slider.Set_Size( self.layout.rgb_3_slider.width(), self.layout.rgb_3_slider.height() )
-        # CMY
-        self.cmy_1_slider.Set_Size( self.layout.cmy_1_slider.width(), self.layout.cmy_1_slider.height() )
-        self.cmy_2_slider.Set_Size( self.layout.cmy_2_slider.width(), self.layout.cmy_2_slider.height() )
-        self.cmy_3_slider.Set_Size( self.layout.cmy_3_slider.width(), self.layout.cmy_3_slider.height() )
-        # CMYK
-        self.cmyk_1_slider.Set_Size( self.layout.cmyk_1_slider.width(), self.layout.cmyk_1_slider.height() )
-        self.cmyk_2_slider.Set_Size( self.layout.cmyk_2_slider.width(), self.layout.cmyk_2_slider.height() )
-        self.cmyk_3_slider.Set_Size( self.layout.cmyk_3_slider.width(), self.layout.cmyk_3_slider.height() )
-        self.cmyk_4_slider.Set_Size( self.layout.cmyk_4_slider.width(), self.layout.cmyk_4_slider.height() )
-        # RYB
-        self.ryb_1_slider.Set_Size( self.layout.ryb_1_slider.width(), self.layout.ryb_1_slider.height() )
-        self.ryb_2_slider.Set_Size( self.layout.ryb_2_slider.width(), self.layout.ryb_2_slider.height() )
-        self.ryb_3_slider.Set_Size( self.layout.ryb_3_slider.width(), self.layout.ryb_3_slider.height() )
-        # YUV
-        self.yuv_1_slider.Set_Size( self.layout.yuv_1_slider.width(), self.layout.yuv_1_slider.height() )
-        self.yuv_2_slider.Set_Size( self.layout.yuv_2_slider.width(), self.layout.yuv_2_slider.height() )
-        self.yuv_3_slider.Set_Size( self.layout.yuv_3_slider.width(), self.layout.yuv_3_slider.height() )
-
-        # HSV
-        self.hsv_1_slider.Set_Size( self.layout.hsv_1_slider.width(), self.layout.hsv_1_slider.height() )
-        self.hsv_2_slider.Set_Size( self.layout.hsv_2_slider.width(), self.layout.hsv_2_slider.height() )
-        self.hsv_3_slider.Set_Size( self.layout.hsv_3_slider.width(), self.layout.hsv_3_slider.height() )
-        # HSL
-        self.hsl_1_slider.Set_Size( self.layout.hsl_1_slider.width(), self.layout.hsl_1_slider.height() )
-        self.hsl_2_slider.Set_Size( self.layout.hsl_2_slider.width(), self.layout.hsl_2_slider.height() )
-        self.hsl_3_slider.Set_Size( self.layout.hsl_3_slider.width(), self.layout.hsl_3_slider.height() )
-        # HCY
-        self.hcy_1_slider.Set_Size( self.layout.hcy_1_slider.width(), self.layout.hcy_1_slider.height() )
-        self.hcy_2_slider.Set_Size( self.layout.hcy_2_slider.width(), self.layout.hcy_2_slider.height() )
-        self.hcy_3_slider.Set_Size( self.layout.hcy_3_slider.width(), self.layout.hcy_3_slider.height() )
-        # ARD
-        self.ard_1_slider.Set_Size( self.layout.ard_1_slider.width(), self.layout.ard_1_slider.height() )
-        self.ard_2_slider.Set_Size( self.layout.ard_2_slider.width(), self.layout.ard_2_slider.height() )
-        self.ard_3_slider.Set_Size( self.layout.ard_3_slider.width(), self.layout.ard_3_slider.height() )
-
-        # XYZ
-        self.xyz_1_slider.Set_Size( self.layout.xyz_1_slider.width(), self.layout.xyz_1_slider.height() )
-        self.xyz_2_slider.Set_Size( self.layout.xyz_2_slider.width(), self.layout.xyz_2_slider.height() )
-        self.xyz_3_slider.Set_Size( self.layout.xyz_3_slider.width(), self.layout.xyz_3_slider.height() )
-        # XYY
-        self.xyy_1_slider.Set_Size( self.layout.xyy_1_slider.width(), self.layout.xyy_1_slider.height() )
-        self.xyy_2_slider.Set_Size( self.layout.xyy_2_slider.width(), self.layout.xyy_2_slider.height() )
-        self.xyy_3_slider.Set_Size( self.layout.xyy_3_slider.width(), self.layout.xyy_3_slider.height() )
-        # LAB
-        self.lab_1_slider.Set_Size( self.layout.lab_1_slider.width(), self.layout.lab_1_slider.height() )
-        self.lab_2_slider.Set_Size( self.layout.lab_2_slider.width(), self.layout.lab_2_slider.height() )
-        self.lab_3_slider.Set_Size( self.layout.lab_3_slider.width(), self.layout.lab_3_slider.height() )
-
-        # LCH
-        self.lch_1_slider.Set_Size( self.layout.lch_1_slider.width(), self.layout.lch_1_slider.height() )
-        self.lch_2_slider.Set_Size( self.layout.lch_2_slider.width(), self.layout.lch_2_slider.height() )
-        self.lch_3_slider.Set_Size( self.layout.lch_3_slider.width(), self.layout.lch_3_slider.height() )
-
-        # KKK
-        self.kkk_1_slider.Set_Size( self.layout.kkk_1_slider.width(), self.layout.kkk_1_slider.height() )
-
-        # Adjust Handles
-        self.Update_Values()
-
-        #endregion
-        #region Mixer
-
-        # POLE
-        self.pole_slider.Set_Size( self.layout.pole_slider.width(), self.layout.pole_slider.height() )
-        self.pole_pin_a.Set_Size( self.layout.pole_pin_a.width(), self.layout.pole_pin_a.height() )
-        self.pole_pin_b.Set_Size( self.layout.pole_pin_b.width(), self.layout.pole_pin_b.height() )
-        # Mixer 000
-        for i in range( 0, len( self.mixer_module) ):
-            self.mixer_module[i]["l"].Set_Size( self.mixer_widget[i]["l"].width(), self.mixer_widget[i]["l"].height() )
-            self.mixer_module[i]["m"].Set_Size( self.mixer_widget[i]["m"].width(), self.mixer_widget[i]["m"].height() )
-            self.mixer_module[i]["r"].Set_Size( self.mixer_widget[i]["r"].width(), self.mixer_widget[i]["r"].height() )
-
-        #endregion
-        #region Pin
-
-        for i in range( 0, len( self.pin_module ) ):
-            self.pin_module[i].Set_Size( self.pin_widget[i].width(), self.pin_widget[i].height() )
-
-        #endregion
-
-        self.update()
-    def Resize_Print( self, event ):
-        # Used doing a photoshoot
-        width = self.width()
-        height = self.height()
-        self.Message_Log( "SIZE", f"{ width } x { height }" )
-
     #endregion
     #region Management
 
@@ -3489,14 +3347,12 @@ class Picker_Docker( DockWidget ):
         keys = list( active.keys() )
         for k in keys:
             active[k] = load[k]
-
     # Hue
     def Hue_Index( self, mode ):
         c1 = f"{ mode.lower() }_1"
         c2 = f"{ mode.lower() }_2"
         c3 = f"{ mode.lower() }_3"
         return c1, c2, c3
-
     # Stops
     def Sliders_Stops_Load( self, dictionary ):
         # AAA
@@ -3567,6 +3423,153 @@ class Picker_Docker( DockWidget ):
         for i in range( 0, len( self.mixer_widget ) ):
             self.mixer_module[i]["m"].Set_Stops( dictionary["mixer"] )
 
+    # Resize Event
+    def Standard_Size( self ):
+        if self.isFloating() == True:
+            self.resize( QSize( 500, 500 ) )
+            self.Update_Size()
+    def Update_Size( self ):
+        #region Header
+
+        self.color_header.Set_Size( self.layout.color_header.width(), self.layout.color_header.height() )
+        self.harmony_swatch.Set_Size( self.layout.harmony_swatch.width(), self.layout.harmony_swatch.height() )
+        self.harmony_spread.Set_Size( self.layout.harmony_spread.width(), self.layout.harmony_spread.height() )
+
+        #endregion
+        #region Panels
+
+        # Fill
+        self.panel_fill.Set_Size( self.layout.panel_fill.width(), self.layout.panel_fill.height() )
+        # Square
+        self.panel_square.Set_Size( self.layout.panel_square.width(), self.layout.panel_square.height() )
+        # Hue
+        self.panel_huecircle.Set_Size( self.layout.panel_hue.width(), self.layout.panel_hue.height(), self.huecircle_shape )
+        self.HueCircle_Geo( self.layout.panel_hue.width(), self.layout.panel_hue.height() )
+        # Gamut
+        self.panel_gamut.Set_Size( self.layout.panel_gamut.width(), self.layout.panel_gamut.height() )
+        # Hexagon
+        self.panel_hexagon.Set_Size( self.layout.panel_hexagon.width(), self.layout.panel_hexagon.height() )
+        # Yuv
+        self.panel_luma.Set_Size( self.layout.panel_luma.width(), self.layout.panel_luma.height() )
+        # Dot
+        self.panel_dot.Set_Size( self.layout.panel_dot.width(), self.layout.panel_dot.height() )
+        self.pin_d1.Set_Size( self.layout.dot_1.width(), self.layout.dot_1.height() )
+        self.pin_d2.Set_Size( self.layout.dot_2.width(), self.layout.dot_2.height() )
+        self.pin_d3.Set_Size( self.layout.dot_3.width(), self.layout.dot_3.height() )
+        self.pin_d4.Set_Size( self.layout.dot_4.width(), self.layout.dot_4.height() )
+        # Mask
+        self.panel_mask.Set_Size( self.layout.panel_mask.width(), self.layout.panel_mask.height() )
+        self.mask_f3.Set_Size( self.layout.fg_3_color.width(), self.layout.fg_3_color.height() )
+        self.mask_f2.Set_Size( self.layout.fg_2_color.width(), self.layout.fg_2_color.height() )
+        self.mask_f1.Set_Size( self.layout.fg_1_color.width(), self.layout.fg_1_color.height() )
+        self.mask_d6.Set_Size( self.layout.dif_6_color.width(), self.layout.dif_6_color.height() )
+        self.mask_d5.Set_Size( self.layout.dif_5_color.width(), self.layout.dif_5_color.height() )
+        self.mask_d4.Set_Size( self.layout.dif_4_color.width(), self.layout.dif_4_color.height() )
+        self.mask_d3.Set_Size( self.layout.dif_3_color.width(), self.layout.dif_3_color.height() )
+        self.mask_d2.Set_Size( self.layout.dif_2_color.width(), self.layout.dif_2_color.height() )
+        self.mask_d1.Set_Size( self.layout.dif_1_color.width(), self.layout.dif_1_color.height() )
+        self.mask_b3.Set_Size( self.layout.bg_3_color.width(), self.layout.bg_3_color.height() )
+        self.mask_b2.Set_Size( self.layout.bg_2_color.width(), self.layout.bg_2_color.height() )
+        self.mask_b1.Set_Size( self.layout.bg_1_color.width(), self.layout.bg_1_color.height() )
+
+        self.Panels_Set_Value()
+
+        #endregion
+        #region Channels
+
+        # AAA
+        self.aaa_1_slider.Set_Size( self.layout.aaa_1_slider.width(), self.layout.aaa_1_slider.height() )
+        # RGB
+        self.rgb_1_slider.Set_Size( self.layout.rgb_1_slider.width(), self.layout.rgb_1_slider.height() )
+        self.rgb_2_slider.Set_Size( self.layout.rgb_2_slider.width(), self.layout.rgb_2_slider.height() )
+        self.rgb_3_slider.Set_Size( self.layout.rgb_3_slider.width(), self.layout.rgb_3_slider.height() )
+        # CMY
+        self.cmy_1_slider.Set_Size( self.layout.cmy_1_slider.width(), self.layout.cmy_1_slider.height() )
+        self.cmy_2_slider.Set_Size( self.layout.cmy_2_slider.width(), self.layout.cmy_2_slider.height() )
+        self.cmy_3_slider.Set_Size( self.layout.cmy_3_slider.width(), self.layout.cmy_3_slider.height() )
+        # CMYK
+        self.cmyk_1_slider.Set_Size( self.layout.cmyk_1_slider.width(), self.layout.cmyk_1_slider.height() )
+        self.cmyk_2_slider.Set_Size( self.layout.cmyk_2_slider.width(), self.layout.cmyk_2_slider.height() )
+        self.cmyk_3_slider.Set_Size( self.layout.cmyk_3_slider.width(), self.layout.cmyk_3_slider.height() )
+        self.cmyk_4_slider.Set_Size( self.layout.cmyk_4_slider.width(), self.layout.cmyk_4_slider.height() )
+        # RYB
+        self.ryb_1_slider.Set_Size( self.layout.ryb_1_slider.width(), self.layout.ryb_1_slider.height() )
+        self.ryb_2_slider.Set_Size( self.layout.ryb_2_slider.width(), self.layout.ryb_2_slider.height() )
+        self.ryb_3_slider.Set_Size( self.layout.ryb_3_slider.width(), self.layout.ryb_3_slider.height() )
+        # YUV
+        self.yuv_1_slider.Set_Size( self.layout.yuv_1_slider.width(), self.layout.yuv_1_slider.height() )
+        self.yuv_2_slider.Set_Size( self.layout.yuv_2_slider.width(), self.layout.yuv_2_slider.height() )
+        self.yuv_3_slider.Set_Size( self.layout.yuv_3_slider.width(), self.layout.yuv_3_slider.height() )
+
+        # HSV
+        self.hsv_1_slider.Set_Size( self.layout.hsv_1_slider.width(), self.layout.hsv_1_slider.height() )
+        self.hsv_2_slider.Set_Size( self.layout.hsv_2_slider.width(), self.layout.hsv_2_slider.height() )
+        self.hsv_3_slider.Set_Size( self.layout.hsv_3_slider.width(), self.layout.hsv_3_slider.height() )
+        # HSL
+        self.hsl_1_slider.Set_Size( self.layout.hsl_1_slider.width(), self.layout.hsl_1_slider.height() )
+        self.hsl_2_slider.Set_Size( self.layout.hsl_2_slider.width(), self.layout.hsl_2_slider.height() )
+        self.hsl_3_slider.Set_Size( self.layout.hsl_3_slider.width(), self.layout.hsl_3_slider.height() )
+        # HCY
+        self.hcy_1_slider.Set_Size( self.layout.hcy_1_slider.width(), self.layout.hcy_1_slider.height() )
+        self.hcy_2_slider.Set_Size( self.layout.hcy_2_slider.width(), self.layout.hcy_2_slider.height() )
+        self.hcy_3_slider.Set_Size( self.layout.hcy_3_slider.width(), self.layout.hcy_3_slider.height() )
+        # ARD
+        self.ard_1_slider.Set_Size( self.layout.ard_1_slider.width(), self.layout.ard_1_slider.height() )
+        self.ard_2_slider.Set_Size( self.layout.ard_2_slider.width(), self.layout.ard_2_slider.height() )
+        self.ard_3_slider.Set_Size( self.layout.ard_3_slider.width(), self.layout.ard_3_slider.height() )
+
+        # XYZ
+        self.xyz_1_slider.Set_Size( self.layout.xyz_1_slider.width(), self.layout.xyz_1_slider.height() )
+        self.xyz_2_slider.Set_Size( self.layout.xyz_2_slider.width(), self.layout.xyz_2_slider.height() )
+        self.xyz_3_slider.Set_Size( self.layout.xyz_3_slider.width(), self.layout.xyz_3_slider.height() )
+        # XYY
+        self.xyy_1_slider.Set_Size( self.layout.xyy_1_slider.width(), self.layout.xyy_1_slider.height() )
+        self.xyy_2_slider.Set_Size( self.layout.xyy_2_slider.width(), self.layout.xyy_2_slider.height() )
+        self.xyy_3_slider.Set_Size( self.layout.xyy_3_slider.width(), self.layout.xyy_3_slider.height() )
+        # LAB
+        self.lab_1_slider.Set_Size( self.layout.lab_1_slider.width(), self.layout.lab_1_slider.height() )
+        self.lab_2_slider.Set_Size( self.layout.lab_2_slider.width(), self.layout.lab_2_slider.height() )
+        self.lab_3_slider.Set_Size( self.layout.lab_3_slider.width(), self.layout.lab_3_slider.height() )
+
+        # LCH
+        self.lch_1_slider.Set_Size( self.layout.lch_1_slider.width(), self.layout.lch_1_slider.height() )
+        self.lch_2_slider.Set_Size( self.layout.lch_2_slider.width(), self.layout.lch_2_slider.height() )
+        self.lch_3_slider.Set_Size( self.layout.lch_3_slider.width(), self.layout.lch_3_slider.height() )
+
+        # KKK
+        self.kkk_1_slider.Set_Size( self.layout.kkk_1_slider.width(), self.layout.kkk_1_slider.height() )
+
+        # Adjust Handles
+        self.Update_Values()
+
+        #endregion
+        #region Mixer
+
+        # POLE
+        self.pole_slider.Set_Size( self.layout.pole_slider.width(), self.layout.pole_slider.height() )
+        self.pole_pin_a.Set_Size( self.layout.pole_pin_a.width(), self.layout.pole_pin_a.height() )
+        self.pole_pin_b.Set_Size( self.layout.pole_pin_b.width(), self.layout.pole_pin_b.height() )
+        # Mixer 000
+        for i in range( 0, len( self.mixer_module) ):
+            self.mixer_module[i]["l"].Set_Size( self.mixer_widget[i]["l"].width(), self.mixer_widget[i]["l"].height() )
+            self.mixer_module[i]["m"].Set_Size( self.mixer_widget[i]["m"].width(), self.mixer_widget[i]["m"].height() )
+            self.mixer_module[i]["r"].Set_Size( self.mixer_widget[i]["r"].width(), self.mixer_widget[i]["r"].height() )
+
+        #endregion
+        #region Pin
+
+        for i in range( 0, len( self.pin_module ) ):
+            self.pin_module[i].Set_Size( self.pin_widget[i].width(), self.pin_widget[i].height() )
+
+        #endregion
+
+        self.update()
+    def Resize_Print( self, event ):
+        # Used doing a photoshoot
+        width = self.width()
+        height = self.height()
+        self.Message_Log( "SIZE", f"{ width } x { height }" )
+
     # Troubleshooting
     def Inspect():
         functions = list()
@@ -3595,9 +3598,12 @@ class Picker_Docker( DockWidget ):
     def API_Color_Name( self, hex ):
         name = self.convert.hex6_to_name( hex, color_names )
         return name
-    def API_Convert_Color( self, mode, var_1, var_2, var_3, var_4, color ):
+    def API_Color_Convert( self, mode, var_1, var_2, var_3, var_4, color ):
         convert = self.Color_Convert( mode, var_1, var_2, var_3, var_4, color )
         return convert
+    def API_Color_Interpolate( self, mode, color_a, color_b, factor ):
+        interpolate = self.Color_Interpolate( mode, mode, color_a, color_b, factor )
+        return interpolate
     # Write
     def API_Input_Kelvin( self, kelvin ):
         # range : 1000-12000 neutral : 6500
@@ -7911,6 +7917,12 @@ class Picker_Docker( DockWidget ):
             return True
         if ( event.type() == QEvent.Wheel and source is self.layout.mode ):
             self.Menu_Mode_Wheel( event )
+            return True
+
+        # Settings
+        modifier_all = QtCore.Qt.ShiftModifier | QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier
+        if ( event.type() == QEvent.MouseButtonPress and event.modifiers() == modifier_all and source is self.layout.settings ):
+            self.Standard_Size()
             return True
 
         return super().eventFilter( source, event )
