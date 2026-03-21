@@ -6,27 +6,28 @@ Pigment.O is a Krita plugin Color Picker, Mixer and Sampler.
 
 # Features
 
+* Dockers ( Picker, Sampler )
 * Harmony Colors
 * Various GUI Panels ( Display, Selectors, Mixers )
 * Various Channel Sliders
-* Color Mixer ( Pole, Linear )
+* Color Mixers ( Kelvin, Pole, Linear )
 * Pinned Colors
 * Color History
-* Color Sampler
+* Generate Masks ( Channels, Range )
 * Read ![wiki](https://github.com/EyeOdin/Pigment.O/wiki) for more information
 * How to ![install a plugin](https://github.com/EyeOdin/Pigment.O/wiki/Plugin-Instalation)
 
 # Preview
 
-![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/pop_panel_fill.png)
-![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/pop_panel_square_hsv.png)
-![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/pop_panel_hue_triangle.png)
-![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/pop_panel_gamut_hsv.png)
-![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/pop_panel_hexagon.png)
-![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/pop_panel_luma.png)
-![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/pop_panel_dot_none.png)
-![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/pop_panel_mask_none.png)
-![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/pos_interface_1.png)
+![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/picker_panel_fill.png)
+![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/picker_panel_square_hsv.png)
+![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/picker_panel_hue_triangle.png)
+![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/picker_panel_gamut_digital_hsv.png)
+![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/picker_panel_hexagon.png)
+![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/picker_panel_luma.png)
+![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/picker_panel_dot_none.png)
+![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/picker_panel_mask_none.png)
+![Picture](https://raw.githubusercontent.com/EyeOdin/Pigment.O/master/pigment_o/PREVIEWS/sampler_interface_1.png)
 
 # Support
 
