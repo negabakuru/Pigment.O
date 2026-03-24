@@ -9,11 +9,11 @@ Pigment.O is a Krita plugin Color Picker, Mixer and Sampler.
 * Dockers ( Picker, Sampler )
 * Harmony Colors
 * Various GUI Panels ( Display, Selectors, Mixers )
-* Various Channel Sliders
+* Various Channel Sliders ( GRAY, SRGB, LRGB, CMYK, RYB, YUV, HSV, HSL, HCY, ARD, XYZ, XYY, LAB, LCH )
 * Color Mixers ( Kelvin, Pole, Linear )
 * Pinned Colors
 * Color History
-* Generate Masks ( Channels, Range )
+* Generate Masks ( Channels, Range, LUT )
 * Read ![wiki](https://github.com/EyeOdin/Pigment.O/wiki) for more information
 * How to ![install a plugin](https://github.com/EyeOdin/Pigment.O/wiki/Plugin-Instalation)
 
