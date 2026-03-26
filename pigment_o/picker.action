@@ -250,18 +250,6 @@
           <isCheckable>true</isCheckable>
           <statusTip></statusTip>
         </Action>
-        <Action name="pigment_o_picker_lock_kkk">
-          <icon></icon>
-          <text>Lock Kelvin</text>
-          <whatsThis></whatsThis>
-          <toolTip></toolTip>
-          <iconText></iconText>
-          <activationFlags></activationFlags>
-          <activationConditions></activationConditions>
-          <shortcut>none</shortcut>
-          <isCheckable>true</isCheckable>
-          <statusTip></statusTip>
-        </Action>
 
 
     </Actions>

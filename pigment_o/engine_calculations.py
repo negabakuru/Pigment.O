@@ -17,175 +17,227 @@
 
 #region Imports
 
+# Python
 import math
 import sys
+# Krita Module
+from krita import *
+# PyQt5
 from PyQt5 import QtCore
+# Picker
 from .engine_constants import *
 
 #endregion
 
 
-class Geometry():
+#region Krita
 
-    #region Init
+# Kritarc
+def Kritarc_Read( group, key, default, tipo ):
+    variable = default
+    read = Krita.instance().readSetting( group, key, "" )
+    if read not in [ "", None ]:
+        read = tipo( read )
+        if type( default ) == type( read ):
+            variable = read
+    if variable == default:
+        Kritarc_Write( group, key, default )
+    return variable
+def Kritarc_Write( group, key, value ):
+    Krita.instance().writeSetting( group, key, str( value ) )
 
-    def __init__( self ):
-        pass
+# Communication
+def Message_Log( operation, message ):
+    string = f"{ DOCKER_NAME } | { operation } { message }"
+    try:QtCore.qDebug( string )
+    except:pass
+def Message_Warnning( operation, message ):
+    string = f"{ DOCKER_NAME } | { operation.upper() } { message }"
+    QMessageBox.information( QWidget(), i18n( "Warnning" ), i18n( string ) )
+def Message_Float( operation, message, icon ):
+    ki = Krita.instance()
+    string = f"{ DOCKER_NAME } | { operation.upper() } { message }"
+    ki.activeWindow().activeView().showFloatingMessage( string, ki.icon( icon ), 5000, 0 )
 
-    #endregion
-    #region Limiters
+# Troubleshooting
+def Inspect():
+    functions = list()
+    ins = inspect.stack()
+    for item in ins:
+        functions.append( item[3] )
+    QtCore.qDebug( f"Inspect = { functions }" )
 
-    def Limit_Unit( self, value ):
-        if value <= 1:  value = 1
-        return value
-    def Limit_Float( self, value ):
-        if value <= 0:  value = 0
-        if value >= 1:  value = 1
-        return value
-    def Limit_Range( self, value, minimum, maximum ):
-        if value <= minimum:    value = minimum
-        if value >= maximum:    value = maximum
-        return value
-    def Limit_Loop( self, value, limit ):
-        if value < 0:       value = limit
-        if value > limit:   value = 0
-        return value
-    def Limit_Looper( self, value, limit ):
-        while value < 0:        value += limit
-        while value > limit:    value -= limit
-        return value
-    def Limit_Error( self, value, error ):
-        if ( value > -error and value < error ):    value = 0
-        return value
-    def Limit_Angle( self, angle, inter ):
-        angle = angle // inter
-        even = angle % 2
-        if even == 0:   angle = angle * inter # Even
-        else:           angle = ( angle + 1 ) * inter # Odd
-        return angle
+#endregion
+#region Limiters
 
-    #endregion
-    #region LERP
+def Limit_Unit( value ):
+    if value <= 1:  value = 1
+    return value
+def Limit_Float( value ):
+    if value <= 0:  value = 0
+    if value >= 1:  value = 1
+    return value
+def Limit_Range( value, minimum, maximum ):
+    if value <= minimum:    value = minimum
+    if value >= maximum:    value = maximum
+    return value
+def Limit_Loop( value, limit ):
+    if value < 0:       value = limit
+    if value > limit:   value = 0
+    return value
+def Limit_Looper( value, limit ):
+    while value < 0:        value += limit
+    while value > limit:    value -= limit
+    return value
+def Limit_Error( value, error ):
+    if ( value > -error and value < error ):    value = 0
+    return value
+def Limit_Angle( angle, inter ):
+    angle = angle // inter
+    even = angle % 2
+    if even == 0:   angle = angle * inter # Even
+    else:           angle = ( angle + 1 ) * inter # Odd
+    return angle
+def Limit_Cycle( value, minimum, maximum ):
+    delta = abs( maximum - minimum )
+    if value < minimum: value += delta
+    if value > maximum: value -= delta
+    return value
 
-    def Lerp_1D( self, percent, bot, top ):
-        lerp = bot + ( ( top - bot ) * percent )
-        return lerp
-    def Lerp_2D( self, percent, x1, y1, x2, y2 ):
-        dx = x2 - x1
-        dy = y2 - y1
-        lx = x1 + ( dx * percent )
-        ly = y1 + ( dy * percent )
-        return lx, ly
-    def Lerp_3D( self, percent, x1, y1, z1, x2, y2, z2 ):
-        dx = x2 - x1
-        dy = y2 - y1
-        dz = z2 - z1
-        lx = x1 + ( dx * percent )
-        ly = y1 + ( dy * percent )
-        lz = z1 + ( dz * percent )
-        return lx, ly, lz
-    def Lerp_List( self, percent, bot, top ):
-        lista = []
-        for i in range( 0, len( bot ) ):
-            lerp = bot[i] + ( ( top[i] - bot[i] ) * percent )
-            lista.append( lerp )
-        return lista
+#endregion
+#region LERP
 
-    #endregion
-    #region Range
+def Lerp_1D( percent, bot, top ):
+    dx = top - bot
+    lx = bot + ( dx * percent )
+    return lx
+def Lerp_2D( percent, x1, y1, x2, y2 ):
+    dx = x2 - x1
+    dy = y2 - y1
+    lx = x1 + ( dx * percent )
+    ly = y1 + ( dy * percent )
+    return lx, ly
+def Lerp_3D( percent, x1, y1, z1, x2, y2, z2 ):
+    dx = x2 - x1
+    dy = y2 - y1
+    dz = z2 - z1
+    lx = x1 + ( dx * percent )
+    ly = y1 + ( dy * percent )
+    lz = z1 + ( dz * percent )
+    return lx, ly, lz
+def Lerp_List( percent, bot, top ):
+    lista = list()
+    for i in range( 0, len( bot ) ):
+        delta = top[i] - bot[i]
+        lerp = bot[i] + ( delta * percent )
+        lista.append( lerp )
+    return lista
 
-    def Random_Range( self, range ):
-        time = int( QtCore.QTime.currentTime().toString( 'hhmmssms' ) )
-        random.seed( time )
-        random_value = random.randint( 0, range )
-        return random_value
+#endregion
+#region Trignometry
 
-    #endregion
-    #region Statistics
+def Trig_2d_Angle_Delta( a1, a2 ):
+    angle = 0
+    a_min = min( a1, a2 )
+    a_max = max( a1, a2 )
+    if a_min <= 0.5:
+        a_dash = a_min + 1
+        d1 = abs( a_max - a_min )
+        d2 = abs( a_max - a_dash )
+    else:
+        a_dash = a_min -1
+        d1 = abs( a_max - a_min )
+        d2 = abs( a_max - a_dash )
+    angle = min( d1, d2 )
+    return angle
+def Trig_2D_Angle_Circle( px, py, side, radius, angle ):
+    # px - Circle center in X (pixels)
+    # py - Circle center in Y (pixels)
+    # side - length of the square containning the circle (pixels)
+    # radius - how far from the center (0-1)
+    # angle - angle delta (0-360)
+    circle_x = ( px ) - ( ( side * radius ) * math.cos( math.radians( angle ) ) )
+    circle_y = ( py ) - ( ( side * radius ) * math.sin( math.radians( angle ) ) )
+    return circle_x, circle_y
+def Trig_2D_Points_Distance( x1, y1, x2, y2 ):
+    dd = math.sqrt( math.pow( ( x1 - x2 ), 2 ) + math.pow( ( y1 - y2 ), 2 )  )
+    return dd
+def Trig_2D_Points_Lines_Angle( x1, y1, x2, y2, x3, y3 ):
+    v1 = ( x1 - x2, y1 - y2 )
+    v2 = ( x3 - x2, y3 - y2 )
+    v1_theta = math.atan2( v1[1], v1[0] )
+    v2_theta = math.atan2( v2[1], v2[0] )
+    angle = ( v2_theta - v1_theta ) * ( 180.0 / math.pi )
+    if angle < 0:
+        angle += 360.0
+    return angle
+def Trig_2D_Points_Lines_Intersection( x1, y1, x2, y2, x3, y3, x4, y4 ):
+    try:
+        xx = ( ( x2 * y1 - x1 * y2 ) * ( x4 - x3 ) - ( x4 * y3 - x3 * y4 ) * ( x2 - x1 ) ) / ( ( x2 - x1 ) * ( y4 - y3 ) - ( x4 - x3 ) * ( y2 - y1 ) )
+        yy = ( ( x2 * y1 - x1 * y2 ) * ( y4 - y3 ) - ( x4 * y3 - x3 * y4 ) * ( y2 - y1 ) ) / ( ( x2 - x1 ) * ( y4 - y3 ) - ( x4 - x3 ) * ( y2 - y1 ) )
+    except:
+        xx = 0
+        yy = 0
+    return xx, yy
+def Trig_2D_Points_Rotate( origin_x, origin_y, dist, angle ):
+    cx = origin_x - ( dist * math.cos( math.radians( angle ) ) )
+    cy = origin_y - ( dist * math.sin( math.radians( angle ) ) )
+    return cx, cy
+def Trig_2D_Triangle_Extrapolation( x1, y1, x2, y2, percent_12, percent_23 ):
+    hor = x2 - x1
+    ver = y2 - y1
+    p23_hor = ( percent_23 * hor ) / percent_12
+    p23_ver = ( percent_23 * ver ) / percent_12
+    x3 = x2 + p23_hor
+    y3 = y2 + p23_ver
+    return x3, y3
+def Trig_2D_Centroid( lx, ly ):
+    # lx = [ x1, x2, x3, x4 ]
+    # ly = [ y1, y2, y3, y4 ]
+    cx = sum( lx ) / len( lx )
+    cy = sum( ly ) / len( ly )
+    return [ cx, cy ]
+def Trig_2D_Ortogonal_Components( x1, y1, x2, y2):
+    # x1,y1 is the origin
+    delta_x = x2 - x1
+    delta_y = y2 - y1
+    return [delta_x, delta_y]
+def Trig_3D_Points_Distance( x1, y1, z1, x2, y2, z2 ):
+    d = math.sqrt( ( x2 - x1 ) ** 2 + ( y2 - y1 ) ** 2 + ( z2 - z1 ) ** 2 )
+    return d
 
-    def Stat_Mean( self, lista ):
-        length = len( lista )
-        add = 0
-        for i in range( 0, length ):
-            add = add + lista[i]
-        mean = add / ( length )
-        return mean
+#endregion
+#region Utilities
 
-    #endregion
-    #region Trignometry
+def Space_Index( space ):
+    c1 = f"{ space.lower() }_1"
+    c2 = f"{ space.lower() }_2"
+    c3 = f"{ space.lower() }_3"
+    return c1, c2, c3
 
-    def Trig_2D_Angle_Circle( self, px, py, side, radius, angle ):
-        # px - Circle center in X (pixels)
-        # py - Circle center in Y (pixels)
-        # side - length of the square containning the circle (pixels)
-        # radius - how far from the center (0-1)
-        # angle - angle delta (0-360)
-        circle_x = ( px ) - ( ( side * radius ) * math.cos( math.radians( angle ) ) )
-        circle_y = ( py ) - ( ( side * radius ) * math.sin( math.radians( angle ) ) )
-        return circle_x, circle_y
-    def Trig_2D_Points_Distance( self, x1, y1, x2, y2 ):
-        dd = math.sqrt( math.pow( ( x1 - x2 ), 2 ) + math.pow( ( y1 - y2 ), 2 )  )
-        return dd
-    def Trig_2D_Points_Lines_Angle( self, x1, y1, x2, y2, x3, y3 ):
-        v1 = ( x1 - x2, y1 - y2 )
-        v2 = ( x3 - x2, y3 - y2 )
-        v1_theta = math.atan2( v1[1], v1[0] )
-        v2_theta = math.atan2( v2[1], v2[0] )
-        angle = ( v2_theta - v1_theta ) * ( 180.0 / math.pi )
-        if angle < 0:
-            angle += 360.0
-        return angle
-    def Trig_2D_Points_Lines_Intersection( self, x1, y1, x2, y2, x3, y3, x4, y4 ):
-        try:
-            xx = ( ( x2 * y1 - x1 * y2 ) * ( x4 - x3 ) - ( x4 * y3 - x3 * y4 ) * ( x2 - x1 ) ) / ( ( x2 - x1 ) * ( y4 - y3 ) - ( x4 - x3 ) * ( y2 - y1 ) )
-            yy = ( ( x2 * y1 - x1 * y2 ) * ( y4 - y3 ) - ( x4 * y3 - x3 * y4 ) * ( y2 - y1 ) ) / ( ( x2 - x1 ) * ( y4 - y3 ) - ( x4 - x3 ) * ( y2 - y1 ) )
-        except:
-            xx = 0
-            yy = 0
-        return xx, yy
-    def Trig_2D_Points_Rotate( self, origin_x, origin_y, dist, angle ):
-        cx = origin_x - ( dist * math.cos( math.radians( angle ) ) )
-        cy = origin_y - ( dist * math.sin( math.radians( angle ) ) )
-        return cx, cy
-    def Trig_2D_Triangle_Extrapolation( self, x1, y1, x2, y2, percent_12, percent_23 ):
-        hor = x2 - x1
-        ver = y2 - y1
-        p23_hor = ( percent_23 * hor ) / percent_12
-        p23_ver = ( percent_23 * ver ) / percent_12
-        x3 = x2 + p23_hor
-        y3 = y2 + p23_ver
-        return x3, y3
-    def Trig_2D_Centroid_Triangle( self, a1, a2, b1, b2, c1, c2 ):
-        cx = ( a1 + b1 + c1 ) / 3
-        cy = ( a2 + b2 + c2 ) / 3
-        return [ cx, cy ]
-    def Trig_2D_Centroid_Square( self, a1, a2, b1, b2, c1, c2, d1, d2 ):
-        cx = ( a1 + b1 + c1 + d1 ) / 4
-        cy = ( a2 + b2 + c2 + d2 ) / 4
-        return [ cx, cy ]
-    def Trig_2D_Ortogonal_Components(self, x1, y1, x2, y2):
-        # x1,y1 is the origin
-        delta_x = x2 - x1
-        delta_y = y2 - y1
-        return [delta_x, delta_y]
-    def Trig_3D_Points_Distance( self, x1, y1, z1, x2, y2, z2 ):
-        d = math.sqrt( ( x2 - x1 ) ** 2 + ( y2 - y1 ) ** 2 + ( z2 - z1 ) ** 2 )
-        return d
+def Preview_Screenshot( qpixmap ):
+    pyid = "pykrita_imagine_board_docker"
+    list_docker = Krita.instance().dockers()
+    for docker in list_docker:
+        if docker.objectName() == pyid:
+            imagine_board = docker
+            break
+    imagine_board.API_Preview_QPixmap( "url", qpixmap )
 
-    #endregion
-
+#endregion
 
 class Convert():
-    # range 0-1
+    # range = 0-1
 
     #region Init
 
     def __init__( self ):
-        # Modules
-        self.geometry = Geometry()
-        # Variables
-        self.hue = 0
-        self.luminosity = "ITU-R BT.709"
+        # Default Values
+        self.Set_Document( "SRGB", "U8", "sRGB-elle-V2-srgtrc.icc" )
+        self.Set_Hue( 0 )
+        self.Set_Gamma( gamma_y, gamma_l )
+        self.Set_Luminosity( "Rec.709" )
+        self.Set_Matrix( "sRGB (D50)" )
 
     #endregion
     #region Set
@@ -200,25 +252,31 @@ class Convert():
         self.gamma_y = gamma_y
         self.gamma_l = gamma_l
     def Set_Luminosity( self, luminosity ):
-        self.luminosity == luminosity
-        if self.luminosity == "ITU-R BT.601":
+        self.luminosity = luminosity
+        if self.luminosity == "Rec.601":
             self.luma_r = 0.299
+            self.luma_g = 0.587 # 1 - self.luma_r - self.luma_b
             self.luma_b = 0.114
-            self.luma_g = 1 - self.luma_r - self.luma_b # 0.587
-            self.luma_pr = 1.402
             self.luma_pb = 1.772
-        if self.luminosity == "ITU-R BT.709":
+            self.luma_pr = 1.402
+        if self.luminosity == "Rec.709":
             self.luma_r = 0.2126
+            self.luma_g = 0.7152 # 1 - self.luma_r - self.luma_b
             self.luma_b = 0.0722
-            self.luma_g = 1 - self.luma_r - self.luma_b # 0.7152
-            self.luma_pr = 1.5748
             self.luma_pb = 1.8556
-        if self.luminosity == "ITU-R BT.2020":
+            self.luma_pr = 1.5748
+        if self.luminosity == "Rec.2020":
             self.luma_r = 0.2627
+            self.luma_g = 0.6780 # 1 - self.luma_r - self.luma_b
             self.luma_b = 0.0593
-            self.luma_g = 1 - self.luma_r - self.luma_b # 0.678
-            self.luma_pr = 0.4969
-            self.luma_pb = 0.7910
+            self.luma_pb = 1.8814
+            self.luma_pr = 1.4746
+        if self.luminosity == "Rec.2100":
+            self.luma_r = 0.2627
+            self.luma_g = 0.6780 # 1 - self.luma_r - self.luma_b
+            self.luma_b = 0.0593
+            self.luma_pb = 1.8814
+            self.luma_pr = 1.4746
     def Set_Matrix( self, matrix ):
         # Origin from http://www.brucelindbloom.com/
 
@@ -356,6 +414,9 @@ class Convert():
     # Formulas
     # link : http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
     # Link : https://www.easyrgb.com/en/math.php
+    # link : https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rdprfx/b550d1b5-f7d9-4a0c-9141-b3dca9d7f525
+    # link : https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rdprfx/2e1618ed-60d6-4a64-aa5d-0608884861bb
+    # Link : https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html
 
     # Pickers
     # link : https://colorizer.org/
@@ -363,147 +424,158 @@ class Convert():
     #endregion
     #region Utility
 
-    def Vector_Safe( self, a, b, c ):
-        a = self.geometry.Limit_Float( a )
-        b = self.geometry.Limit_Float( b )
-        c = self.geometry.Limit_Float( c )
+    # Vector
+    def Vector_Limit( self, a, b, c ):
+        a = Limit_Float( a )
+        b = Limit_Float( b )
+        c = Limit_Float( c )
         return a, b, c
-    def List_Mult_3( self, la, lb ):
-        mult = ( la[0] * lb[0] ) + ( la[1] * lb[1] ) + ( la[2] * lb[2] )
-        return mult
+    # Dot Products
+    def Dot_Product_MC( self, m33, vector ):
+        # m33(3x3) DOT vector(3x1)
+        i1 = vector[0]
+        i2 = vector[1]
+        i3 = vector[2]
+        o1 = ( m33[0][0] * i1 ) + ( m33[0][1] * i2 ) + ( m33[0][2] * i3 )
+        o2 = ( m33[1][0] * i1 ) + ( m33[1][1] * i2 ) + ( m33[1][2] * i3 )
+        o3 = ( m33[2][0] * i1 ) + ( m33[2][1] * i2 ) + ( m33[2][2] * i3 )
+        return o1, o2, o3
+    def Dot_Product_LM( self, vector, m33 ):
+        # vector(1x3) DOT m33(3x3)
+        i1 = vector[0]
+        i2 = vector[1]
+        i3 = vector[2]
+        o1 = ( i1 * m33[0][0] ) + ( i2 * m33[1][0] ) + ( i3 * m33[2][0] )
+        o2 = ( i1 * m33[0][1] ) + ( i2 * m33[1][1] ) + ( i3 * m33[2][1] )
+        o3 = ( i1 * m33[0][2] ) + ( i2 * m33[1][2] ) + ( i3 * m33[2][2] )
+        return o1, o2, o3
 
     #endregion
-    #region LERP
+    #region Color
 
-    def color_vector( self, mode, color ):
-        if mode == "A":                 vector = [ color["aaa_1"] ]
-        elif mode in [ "RGB", None ]:   vector = [ color["rgb_1"], color["rgb_2"], color["rgb_3"] ]
-        elif mode == "CMY":             vector = [ color["cmy_1"], color["cmy_2"], color["cmy_3"] ]
-        elif mode == "CMYK":            vector = [ color["cmyk_1"], color["cmyk_2"], color["cmyk_3"], color["cmyk_4"] ]
-        elif mode == "RYB":             vector = [ color["ryb_1"], color["ryb_2"], color["ryb_3"] ]
-        elif mode == "YUV":             vector = [ color["yuv_1"], color["yuv_2"], color["yuv_3"] ]
-        elif mode == "HSV":             vector = [ color["hsv_1"], color["hsv_2"], color["hsv_3"] ]
-        elif mode == "HSL":             vector = [ color["hsl_1"], color["hsl_2"], color["hsl_3"] ]
-        elif mode == "HCY":             vector = [ color["hcy_1"], color["hcy_2"], color["hcy_3"] ]
-        elif mode == "ARD":             vector = [ color["ard_1"], color["ard_2"], color["ard_3"] ]
-        elif mode == "XYZ":             vector = [ color["xyz_1"], color["xyz_2"], color["xyz_3"] ]
-        elif mode == "XYY":             vector = [ color["xyy_1"], color["xyy_2"], color["xyy_3"] ]
-        elif mode == "LAB":             vector = [ color["lab_1"], color["lab_2"], color["lab_3"] ]
-        elif mode == "LCH":             vector = [ color["lch_1"], color["lch_2"], color["lch_3"] ]
-        return vector
-    def color_lerp( self, mode, channels, color_a, color_b, factor ):
-        color = []
-        if channels >= 1:
-            hue_rgb = ( "HSV", "HSL", "HCY", "ARD" )
-            if mode in hue_rgb: # Circular
-                dist_a = color_b[0] - color_a[0]
-                if color_a[0] < color_b[0]:
-                    dist_b = ( color_b[0] - 1 ) - color_a[0]
-                    unit = - 1 / 360
+    def color_lerp( self, mode, ca, cb, factor ):
+        # lists can be padded with Color_Vector
+        # ca = [ v1, v2, v3, v4 ]
+        # cb = [ v1, v2, v3, v4 ]
+
+        # Variables
+        hue_rgb = [ "HSV", "HSL", "HCY", "ARD" ]
+        hue_xyz = [ "LCH" ]
+        cmyk = [ "CMYK" ]
+        gray = [ "A", "GRAY" ]
+
+        hu = 1 / 360
+        color = [ 0, 0, 0, 0 ]
+        if factor <= 0:
+            for i in range( 0, len( ca ) ):
+                color[i] = ca[i]
+        elif factor >= 1:
+            for i in range( 0, len( cb ) ):
+                color[i] = cb[i]
+        else:
+            if mode in hue_rgb:
+                # Hue
+                dist_a = cb[0] - ca[0]
+                if ca[0] < cb[0]:
+                    dist_b = ( cb[0] - 1 ) - ca[0]
+                    unit = -hu
                 else:
-                    dist_b = ( color_b[0] + 1 ) - color_a[0]
-                    unit = 1 / 360
+                    dist_b = ( cb[0] + 1 ) - ca[0]
+                    unit = +hu
                 dist = [ ( abs( dist_a ), dist_a ), ( abs( dist_b + unit ), dist_b ) ]
                 d0 = sorted( dist )[0][1] 
-                v0 = self.geometry.Limit_Looper( color_a[0] + ( d0 * factor ), 1 )
-            else: # Linear
-                d0 = color_b[0] - color_a[0]
-                v0 = color_a[0] + ( d0 * factor  )
-            color.append( v0 )
-        if channels >= 2:
-            d1 = color_b[1] - color_a[1]
-            v1 = color_a[1] + ( d1 * factor  )
-            color.append( v1 )
-        if channels >= 3:
-            hue_xyz = ( "LCH" )
-            if mode in hue_xyz: # Circular
-                dist_a = color_b[2] - color_a[2]
-                if color_a[2] < color_b[2]:
-                    dist_b = ( color_b[2] - 1 ) - color_a[2]
-                    unit = - 1 / 360
+                v0 = Limit_Looper( ca[0] + ( d0 * factor ), 1 )
+                # Others
+                v1 = ca[1] + ( ( cb[1] - ca[1] ) * factor  )
+                v2 = ca[2] + ( ( cb[2] - ca[2] ) * factor  )
+                # List
+                color[0] = v0
+                color[1] = v1
+                color[2] = v2
+            elif mode in hue_xyz:
+                # Others
+                v0 = ca[0] + ( ( cb[0] - ca[0] ) * factor  )
+                v1 = ca[1] + ( ( cb[1] - ca[1] ) * factor  )
+                # Hue
+                dist_a = cb[2] - ca[2]
+                if ca[2] < cb[2]:
+                    dist_b = ( cb[2] - 1 ) - ca[2]
+                    unit = -hu
                 else:
-                    dist_b = ( color_b[2] + 1 ) - color_a[2]
-                    unit = 1 / 360
+                    dist_b = ( cb[2] + 1 ) - ca[2]
+                    unit = +hu
                 dist = [ ( abs( dist_a ), dist_a ), ( abs( dist_b + unit ), dist_b ) ]
                 d2 = sorted( dist )[0][1] 
-                v2 = self.geometry.Limit_Looper( color_a[2] + ( d2 * factor ), 1 )
-            else: # Linear
-                d2 = color_b[2] - color_a[2]
-                v2 = color_a[2] + ( d2 * factor  )
-            color.append( v2 )
-        if channels >= 4:
-            d3 = color_b[3] - color_a[3]
-            v3 = color_a[3] + ( d3 * factor  )
-            color.append( v3 )
+                v2 = Limit_Looper( ca[2] + ( d2 * factor ), 1 )
+                # List
+                color[0] = v0
+                color[1] = v1
+                color[2] = v2
+            else:
+                for i in range( 0, len( ca ) ):
+                    delta = cb[i] - ca[i]
+                    value = ca[i] + ( delta * factor  )
+                    color[i] = value
         return color
     def color_convert( self, cmodel, mode, color ):
+        # Conversions done for the Sampler
         # Variables
-        aaa = None
-        rgb = None
+        gray = None
+        srgb = None
         cmyk = None
         yuv = None
         xyz = None
         lab = None
-        self.hue = 0
-
         # Lists
-        list_rgb = [ "A", "RGB", "CMY", "CMYK", "RYB", "YUV", "HSV", "HSL", "HCY", "ARD" ]
-        list_xyz = [ "XYZ", "XYY", "LAB", "LCH" ]
-
+        list_srgb = [ "A", "GRAY", "SRGB", "LRGB", "CMYK", "RYB", "YUV", "HSV", "HSL", "HCY", "ARD" ]
+        list_xyz  = [ "XYZ", "XYY", "LAB", "LCH" ]
         # Document
-        if cmodel == "A":
-            aaa = color
-            rgb = self.aaa_to_rgb( color[0] )
-            if mode in list_xyz:
-                xyz = self.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
-        elif cmodel in [ "RGB", None ]:
-            rgb = color
-            if mode in list_xyz:
-                xyz = self.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+        if cmodel in [ "A", "GRAY" ]:
+            gray = color
+            srgb = self.gray_to_srgb( color[0] )
+            xyz  = self.srgb_to_xyz( srgb[0], srgb[1], srgb[2] )
+        elif cmodel == "SRGB":
+            srgb = color
+            xyz  = self.srgb_to_xyz( srgb[0], srgb[1], srgb[2] )
         elif cmodel == "CMYK":
             cmyk = color
-            rgb = self.cmyk_to_rgb( color[0], color[1], color[2], color[3] )
-            if mode in list_xyz:
-                xyz = self.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+            srgb = self.cmyk_to_srgb( color[0], color[1], color[2], color[3] )
+            xyz  = self.srgb_to_xyz( srgb[0], srgb[1], srgb[2] )
         elif cmodel == "YUV":
             yuv = color
-            rgb = self.yuv_to_rgb( yuv[0], yuv[1], yuv[2] )
-            if mode in list_xyz:
-                xyz = self.rgb_to_xyz( rgb[0], rgb[1], rgb[2] )
+            srgb = self.yuv_to_srgb( color[0], color[1], color[2] )
+            xyz  = self.srgb_to_xyz( srgb[0], srgb[1], srgb[2] )
         elif cmodel == "XYZ":
             xyz = color
-            if mode in list_rgb:
-                rgb = self.xyz_to_rgb( xyz[0], xyz[1], xyz[2] )
+            srgb = self.xyz_to_srgb( xyz[0], xyz[1], xyz[2] )
         elif cmodel == "LAB":
             lab = color
-            xyz = self.lab_to_xyz( lab[0], lab[1], lab[2] )
-            if mode in list_rgb:
-                rgb = self.xyz_to_rgb( xyz[0], xyz[1], xyz[2] )
-
+            xyz = self.lab_to_xyz( color[0], color[1], color[2] )
+            srgb = self.xyz_to_srgb( xyz[0], xyz[1], xyz[2] )
         # Convert
-        if mode == "A":
-            if aaa == None: cor = self.rgb_to_aaa( rgb[0], rgb[1], rgb[2] )
-            else:           cor = aaa
-        elif mode in [ "RGB", None ]:
-            cor = rgb
-        elif mode == "CMY":
-            cor = self.rgb_to_cmy( rgb[0], rgb[1], rgb[2] )
+        if mode in [ "A", "GRAY" ]:
+            if gray == None:    cor = self.srgb_to_gray( srgb[0], srgb[1], srgb[2] )
+            else:               cor = gray
+        elif mode == "SRGB":
+            cor = srgb
+        elif mode == "LRGB":
+            cor = self.srgb_to_lrgb( srgb[0], srgb[1], srgb[2] )
         elif mode == "CMYK":
-            if cmyk == None:    cor = self.rgb_to_cmyk( rgb[0], rgb[1], rgb[2], None )
+            if cmyk == None:    cor = self.srgb_to_cmyk( srgb[0], srgb[1], srgb[2], None )
             else:               cor = cmyk
         elif mode == "RYB":
-            cor = self.rgb_to_ryb( rgb[0], rgb[1], rgb[2] )
+            cor = self.srgb_to_ryb( srgb[0], srgb[1], srgb[2] )
         elif mode == "YUV":
-            if yuv == None:     cor = self.rgb_to_yuv( rgb[0], rgb[1], rgb[2] )
+            if yuv == None:     cor = self.srgb_to_yuv( srgb[0], srgb[1], srgb[2] )
             else:               cor = yuv
         elif mode == "HSV":
-            cor = self.rgb_to_hsv( rgb[0], rgb[1], rgb[2] )
+            cor = self.srgb_to_hsv( srgb[0], srgb[1], srgb[2] )
         elif mode == "HSL":
-            cor = self.rgb_to_hsl( rgb[0], rgb[1], rgb[2] )
+            cor = self.srgb_to_hsl( srgb[0], srgb[1], srgb[2] )
         elif mode == "HCY":
-            cor = self.rgb_to_hcy( rgb[0], rgb[1], rgb[2] )
+            cor = self.srgb_to_hcy( srgb[0], srgb[1], srgb[2] )
         elif mode == "ARD":
-            cor = self.rgb_to_ard( rgb[0], rgb[1], rgb[2] )
+            cor = self.srgb_to_ard( srgb[0], srgb[1], srgb[2] )
         elif mode == "XYZ":
             cor = xyz
         elif mode == "XYY":
@@ -518,15 +590,12 @@ class Convert():
     #endregion
     #region RGB LINEAR
 
-    # AAA
-    def rgb_to_aaa( self, r, g, b ):
-        aaa = ( self.luma_r * r ) + ( self.luma_g * g ) + ( self.luma_b * b )
-        return [aaa]
-    def aaa_to_rgb( self, a ):
-        r = a
-        g = a
-        b = a
-        return [r, g, b]
+    # GRAY
+    def srgb_to_gray( self, r, g, b ):
+        gray = ( self.luma_r * r ) + ( self.luma_g * g ) + ( self.luma_b * b )
+        return [ gray ]
+    def gray_to_srgb( self, a ):
+        return [ a, a, a ]
 
     # RGB
     def srgb_to_lrgb( self, sr, sg, sb ):
@@ -540,7 +609,7 @@ class Convert():
         else:           lg = ( ( sg + n0  ) / n1 ) ** gamma_l
         if sb <= value: lb = sb / m
         else:           lb = ( ( sb + n0  ) / n1 ) ** gamma_l
-        return [lr, lg, lb]
+        return [ lr, lg, lb ]
     def lrgb_to_srgb( self, lr, lg, lb ):
         n0 = 0.055
         n1 = 1 + n0
@@ -552,47 +621,51 @@ class Convert():
         else:           sg = n1 * lg ** ( 1 / gamma_l  ) - n0
         if lb <= value: sb = lb * m
         else:           sb = n1 * lb ** ( 1 / gamma_l  ) - n0
-        return [sr, sg, sb]
+        sr = round( sr, 13 )
+        sg = round( sg, 13 )
+        sb = round( sb, 13 )
+        return [ sr, sg, sb ]
     # UVD
-    def rgb_to_uvd( self, r, g, b ):
+    def srgb_to_uvd( self, r, g, b ):
+        # x = 0
+        # y = -35.264
+        # z = 45
+
         # uv range from -1 to +1 ( 0.8 with mask )
-        m00 = -0.866025808; m01 = +0.866025808; m02 = -0.0000000000000000961481791
-        m10 = +0.500000010; m11 = +0.499999990; m12 = -1.00000000
-        m20 = +0.333333497; m21 = +0.333333503; m22 = +0.333333000
-        # MatrixInverse * RGB
-        u = m00 * r + m01 * g + m02 * b
-        v = m10 * r + m11 * g + m12 * b
-        d = m20 * r + m21 * g + m22 * b
+        matrix = [
+            [ -0.866025808, +0.866025808, -0.0000000000000000961481791 ],
+            [ +0.500000010, +0.499999990, -1.00000000 ],
+            [ +0.333333497, +0.333333503, +0.333333000 ],
+            ]
+        u, v, d = self.Dot_Product_MC( matrix, [ r, g, b ] )
         m = 0.0000001
-        u = self.geometry.Limit_Error( u, m )
-        v = self.geometry.Limit_Error( v, m )
-        return [u, v, d]
-    def uvd_to_rgb( self, u, v, d ):
-        m00 = -0.57735;         m01 = +0.333333; m02 = +1
-        m10 = +0.57735;         m11 = +0.333333; m12 = +1
-        m20 = -0.0000000113021; m21 = -0.666667; m22 = +1
-        # Matrix * UVD
-        r = m00 * u + m01 * v + m02 * d
-        g = m10 * u + m11 * v + m12 * d
-        b = m20 * u + m21 * v + m22 * d
-        # Correct out of Bound values
-        r, g, b = self.Vector_Safe( r, g, b )
-        return [r, g, b]
+        u = Limit_Error( u, m )
+        v = Limit_Error( v, m )
+        return [ u, v, d ]
+    def uvd_to_srgb( self, u, v, d ):
+        matrix = [
+            [ -0.57735,         +0.333333, +1 ],
+            [ +0.57735,         +0.333333, +1 ],
+            [ -0.0000000113021, -0.666667, +1 ],
+            ]
+        r, g, b = self.Dot_Product_MC( matrix, [ u, v, d ] )
+        r, g, b = self.Vector_Limit( r, g, b )
+        return [ r, g, b ]
 
     # CMY
-    def rgb_to_cmy( self, r, g, b ):
+    def srgb_to_cmy( self, r, g, b ):
         c = 1 - r
         m = 1 - g
         y = 1 - b
-        return [c, m, y]
-    def cmy_to_rgb( self, c, m, y ):
+        return [ c, m, y ]
+    def cmy_to_srgb( self, c, m, y ):
         r = 1 - c
         g = 1 - m
         b = 1 - y
-        return [r, g, b]
+        return [ r, g, b ]
 
     # CMYK
-    def rgb_to_cmyk( self, r, g, b, key ):
+    def srgb_to_cmyk( self, r, g, b, key ):
         # key = black from cmyk or key ( if key is None formula is regular )
         q = max( r, g, b )
         if q == 0:
@@ -620,26 +693,25 @@ class Convert():
                 c = ( 1 - r - k  ) / ( 1 - k  )
                 m = ( 1 - g - k  ) / ( 1 - k  )
                 y = ( 1 - b - k  ) / ( 1 - k  )
-        return [c, m, y, k]
-    def cmyk_to_rgb( self, c, m, y, k ):
+        return [ c, m, y, k ]
+    def cmyk_to_srgb( self, c, m, y, k ):
         r = ( 1 - c  ) * ( 1 - k  )
         g = ( 1 - m  ) * ( 1 - k  )
         b = ( 1 - y  ) * ( 1 - k  )
-        r, g, b = self.Vector_Safe( r, g, b )
-        return [r, g, b]
-    def rgb_to_k( self, r, g, b ):
+        r, g, b = self.Vector_Limit( r, g, b )
+        return [ r, g, b ]
+    def srgb_to_k( self, r, g, b ):
         q = max( r, g, b )
-        if q == 0:
-            k = 1
-        else:
-            k = 1 - max( r, g, b )
+        if q == 0:  k = 1
+        else:       k = 1 - max( r, g, b )
         return k
-    def cmyk_to_tic( self, c, m, y, k):
-        tic = round( ( c + m + y + k ) * 100 )
-        return tic
+    def cmyk_to_sum( self, c, m, y, k):
+        # total ink coverage is in percentage
+        sum4 = c + m + y + k
+        return sum4
 
     # RYB
-    def rgb_to_ryb( self, r, g, b ):
+    def srgb_to_ryb( self, r, g, b ):
         red = r
         green = g
         blue = b
@@ -665,8 +737,8 @@ class Convert():
         red += white
         yellow += white
         blue += white
-        return [red, yellow, blue]
-    def ryb_to_rgb( self, r, y, b ):
+        return [ red, yellow, blue ]
+    def ryb_to_srgb( self, r, y, b ):
         red = r
         yellow = y
         blue = b
@@ -692,42 +764,93 @@ class Convert():
         red += white
         green += white
         blue += white
-        return [red, green, blue]
+        return [ red, green, blue ]
 
     # YUV
-    def rgb_to_yuv( self, r, g, b ):
-        y = self.List_Mult_3( [ self.luma_r                                      , self.luma_g                                      , self.luma_b                                      ], [ r, g, b ] )
-        u = self.List_Mult_3( [ -0.5 * ( ( self.luma_r ) / ( 1 - self.luma_b ) ) , -0.5 * ( ( self.luma_g ) / ( 1 - self.luma_b ) ) , +0.5                                             ], [ r, g, b ] )
-        v = self.List_Mult_3( [ +0.5                                             , -0.5 * ( ( self.luma_g ) / ( 1 - self.luma_r ) ) , -0.5 * ( ( self.luma_b ) / ( 1 - self.luma_r ) ) ], [ r, g, b ] )
-        y, u, v = self.Vector_Safe( y, 0.5 + u, 0.5 + v )
+    def srgb_to_yuv( self, r, g, b ):
+        # Y - Luma - [0-255]
+        # U - Cb - Component BLUE - [-128-127]
+        # V - Cr - Component RED - [-128,127]
+
+        if   self.luminosity == "Rec.601":  y, u, v = self.srgb_to_yuv_601(  r, g, b )
+        elif self.luminosity == "Rec.709":  y, u, v = self.srgb_to_yuv_709(  r, g, b )
+        elif self.luminosity == "Rec.2020": y, u, v = self.srgb_to_yuv_2020( r, g, b )
+        elif self.luminosity == "Rec.2100": y, u, v = self.srgb_to_yuv_2100( r, g, b )
+        y, u, v = self.Vector_Limit( y, u, v )
         return [ y, u, v ]
-    def yuv_to_rgb( self, y, u, v ):
+    def yuv_to_srgb( self, y, u, v ):
+        if   self.luminosity == "Rec.601":  r, g, b = self.yuv_to_srgb_601(  y, u, v )
+        elif self.luminosity == "Rec.709":  r, g, b = self.yuv_to_srgb_709(  y, u, v )
+        elif self.luminosity == "Rec.2020": r, g, b = self.yuv_to_srgb_2020( y, u, v )
+        elif self.luminosity == "Rec.2100": r, g, b = self.yuv_to_srgb_2100( y, u, v )
+        r, g, b = self.Vector_Limit( r, g, b )
+        return [ r, g, b ]
+    # 601
+    def srgb_to_yuv_601( self, r, g, b ):
+        y = self.luma_r * r + self.luma_g * g + self.luma_b * b
+        u = ( b - y ) / self.luma_pb
+        v = ( r - y ) / self.luma_pr
+        u += 0.5
+        v += 0.5
+        return y, u, v
+    def yuv_to_srgb_601( self, y, u, v ):
         u -= 0.5
         v -= 0.5
-        if self.luminosity == "ITU-R BT.2020":
-            r = self.List_Mult_3( [ +1 , +0                , +1.4746           ], [ y, u, v ] )
-            g = self.List_Mult_3( [ +1 , -0.16455312684366 , -0.57135312684366 ], [ y, u, v ] )
-            b = self.List_Mult_3( [ +1 , +1.8814           , +0                ], [ y, u, v ] )
-        else:
-            r = self.List_Mult_3( [ +1 , +0                                                       , 2 - 2 * self.luma_r                                      ], [ y, u, v ] )
-            g = self.List_Mult_3( [ +1 , -( self.luma_b / self.luma_g ) * ( 2 - 2 * self.luma_b ) , -( self.luma_r / self.luma_g ) * ( 2 - 2 * self.luma_r ) ], [ y, u, v ] )
-            b = self.List_Mult_3( [ +1 , +2 - 2 * self.luma_b                                     , 0                                                        ], [ y, u, v ] )
-        r, g, b = self.Vector_Safe( r, g, b )
-        return [r,g,b]
+        r = ( v * self.luma_pr ) + y
+        b = ( u * self.luma_pb ) + y
+        g = ( y - self.luma_r * r - self.luma_b * b ) / self.luma_g
+        return r, g, b
+    # 709
+    def srgb_to_yuv_709( self, r, g, b ):
+        y = self.luma_r * r + self.luma_g * g + self.luma_b * b
+        u = ( b - y ) / self.luma_pb
+        v = ( r - y ) / self.luma_pr
+        u += 0.5
+        v += 0.5
+        return y, u, v
+    def yuv_to_srgb_709( self, y, u, v ):
+        u -= 0.5
+        v -= 0.5
+        r = ( v * self.luma_pr ) + y
+        b = ( u * self.luma_pb ) + y
+        g = ( y - self.luma_r * r - self.luma_b * b ) / self.luma_g
+        return r, g, b
+    # 2020
+    def srgb_to_yuv_2020( self, r, g, b ):
+        y = self.luma_r * r + self.luma_g * g + self.luma_b * b
+        u = ( b - y ) / self.luma_pb
+        v = ( r - y ) / self.luma_pr
+        u += 0.5
+        v += 0.5
+        return y, u, v
+    def yuv_to_srgb_2020( self, y, u, v ):
+        u -= 0.5
+        v -= 0.5
+        r = ( v * self.luma_pr ) + y
+        b = ( u * self.luma_pb ) + y
+        g = ( y - self.luma_r * r - self.luma_b * b ) / self.luma_g
+        return r, g, b
+    # 2100
+    def srgb_to_yuv_2100( self, r, g, b ):
+        y = self.luma_r * r + self.luma_g * g + self.luma_b * b
+        u = ( b - y ) / self.luma_pb
+        v = ( r - y ) / self.luma_pr
+        u += 0.5
+        v += 0.5
+        return y, u, v
+    def yuv_to_srgb_2100( self, y, u, v ):
+        u -= 0.5
+        v -= 0.5
+        b = ( u * self.luma_pb ) + y
+        r = ( v * self.luma_pr ) + y
+        g = ( y - self.luma_r * r - self.luma_b * b ) / self.luma_g
+        return r, g, b
 
     #endregion
     #region RGB HUE
 
     # HUE RGB
-    def rgb_to_hue( self, r, g, b ):
-        # In case Krita is in Linear Format
-        if self.n_cd != "U8":
-            lsl = self.lrgb_to_srgb( r, g, b )
-            r = lsl[0]
-            g = lsl[1]
-            b = lsl[2]
-
-        # sRGB to HSX
+    def srgb_to_hue( self, r, g, b ):
         v_min = min( r, g, b  )
         v_max = max( r, g, b  )
         d_max = v_max - v_min
@@ -743,9 +866,10 @@ class Convert():
                 h = ( 1 / 3  ) + d_r - d_b
             elif b == v_max :
                 h = ( 2 / 3  ) + d_g - d_r
-            h = self.geometry.Limit_Looper( h, 1 )
+            h = Limit_Looper( h, 1 )
+            self.hue = h
         return h
-    def hue_to_rgb( self, h ):
+    def hue_to_srgb( self, h ):
         vh = h * 6
         if vh == 6 :
             vh = 0
@@ -776,14 +900,7 @@ class Convert():
             r = 1
             g = 0
             b = v2
-
-        # In case Krita is in Linear Format
-        if self.n_cd != "U8":
-            lsl = self.srgb_to_lrgb( r, g, b )
-            r = lsl[0]
-            g = lsl[1]
-            b = lsl[2]
-        return [r, g, b]
+        return [ r, g, b ]
     # HUE Digital-Analog or RGB-RYB
     def hue_to_hue( self, mode, angle ):
         if mode == "DIGITAL":
@@ -795,7 +912,8 @@ class Convert():
         return hue_d, hue_a
     def hued_to_huea( self, hued ):
         # convertion
-        hued = self.geometry.Limit_Looper( hued, 1 )
+        huea = 0
+        hued = Limit_Looper( hued, 1 )
         for i in range( len( digital_step ) ):
             if hued == digital_step[i]:
                 huea = analog_step[i]
@@ -806,7 +924,7 @@ class Convert():
         return huea
     def huea_to_hued( self, huea ):
         # convertion
-        hued = self.geometry.Limit_Looper( huea, 1 )
+        hued = Limit_Looper( huea, 1 )
         for i in range( len( analog_step ) ):
             if huea == analog_step[i]:
                 hued = digital_step[i]
@@ -815,29 +933,22 @@ class Convert():
                 var = ( huea - analog_step[i] ) / ( analog_step[i+1] - analog_step[i] )
                 hued = ( digital_step[i] + ( digital_step[i+1] - digital_step[i] ) * var  )
         return hued
-    # Hue YUV
+    # Hue YUV ( Harmony )
     def uv_to_hue( self, y, u, v, angle ):
-        rgb = self.yuv_to_rgb( y, u, v )
-        hcy = self.rgb_to_hcy( rgb[0], rgb[1], rgb[2] )
-        nrgb = self.hcy_to_rgb( angle, hcy[1], hcy[2] )
-        nyuv = self.rgb_to_yuv( nrgb[0], nrgb[1], nrgb[2] )
+        rgb = self.yuv_to_srgb( y, u, v )
+        hcy = self.srgb_to_hcy( rgb[0], rgb[1], rgb[2] )
+        nrgb = self.hcy_to_srgb( angle, hcy[1], hcy[2] )
+        nyuv = self.srgb_to_yuv( nrgb[0], nrgb[1], nrgb[2] )
         ny = y
         nu = nyuv[1]
         nv = nyuv[2]
         return ny, nu, nv
 
     # HSV
-    def rgb_to_hsv( self, r, g, b ):
-        # In case Krita is in Linear Format
-        if self.n_cd != "U8":
-            lsl = self.lrgb_to_srgb( r, g, b )
-            r = lsl[0]
-            g = lsl[1]
-            b = lsl[2]
-
+    def srgb_to_hsv( self, r, g, b ):
         # sRGB to HSX
-        v_min = min( r, g, b  )
-        v_max = max( r, g, b  )
+        v_min = min( r, g, b )
+        v_max = max( r, g, b )
         d_max = v_max - v_min
         v = v_max
         if d_max == 0:
@@ -858,8 +969,8 @@ class Convert():
                 h += 1
             if h > 1 :
                 h -= 1
-        return [h, s, v]
-    def hsv_to_rgb( self, h, s, v ):
+        return [ h, s, v ]
+    def hsv_to_srgb( self, h, s, v ):
         # HSX to sRGB
         if s == 0:
             r = v
@@ -897,23 +1008,9 @@ class Convert():
                 r = v
                 g = v1
                 b = v2
-
-        # In case Krita is in Linear Format
-        if self.n_cd != "U8":
-            lsl = self.srgb_to_lrgb( r, g, b )
-            r = lsl[0]
-            g = lsl[1]
-            b = lsl[2]
-        return [r, g, b]
+        return [ r, g, b ]
     # HSL
-    def rgb_to_hsl( self, r, g, b ):
-        # In case Krita is in Linear Format
-        if self.n_cd != "U8":
-            lsl = self.lrgb_to_srgb( r, g, b )
-            r = lsl[0]
-            g = lsl[1]
-            b = lsl[2]
-
+    def srgb_to_hsl( self, r, g, b ):
         # sRGB to HSX
         v_min = min( r, g, b  )
         v_max = max( r, g, b  )
@@ -940,8 +1037,8 @@ class Convert():
                 h += 1
             if h > 1:
                 h -= 1
-        return [h, s, l]
-    def hsl_to_rgb( self, h, s, l ):
+        return [ h, s, l ]
+    def hsl_to_srgb( self, h, s, l ):
         if s == 0 :
             r = l
             g = l
@@ -955,14 +1052,7 @@ class Convert():
             r = self.hsl_chan( v1, v2, h + ( 1 / 3  )  )
             g = self.hsl_chan( v1, v2, h  )
             b = self.hsl_chan( v1, v2, h - ( 1 / 3  )  )
-
-        # In case Krita is in Linear Format
-        if self.n_cd != "U8":
-            lsl = self.srgb_to_lrgb( r, g, b )
-            r = lsl[0]
-            g = lsl[1]
-            b = lsl[2]
-        return [r, g, b]
+        return [ r, g, b ]
     def hsl_chan( self, v1, v2, vh ):
         if vh < 0 :
             vh += 1
@@ -976,14 +1066,7 @@ class Convert():
             return ( v1 + ( v2 - v1  ) * ( ( 2 / 3  ) - vh  ) * 6  )
         return ( v1  )
     # HSY ( Krita version )
-    def rgb_to_hsy( self, r, g, b ):
-        # In case Krita is NOT in Linear Format
-        if self.n_cd == "U8":
-            lsl = self.srgb_to_lrgb( r, g, b )
-            r = lsl[0]
-            g = lsl[1]
-            b = lsl[2]
-
+    def srgb_to_hsy( self, r, g, b ):
         # sRGB to HSX
         minval = min( r, g, b )
         maxval = max( r, g, b )
@@ -1041,8 +1124,8 @@ class Convert():
         h = hue
         s = sat
         y = luma ** ( 1 / self.gamma_y )
-        return [h, s, y]
-    def hsy_to_rgb( self, h, s, y ):
+        return [ h, s, y ]
+    def hsy_to_srgb( self, h, s, y ):
         hue = 0
         sat = 0
         luma = 0
@@ -1176,22 +1259,9 @@ class Convert():
         if b < 0:
             b = 0
 
-        # In case Krita is NOT in Linear Format
-        if self.n_cd == "U8":
-            lsl = self.lrgb_to_srgb( r, g, b )
-            r = lsl[0]
-            g = lsl[1]
-            b = lsl[2]
-        return [r, g, b]
+        return [ r, g, b ]
     # HCY ( My Paint Version )
-    def rgb_to_hcy( self, r, g, b ):
-        # In case Krita is NOT in Linear Format
-        if self.n_cd != "U8": # == vs !=
-            lsl = self.srgb_to_lrgb( r, g, b )
-            r = lsl[0]
-            g = lsl[1]
-            b = lsl[2]
-
+    def srgb_to_hcy( self, r, g, b ):
         # sRGB to HSX
         y = self.luma_r * r + self.luma_g * g + self.luma_b * b
         p = max( r, g, b )
@@ -1215,8 +1285,8 @@ class Convert():
             c = max( ( y-n ) / y, ( p - y ) / ( 1 - y ) )
         if self.n_cd != "U8": # == vs !=
             y = y**( 1 / self.gamma_y ) # Gama compression of the luma value
-        return [h, c, y]
-    def hcy_to_rgb( self, h, c, y ):
+        return [ h, c, y ]
+    def hcy_to_srgb( self, h, c, y ):
         if self.n_cd != "U8": # == vs !=
             y = y**( self.gamma_y ) # Gama compression of the luma value
         if c == 0:
@@ -1278,25 +1348,12 @@ class Convert():
             g = n
             b = o
 
-        # In case Krita is NOT in Linear Format
-        if self.n_cd != "U8": # == vs !=
-            lsl = self.lrgb_to_srgb( r, g, b )
-            r = lsl[0]
-            g = lsl[1]
-            b = lsl[2]
-        return [r, g, b]
+        return [ r, g, b ]
 
     # ARD
-    def rgb_to_ard( self, r, g, b ):
-        # In case Krita is in Linear Format
-        if self.n_cd != "U8":
-            lsl = self.lrgb_to_srgb( r, g, b )
-            r = lsl[0]
-            g = lsl[1]
-            b = lsl[2]
-
+    def srgb_to_ard( self, r, g, b ):
         # Depth
-        uvd = self.rgb_to_uvd( r, g, b )
+        uvd = self.srgb_to_uvd( r, g, b )
         u = uvd[0]
         v = uvd[1]
         d = uvd[2]
@@ -1307,7 +1364,7 @@ class Convert():
             r = 0
         else:
             # Angle
-            a = self.rgb_to_hue( r, g, b )
+            a = self.srgb_to_hue( r, g, b )
             # Channel
             O1, O2, O3, O4, O5, O6, C12, C23, C34, C45, C56, C61 = self.uvd_hexagon( d, 1, 0, 1 )
             c = self.ard_channel( d, a, O1, O2, O3, O4, O5, O6, C12, C23, C34, C45, C56, C61 )
@@ -1333,7 +1390,7 @@ class Convert():
                 if c == -3:r = db / -n
         # Return
         return [ a, r, d ]
-    def ard_to_rgb( self, a, r, d ):
+    def ard_to_srgb( self, a, r, d ):
         # Channel
         di = d * 3
         lu = 0
@@ -1351,82 +1408,77 @@ class Convert():
             O1, O2, O3, O4, O5, O6, C12, C23, C34, C45, C56, C61 = self.uvd_hexagon( d, 1, 0, 1 )
 
             # Angle
-            hrgb = self.hue_to_rgb( a )
-            huvd = self.rgb_to_uvd( hrgb[0], hrgb[1], hrgb[2] )
-            acc = self.geometry.Trig_2D_Points_Lines_Angle( huvd[0], huvd[1], 0, 0, C61[0], C61[1] ) / 360
+            hrgb = self.hue_to_srgb( a )
+            huvd = self.srgb_to_uvd( hrgb[0], hrgb[1], hrgb[2] )
+            acc = Trig_2D_Points_Lines_Angle( huvd[0], huvd[1], 0, 0, C61[0], C61[1] ) / 360
 
             # Angle
-            a01 = self.geometry.Trig_2D_Points_Lines_Angle( O1[0], O1[1], 0, 0, C61[0], C61[1] ) / 360
-            a02 = self.geometry.Trig_2D_Points_Lines_Angle( O2[0], O2[1], 0, 0, C61[0], C61[1] ) / 360
-            a03 = self.geometry.Trig_2D_Points_Lines_Angle( O3[0], O3[1], 0, 0, C61[0], C61[1] ) / 360
-            a04 = self.geometry.Trig_2D_Points_Lines_Angle( O4[0], O4[1], 0, 0, C61[0], C61[1] ) / 360
-            a05 = self.geometry.Trig_2D_Points_Lines_Angle( O5[0], O5[1], 0, 0, C61[0], C61[1] ) / 360
-            a06 = self.geometry.Trig_2D_Points_Lines_Angle( O6[0], O6[1], 0, 0, C61[0], C61[1] ) / 360
-            a12 = self.geometry.Trig_2D_Points_Lines_Angle( C12[0], C12[1], 0, 0, C61[0], C61[1] ) / 360
-            a23 = self.geometry.Trig_2D_Points_Lines_Angle( C23[0], C23[1], 0, 0, C61[0], C61[1] ) / 360
-            a34 = self.geometry.Trig_2D_Points_Lines_Angle( C34[0], C34[1], 0, 0, C61[0], C61[1] ) / 360
-            a45 = self.geometry.Trig_2D_Points_Lines_Angle( C45[0], C45[1], 0, 0, C61[0], C61[1] ) / 360
-            a56 = self.geometry.Trig_2D_Points_Lines_Angle( C56[0], C56[1], 0, 0, C61[0], C61[1] ) / 360
+            a01 = Trig_2D_Points_Lines_Angle( O1[0], O1[1], 0, 0, C61[0], C61[1] ) / 360
+            a02 = Trig_2D_Points_Lines_Angle( O2[0], O2[1], 0, 0, C61[0], C61[1] ) / 360
+            a03 = Trig_2D_Points_Lines_Angle( O3[0], O3[1], 0, 0, C61[0], C61[1] ) / 360
+            a04 = Trig_2D_Points_Lines_Angle( O4[0], O4[1], 0, 0, C61[0], C61[1] ) / 360
+            a05 = Trig_2D_Points_Lines_Angle( O5[0], O5[1], 0, 0, C61[0], C61[1] ) / 360
+            a06 = Trig_2D_Points_Lines_Angle( O6[0], O6[1], 0, 0, C61[0], C61[1] ) / 360
+            a12 = Trig_2D_Points_Lines_Angle( C12[0], C12[1], 0, 0, C61[0], C61[1] ) / 360
+            a23 = Trig_2D_Points_Lines_Angle( C23[0], C23[1], 0, 0, C61[0], C61[1] ) / 360
+            a34 = Trig_2D_Points_Lines_Angle( C34[0], C34[1], 0, 0, C61[0], C61[1] ) / 360
+            a45 = Trig_2D_Points_Lines_Angle( C45[0], C45[1], 0, 0, C61[0], C61[1] ) / 360
+            a56 = Trig_2D_Points_Lines_Angle( C56[0], C56[1], 0, 0, C61[0], C61[1] ) / 360
 
             # Depth
             if ( di > 0 and di <= 1):
                 if ( acc <= a23 ):
-                    lu, lv = self.geometry.Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C61[0], C61[1], C23[0], C23[1] )
+                    lu, lv = Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C61[0], C61[1], C23[0], C23[1] )
                 elif ( acc > a23 and acc <= a45 ):
-                    lu, lv = self.geometry.Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C23[0], C23[1], C45[0], C45[1] )
+                    lu, lv = Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C23[0], C23[1], C45[0], C45[1] )
                 else:
-                    lu, lv = self.geometry.Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C45[0], C45[1], C61[0], C61[1] )
+                    lu, lv = Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C45[0], C45[1], C61[0], C61[1] )
             elif ( di > 1 and di < 2):
                 if ( acc <= a01 ):
-                    lu, lv = self.geometry.Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C61[0], C61[1], O1[0], O1[1] )
+                    lu, lv = Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C61[0], C61[1], O1[0], O1[1] )
                 elif ( acc > a01 and acc <= a02 ):
-                    lu, lv = self.geometry.Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, O1[0], O1[1], O2[0], O2[1] )
+                    lu, lv = Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, O1[0], O1[1], O2[0], O2[1] )
                 elif ( acc > a02 and acc <= a03 ):
-                    lu, lv = self.geometry.Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, O2[0], O2[1], O3[0], O3[1] )
+                    lu, lv = Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, O2[0], O2[1], O3[0], O3[1] )
                 elif ( acc > a03 and acc <= a04 ):
-                    lu, lv = self.geometry.Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, O3[0], O3[1], O4[0], O4[1] )
+                    lu, lv = Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, O3[0], O3[1], O4[0], O4[1] )
                 elif ( acc > a04 and acc <= a05 ):
-                    lu, lv = self.geometry.Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, O4[0], O4[1], O5[0], O5[1] )
+                    lu, lv = Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, O4[0], O4[1], O5[0], O5[1] )
                 elif ( acc > a05 and acc <= a06 ):
-                    lu, lv = self.geometry.Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, O5[0], O5[1], O6[0], O6[1] )
+                    lu, lv = Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, O5[0], O5[1], O6[0], O6[1] )
                 else:
-                    lu, lv = self.geometry.Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, O6[0], O6[1], C61[0], C61[1] )
+                    lu, lv = Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, O6[0], O6[1], C61[0], C61[1] )
             elif ( di >= 2 and di < 3):
                 if ( acc <= a12 ):
-                    lu, lv = self.geometry.Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C61[0], C61[1], C12[0], C12[1] )
+                    lu, lv = Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C61[0], C61[1], C12[0], C12[1] )
                 elif ( acc > a12 and acc <= a34 ):
-                    lu, lv = self.geometry.Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C12[0], C12[1], C34[0], C34[1] )
+                    lu, lv = Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C12[0], C12[1], C34[0], C34[1] )
                 elif ( acc > a34 and acc <= a56 ):
-                    lu, lv = self.geometry.Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C34[0], C34[1], C56[0], C56[1] )
+                    lu, lv = Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C34[0], C34[1], C56[0], C56[1] )
                 else:
-                    lu, lv = self.geometry.Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C56[0], C56[1], C61[0], C61[1] )
+                    lu, lv = Trig_2D_Points_Lines_Intersection( huvd[0], huvd[1], 0, 0, C56[0], C56[1], C61[0], C61[1] )
             # UVD Interpolation
-            uvd = self.geometry.Lerp_3D( r, 0, 0, d, lu, lv, d )
-            rgb = self.uvd_to_rgb( uvd[0], uvd[1], uvd[2] )
+            uvd = Lerp_3D( r, 0, 0, d, lu, lv, d )
+            rgb = self.uvd_to_srgb( uvd[0], uvd[1], uvd[2] )
             r = rgb[0]
             g = rgb[1]
             b = rgb[2]
 
-        # In case Krita is in Linear Format
-        if self.n_cd != "U8":
-            lsl = self.srgb_to_lrgb( r, g, b )
-            r = lsl[0]
-            g = lsl[1]
-            b = lsl[2]
-        return [r, g, b]
+        return [ r, g, b ]
     def uvd_hexagon( self, d, s, o, i ):
+        # d = depth
         # s = scale
         # o = offset center
         # i = invert Y axis ( panel is inverted )
 
         # Primaries
         cn = [ 0, 0 ]
-        cr = self.rgb_to_uvd( 1, 0, 0 )
-        cy = self.rgb_to_uvd( 1, 1, 0 )
-        cg = self.rgb_to_uvd( 0, 1, 0 )
-        cc = self.rgb_to_uvd( 0, 1, 1 )
-        cb = self.rgb_to_uvd( 0, 0, 1 )
-        cm = self.rgb_to_uvd( 1, 0, 1 )
+        cr = self.srgb_to_uvd( 1, 0, 0 ) # red
+        cy = self.srgb_to_uvd( 1, 1, 0 ) # yellow
+        cg = self.srgb_to_uvd( 0, 1, 0 ) # green
+        cc = self.srgb_to_uvd( 0, 1, 1 ) # cyan
+        cb = self.srgb_to_uvd( 0, 0, 1 ) # blue
+        cm = self.srgb_to_uvd( 1, 0, 1 ) # magenta
         # Single Points
         di = d * 3
         u0 = 0
@@ -1452,58 +1504,57 @@ class Convert():
             # Original
             if ( di >= u0 and di <= u1):
                 p = di
-                o1_u, o1_v = self.geometry.Lerp_2D( p, cn[0], cn[1], cr[0], cr[1] )
-                o2_u, o2_v = self.geometry.Lerp_2D( p, cn[0], cn[1], cg[0], cg[1] )
-                o3_u, o3_v = self.geometry.Lerp_2D( p, cn[0], cn[1], cg[0], cg[1] )
-                o4_u, o4_v = self.geometry.Lerp_2D( p, cn[0], cn[1], cb[0], cb[1] )
-                o5_u, o5_v = self.geometry.Lerp_2D( p, cn[0], cn[1], cb[0], cb[1] )
-                o6_u, o6_v = self.geometry.Lerp_2D( p, cn[0], cn[1], cr[0], cr[1] )
+                o1_u, o1_v = Lerp_2D( p, cn[0], cn[1], cr[0], cr[1] )
+                o2_u, o2_v = Lerp_2D( p, cn[0], cn[1], cg[0], cg[1] )
+                o3_u, o3_v = Lerp_2D( p, cn[0], cn[1], cg[0], cg[1] )
+                o4_u, o4_v = Lerp_2D( p, cn[0], cn[1], cb[0], cb[1] )
+                o5_u, o5_v = Lerp_2D( p, cn[0], cn[1], cb[0], cb[1] )
+                o6_u, o6_v = Lerp_2D( p, cn[0], cn[1], cr[0], cr[1] )
             elif ( di > u1 and di < u2):
                 p = di - 1
-                o1_u, o1_v = self.geometry.Lerp_2D( p, cr[0], cr[1], cy[0], cy[1] )
-                o2_u, o2_v = self.geometry.Lerp_2D( p, cg[0], cg[1], cy[0], cy[1] )
-                o3_u, o3_v = self.geometry.Lerp_2D( p, cg[0], cg[1], cc[0], cc[1] )
-                o4_u, o4_v = self.geometry.Lerp_2D( p, cb[0], cb[1], cc[0], cc[1] )
-                o5_u, o5_v = self.geometry.Lerp_2D( p, cb[0], cb[1], cm[0], cm[1] )
-                o6_u, o6_v = self.geometry.Lerp_2D( p, cr[0], cr[1], cm[0], cm[1] )
+                o1_u, o1_v = Lerp_2D( p, cr[0], cr[1], cy[0], cy[1] )
+                o2_u, o2_v = Lerp_2D( p, cg[0], cg[1], cy[0], cy[1] )
+                o3_u, o3_v = Lerp_2D( p, cg[0], cg[1], cc[0], cc[1] )
+                o4_u, o4_v = Lerp_2D( p, cb[0], cb[1], cc[0], cc[1] )
+                o5_u, o5_v = Lerp_2D( p, cb[0], cb[1], cm[0], cm[1] )
+                o6_u, o6_v = Lerp_2D( p, cr[0], cr[1], cm[0], cm[1] )
             elif ( di >= u2 and di <= u3):
                 p = di - 2
-                o1_u, o1_v = self.geometry.Lerp_2D( p, cy[0], cy[1], cn[0], cn[1] )
-                o2_u, o2_v = self.geometry.Lerp_2D( p, cy[0], cy[1], cn[0], cn[1] )
-                o3_u, o3_v = self.geometry.Lerp_2D( p, cc[0], cc[1], cn[0], cn[1] )
-                o4_u, o4_v = self.geometry.Lerp_2D( p, cc[0], cc[1], cn[0], cn[1] )
-                o5_u, o5_v = self.geometry.Lerp_2D( p, cm[0], cm[1], cn[0], cn[1] )
-                o6_u, o6_v = self.geometry.Lerp_2D( p, cm[0], cm[1], cn[0], cn[1] )
+                o1_u, o1_v = Lerp_2D( p, cy[0], cy[1], cn[0], cn[1] )
+                o2_u, o2_v = Lerp_2D( p, cy[0], cy[1], cn[0], cn[1] )
+                o3_u, o3_v = Lerp_2D( p, cc[0], cc[1], cn[0], cn[1] )
+                o4_u, o4_v = Lerp_2D( p, cc[0], cc[1], cn[0], cn[1] )
+                o5_u, o5_v = Lerp_2D( p, cm[0], cm[1], cn[0], cn[1] )
+                o6_u, o6_v = Lerp_2D( p, cm[0], cm[1], cn[0], cn[1] )
             # Original
-            O1 = [ o1_u * s + o, i * o1_v * s + o ]
-            O2 = [ o2_u * s + o, i * o2_v * s + o ]
-            O3 = [ o3_u * s + o, i * o3_v * s + o ]
-            O4 = [ o4_u * s + o, i * o4_v * s + o ]
-            O5 = [ o5_u * s + o, i * o5_v * s + o ]
-            O6 = [ o6_u * s + o, i * o6_v * s + o ]
+            O1 = [ o1_u*s+o, i*o1_v*s+o ]
+            O2 = [ o2_u*s+o, i*o2_v*s+o ]
+            O3 = [ o3_u*s+o, i*o3_v*s+o ]
+            O4 = [ o4_u*s+o, i*o4_v*s+o ]
+            O5 = [ o5_u*s+o, i*o5_v*s+o ]
+            O6 = [ o6_u*s+o, i*o6_v*s+o ]
             # Complemtary
-            C12 = self.geometry.Lerp_2D( 0.5, O1[0], O1[1], O2[0], O2[1] )
-            C23 = self.geometry.Lerp_2D( 0.5, O2[0], O2[1], O3[0], O3[1] )
-            C34 = self.geometry.Lerp_2D( 0.5, O3[0], O3[1], O4[0], O4[1] )
-            C45 = self.geometry.Lerp_2D( 0.5, O4[0], O4[1], O5[0], O5[1] )
-            C56 = self.geometry.Lerp_2D( 0.5, O5[0], O5[1], O6[0], O6[1] )
-            C61 = self.geometry.Lerp_2D( 0.5, O6[0], O6[1], O1[0], O1[1] ) # Red Hue=0
-
+            C12 = Lerp_2D( 0.5, O1[0], O1[1], O2[0], O2[1] )
+            C23 = Lerp_2D( 0.5, O2[0], O2[1], O3[0], O3[1] )
+            C34 = Lerp_2D( 0.5, O3[0], O3[1], O4[0], O4[1] )
+            C45 = Lerp_2D( 0.5, O4[0], O4[1], O5[0], O5[1] )
+            C56 = Lerp_2D( 0.5, O5[0], O5[1], O6[0], O6[1] )
+            C61 = Lerp_2D( 0.5, O6[0], O6[1], O1[0], O1[1] ) # Red Hue=0
         # Return
         return O1, O2, O3, O4, O5, O6, C12, C23, C34, C45, C56, C61
     def ard_channel( self, d, a, O1, O2, O3, O4, O5, O6, C12, C23, C34, C45, C56, C61 ):
         # Angle
-        a01 = self.geometry.Trig_2D_Points_Lines_Angle( O1[0], O1[1], 0, 0, C61[0], C61[1] ) / 360
-        a02 = self.geometry.Trig_2D_Points_Lines_Angle( O2[0], O2[1], 0, 0, C61[0], C61[1] ) / 360
-        a03 = self.geometry.Trig_2D_Points_Lines_Angle( O3[0], O3[1], 0, 0, C61[0], C61[1] ) / 360
-        a04 = self.geometry.Trig_2D_Points_Lines_Angle( O4[0], O4[1], 0, 0, C61[0], C61[1] ) / 360
-        a05 = self.geometry.Trig_2D_Points_Lines_Angle( O5[0], O5[1], 0, 0, C61[0], C61[1] ) / 360
-        a06 = self.geometry.Trig_2D_Points_Lines_Angle( O6[0], O6[1], 0, 0, C61[0], C61[1] ) / 360
-        a12 = self.geometry.Trig_2D_Points_Lines_Angle( C12[0], C12[1], 0, 0, C61[0], C61[1] ) / 360
-        a23 = self.geometry.Trig_2D_Points_Lines_Angle( C23[0], C23[1], 0, 0, C61[0], C61[1] ) / 360
-        a34 = self.geometry.Trig_2D_Points_Lines_Angle( C34[0], C34[1], 0, 0, C61[0], C61[1] ) / 360
-        a45 = self.geometry.Trig_2D_Points_Lines_Angle( C45[0], C45[1], 0, 0, C61[0], C61[1] ) / 360
-        a56 = self.geometry.Trig_2D_Points_Lines_Angle( C56[0], C56[1], 0, 0, C61[0], C61[1] ) / 360
+        a01 = Trig_2D_Points_Lines_Angle( O1[0], O1[1], 0, 0, C61[0], C61[1] ) / 360
+        a02 = Trig_2D_Points_Lines_Angle( O2[0], O2[1], 0, 0, C61[0], C61[1] ) / 360
+        a03 = Trig_2D_Points_Lines_Angle( O3[0], O3[1], 0, 0, C61[0], C61[1] ) / 360
+        a04 = Trig_2D_Points_Lines_Angle( O4[0], O4[1], 0, 0, C61[0], C61[1] ) / 360
+        a05 = Trig_2D_Points_Lines_Angle( O5[0], O5[1], 0, 0, C61[0], C61[1] ) / 360
+        a06 = Trig_2D_Points_Lines_Angle( O6[0], O6[1], 0, 0, C61[0], C61[1] ) / 360
+        a12 = Trig_2D_Points_Lines_Angle( C12[0], C12[1], 0, 0, C61[0], C61[1] ) / 360
+        a23 = Trig_2D_Points_Lines_Angle( C23[0], C23[1], 0, 0, C61[0], C61[1] ) / 360
+        a34 = Trig_2D_Points_Lines_Angle( C34[0], C34[1], 0, 0, C61[0], C61[1] ) / 360
+        a45 = Trig_2D_Points_Lines_Angle( C45[0], C45[1], 0, 0, C61[0], C61[1] ) / 360
+        a56 = Trig_2D_Points_Lines_Angle( C56[0], C56[1], 0, 0, C61[0], C61[1] ) / 360
         a61 = 1
         # Channel
         di = d * 3
@@ -1526,26 +1577,20 @@ class Convert():
             elif ( a > a12 and a <= a34 ):c = +2
             elif ( a > a34 and a <= a56 ):c = +3
             else:c = +1
-
         # Return
         return c
 
     #endregion
     #region XYZ LINEAR
 
-    def rgb_to_xyz( self, r, g, b ):
-        lrgb = self.srgb_to_lrgb( r, g, b )
-        x = ( lrgb[0] * self.m_rgb_xyz[0][0] ) + ( lrgb[1] * self.m_rgb_xyz[0][1] ) + ( lrgb[2] * self.m_rgb_xyz[0][2] )
-        y = ( lrgb[0] * self.m_rgb_xyz[1][0] ) + ( lrgb[1] * self.m_rgb_xyz[1][1] ) + ( lrgb[2] * self.m_rgb_xyz[1][2] )
-        z = ( lrgb[0] * self.m_rgb_xyz[2][0] ) + ( lrgb[1] * self.m_rgb_xyz[2][1] ) + ( lrgb[2] * self.m_rgb_xyz[2][2] )
-        return [x, y, z]
-    def xyz_to_rgb( self, x, y, z ):
-        var_r = ( x * self.m_xyz_rgb[0][0] ) + ( y * self.m_xyz_rgb[0][1] ) + ( z * self.m_xyz_rgb[0][2] )
-        var_g = ( x * self.m_xyz_rgb[1][0] ) + ( y * self.m_xyz_rgb[1][1] ) + ( z * self.m_xyz_rgb[1][2] )
-        var_b = ( x * self.m_xyz_rgb[2][0] ) + ( y * self.m_xyz_rgb[2][1] ) + ( z * self.m_xyz_rgb[2][2] )
-        srgb = self.lrgb_to_srgb( var_r, var_g, var_b )
-        r, g, b = self.Vector_Safe( srgb[0], srgb[1], srgb[2] )
-        return [r, g, b]
+    # XYZ
+    def lrgb_to_xyz( self, lr, lg, lb ):
+        x, y, z = self.Dot_Product_MC( self.m_rgb_xyz, [ lr, lg, lb ] )
+        return [ x, y, z ]
+    def xyz_to_lrgb( self, x, y, z ):
+        lr, lg, lb = self.Dot_Product_MC( self.m_xyz_rgb, [ x, y, z ] )
+        lr, lg, lb = self.Vector_Limit( lr, lg, lb )
+        return [ lr, lg, lb ]
     # XYY
     def xyz_to_xyy( self, x, y, z ):
         if ( x == 0 and y == 0 and z == 0 ):
@@ -1556,7 +1601,7 @@ class Convert():
             x1 = x / ( x + y + z  )
             y2 = y / ( x + y + z  )
             y3 = y
-        return [x1, y2, y3]
+        return [ x1, y2, y3 ]
     def xyy_to_xyz( self, x1, y2, y3 ):
         if y2 == 0:
             x = 0
@@ -1566,30 +1611,22 @@ class Convert():
             x = ( x1 * y3  ) / y2
             y = y3
             z = ( ( 1 - x1 - y2 ) * y3 ) / y2
-        return [x, y, z]
-    def rgb_to_xyy( self, r, g, b ):
-        xyz = self.rgb_to_xyz( r, g, b )
-        xyy = self.xyz_to_xyy( xyz[0], xyz[1], xyz[2] )
-        return [xyy[0], xyy[1], xyy[2]]
-    def xyy_to_rgb( self, x, y1, y2 ):
-        xyz = self.xyy_to_xyz( x, y1, y2 )
-        rgb = self.xyz_to_rgb( xyz[0], xyz[1], xyz[2] )
-        return [rgb[0], rgb[1], rgb[2]]
+        return [ x, y, z ]
     # LAB
     def xyz_to_lab( self, x, y, z ):
-        k = 903.3 # Kappa
-        e = 0.008856 # Epsilon
+        k = 903.3 # Kappa 24389/27
+        e = 0.008856 # Epsilon 216/24389
 
         rx = x / self.ref_x
         ry = y / self.ref_y
         rz = z / self.ref_z
 
         if rx > e: fx = rx**( 1/3 )
-        else:      fx = ( k*rx + 16 ) / 116
+        else:      fx = ( k * rx + 16 ) / 116
         if ry > e: fy = ry**( 1/3 )
-        else:      fy = ( k*ry + 16 ) / 116
+        else:      fy = ( k * ry + 16 ) / 116
         if rz > e: fz = rz**( 1/3 )
-        else:      fz = ( k*rz + 16 ) / 116
+        else:      fz = ( k * rz + 16 ) / 116
 
         l = ( ( 116 * fy ) - 16 ) / 100
         a = 0.5 + ( fx - fy )
@@ -1597,8 +1634,8 @@ class Convert():
 
         return [ l, a, b ]
     def lab_to_xyz( self, l, a, b ):
-        k = 903.3 # Kappa
-        e = 0.008856 # Epsilon
+        k = 903.3 # Kappa 24389/27
+        e = 0.008856 # Epsilon 216/24389
 
         l = l * 100
         a = a - 0.5
@@ -1619,14 +1656,6 @@ class Convert():
         z = rz * self.ref_z
 
         return [ x, y, z ]
-    def rgb_to_lab( self, r, g, b ):
-        xyz = self.rgb_to_xyz( r, g, b )
-        lab = self.xyz_to_lab( xyz[0], xyz[1], xyz[2] )
-        return [ lab[0], lab[1], lab[2] ]
-    def lab_to_rgb( self, l, a, b ):
-        xyz = self.lab_to_xyz( l, a, b )
-        rgb = self.xyz_to_rgb( xyz[0], xyz[1], xyz[2] )
-        return [ rgb[0], rgb[1], rgb[2] ]
 
     #endregion
     #region XYZ HUE
@@ -1642,7 +1671,7 @@ class Convert():
         c = math.sqrt( a**2 + b**2 )
         h = vh / 360
 
-        l, c, h = self.Vector_Safe( l, c, h )
+        l, c, h = self.Vector_Limit( l, c, h )
         return [ l, c, h ]
     def lch_to_lab( self, l, c, h ):
         vh = h * 360
@@ -1653,84 +1682,70 @@ class Convert():
         a = a / 2 + 0.5
         b = b / 2 + 0.5
 
-        l, a, b = self.Vector_Safe( l, a, b )
+        l, a, b = self.Vector_Limit( l, a, b )
         return [ l, a, b ]
+
+    #endregion
+    #region Support Formulas
+
+    # SRGB to XYZ
+    def srgb_to_xyz( self, r, g, b ):
+        lrgb = self.srgb_to_lrgb( r, g, b )
+        xyz = self.lrgb_to_xyz( lrgb[0], lrgb[1], lrgb[2] )
+        return [ xyz[0], xyz[1], xyz[2] ]
+    def srgb_to_xyy( self, r, g, b ):
+        lrgb = self.srgb_to_lrgb( r, g, b )
+        xyz = self.lrgb_to_xyz( lrgb[0], lrgb[1], lrgb[2] )
+        xyy = self.xyz_to_xyy( xyz[0], xyz[1], xyz[2] )
+        return [ xyy[0], xyy[1], xyy[2] ]
+    def srgb_to_lab( self, r, g, b ):
+        lrgb = self.srgb_to_lrgb( r, g, b )
+        xyz = self.lrgb_to_xyz( lrgb[0], lrgb[1], lrgb[2] )
+        lab = self.xyz_to_lab( xyz[0], xyz[1], xyz[2] )
+        return [ lab[0], lab[1], lab[2] ]
+    def srgb_to_lch( self, r, g, b ):
+        lrgb = self.srgb_to_lrgb( r, g, b )
+        xyz = self.lrgb_to_xyz( lrgb[0], lrgb[1], lrgb[2] )
+        lch = self.xyz_to_lch( xyz[0], xyz[1], xyz[2] )
+        return [ lch[0], lch[1], lch[2] ]
+    # XYZ to SRGB
+    def xyz_to_srgb( self, x, y, z ):
+        lrgb = self.xyz_to_lrgb( x, y, z )
+        srgb = self.lrgb_to_srgb( lrgb[0], lrgb[1], lrgb[2] )
+        return [ srgb[0], srgb[1], srgb[2] ]
+    def xyy_to_srgb( self, x, y1, y2 ):
+        xyz = self.xyy_to_xyz( x, y1, y2 )
+        lrgb = self.xyz_to_lrgb( xyz[0], xyz[1], xyz[2] )
+        srgb = self.lrgb_to_srgb( lrgb[0], lrgb[1], lrgb[2] )
+        return [ srgb[0], srgb[1], srgb[2] ]
+    def lab_to_srgb( self, l, a, b ):
+        xyz = self.lab_to_xyz( l, a, b )
+        lrgb = self.xyz_to_lrgb( xyz[0], xyz[1], xyz[2] )
+        srgb = self.lrgb_to_srgb( lrgb[0], lrgb[1], lrgb[2] )
+        return [ srgb[0], srgb[1], srgb[2] ]
+    def lch_to_srgb( self, l, c, h ):
+        lab = self.lch_to_lab( l, c, h )
+        xyz = self.lab_to_xyz( lab[0], lab[1], lab[2] )
+        lrgb = self.xyz_to_lrgb( xyz[0], xyz[1], xyz[2] )
+        srgb = self.lrgb_to_srgb( lrgb[0], lrgb[1], lrgb[2] )
+        return [ srgb[0], srgb[1], srgb[2] ]
+    # XYZ to HUE
     def xyz_to_lch( self, x, y, z ):
         lab = self.xyz_to_lab( x, y, z )
         lch = self.lab_to_lch( lab[0], lab[1], lab[2] )
         return [ lch[0], lch[1], lch[2] ]
-    def lch_to_xyz( self, l, c, h ):
-        lab = self.lch_to_lab( l, c, h )
-        xyz = self.lab_to_xyz( lab[0], lab[1], lab[2] )
-        return [ xyz[0], xyz[1], xyz[2] ]
-    def rgb_to_lch( self, r, g, b ):
-        xyz = self.rgb_to_xyz( r, g, b )
-        lab = self.xyz_to_lab( xyz[0], xyz[1], xyz[2] )
-        lch = self.lab_to_lch( lab[0], lab[1], lab[2] )
-        return [ lch[0], lch[1], lch[2] ]
-    def lch_to_rgb( self, l, c, h ):
-        lab = self.lch_to_lab( l, c, h )
-        xyz = self.lab_to_xyz( lab[0], lab[1], lab[2] )
-        rgb = self.xyz_to_rgb( xyz[0], xyz[1], xyz[2] )
-        return [ rgb[0], rgb[1], rgb[2] ]
-
-    #endregion
-    #region Non-Color
-
-    # KELVIN ( not physical based )
-    def kkk_percent_to_scale( self, percent ):
-        scale = int( ( percent * kkk_delta ) + kkk_min_scale )
-        return scale
-    def kkk_scale_to_percent( self, scale ):
-        percent = ( scale - kkk_min_scale ) / kkk_delta
-        return percent
-    # KELVIN converter
-    def kkk_to_rgb( self, temp, lut ):
-        # Entry
-        entry = self.search_entry( temp, lut )
-        # RGB
-        r = lut[entry][0]
-        g = lut[entry][1]
-        b = lut[entry][2]
-        # Return
-        return [r, g, b]
-    def kkk_to_cd( self, temp, lut ):
-        # Entry
-        entry = self.search_entry( temp, lut )
-        # Class and Discription
-        c = lut[entry][0]
-        d = lut[entry][1]
-        # Return
-        return [c, d]
-    def search_entry( self, temp, lut ):
-        # Variables
-        key = list( lut.keys() )
-        length = len( key )
-        # Search
-        entry = key[0]
-        if ( temp > key[0] ):
-            for i in range( 0, length ):
-                key_i = key[i]
-                if temp < key_i:
-                    entry = key[i-1]
-                    break
-                if temp == key_i:
-                    entry = key_i
-                    break
-                entry = key_i
-        return entry
 
     #endregion
     #region HEX
 
     # Hex 6 ( RGB )
-    def rgb_to_hex6( self, r, g, b ):
+    def srgb_to_hex6( self, r, g, b ):
         hex1 = str( hex( int( r * 255 )  )  )[2:4].zfill( 2 )
         hex2 = str( hex( int( g * 255 )  )  )[2:4].zfill( 2 )
         hex3 = str( hex( int( b * 255 )  )  )[2:4].zfill( 2 )
         hex_code = str( "#" + hex1 + hex2 + hex3  )
         return hex_code
-    def hex6_to_rgb( self, hex_code ):
+    def hex6_to_srgb( self, hex_code ):
         # Hexadecimal
         hex1 = int( format( int( hex_code[1:3],16 ),'02d' ) )
         hex2 = int( format( int( hex_code[3:5],16 ),'02d' ) )
@@ -1739,15 +1754,15 @@ class Convert():
         r = hex1 / 255
         g = hex2 / 255
         b = hex3 / 255
-        rgb = [r, g, b]
+        rgb = [ r, g, b ]
         return rgb
-    def hex6_to_name( self, hex_code, color_names ):
-        search = color_names.get( hex_code )
-        if search == None:  name = ""
-        else:               name = search[0]
+    # Name
+    def hex6_to_name( self, hex_code, color_name ):
+        try:    name = color_name[hex_code][0]
+        except: name = str()
         return name
     # Hex 3 ( RGB )
-    def hex3_to_rgb( self, hex_code ):
+    def hex3_to_srgb( self, hex_code ):
         # Parse
         hex1 = hex_code[1:2]
         hex2 = hex_code[2:3]
@@ -1760,12 +1775,123 @@ class Convert():
         r = hex1 / 255
         g = hex2 / 255
         b = hex3 / 255
-        rgb = [r, g, b]
+        rgb = [ r, g, b ]
 
         return rgb
 
     #endregion
+    #region Kelvin
 
+    def kelvin_to_srgb( self, kkk ):
+        # kkk temperature in kelvin
+        # https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html
+
+        # Pigmento Neutral
+        if kkk == 6500:
+            r = 1
+            g = 1
+            b = 1
+        else: # Calculation
+            # All calculations require kkk \ 100, so only do the conversion once
+            kkk = kkk / 100
+            # Red
+            if kkk <= 66:
+                r = 255
+            else:
+                # Note: the R-squared value for this approximation is .988
+                tr = kkk - 60
+                tr = 329.698727446 * ( tr ** -0.1332047592 )
+                r = Limit_Range( tr, 0, 255 )
+            # Green
+            if kkk <= 66:
+                # Note: the R-squared value for this approximation is .996
+                tg = kkk
+                tg = 99.4708025861 * math.log( tg ) - 161.1195681661
+                g = Limit_Range( tg, 0, 255 )
+            else:
+                # Note: the R-squared value for this approximation is .987
+                tg = kkk - 60
+                tg = 288.1221695283 * ( tg ** -0.0755148492 )
+                g = Limit_Range( tg, 0, 255 )
+            # Blue
+            if kkk >= 66:
+                b = 255
+            elif kkk <= 19:
+                b = 0
+            else:
+                # Note: the R-squared value for this approximation is .998
+                tb = kkk - 10
+                tb = 138.5177312231 * math.log( tb ) - 305.0447927307
+                b = Limit_Range( tb, 0, 255 )
+            # RGB Float Range
+            r = r / 255
+            g = g / 255
+            b = b / 255
+        return [ r, g, b ]
+
+    #endregion
+    #region LUT
+
+    def lut_to_pixel( self, lut, len_lut, axis, size, dmin, dmax, pr, pg, pb ):
+        # Variables
+        s1 = size - 1
+        sr = pr * s1
+        sg = pg * s1
+        sb = pb * s1
+        unit = axis[1]
+        # Index
+        nr0 = int( sr )
+        ng0 = int( sg )
+        nb0 = int( sb )
+        i_000 = int( ( nr0 ) + ( ng0 * size ) + ( nb0 * size * size ) )
+        # Lut Point
+        lut_000 = lut[ i_000 ]
+        # Calculate
+        if [ sr, sg, sb ] == [ nr0, ng0, nb0 ]:
+            if i_000 == 0 and dmin != None:             red, green, blue = dmin[0], dmin[1], dmin[2]
+            elif i_000 == len_lut-1 and dmax != None:   red, green, blue = dmax[0], dmax[1], dmax[2]
+            else:                                       red, green, blue = lut_000[0], lut_000[1], lut_000[2]
+        else:
+            # LUT Index
+            nr1 = Limit_Range( nr0 + 1, 0, s1 )
+            ng1 = Limit_Range( ng0 + 1, 0, s1 )
+            nb1 = Limit_Range( nb0 + 1, 0, s1 )
+            i_100 = int( ( nr1 ) + ( ng0 * size ) + ( nb0 * size * size ) )
+            i_010 = int( ( nr0 ) + ( ng1 * size ) + ( nb0 * size * size ) )
+            i_001 = int( ( nr0 ) + ( ng0 * size ) + ( nb1 * size * size ) )
+            i_110 = int( ( nr1 ) + ( ng1 * size ) + ( nb0 * size * size ) )
+            i_011 = int( ( nr0 ) + ( ng1 * size ) + ( nb1 * size * size ) )
+            i_101 = int( ( nr1 ) + ( ng0 * size ) + ( nb1 * size * size ) )
+            i_111 = int( ( nr1 ) + ( ng1 * size ) + ( nb1 * size * size ) )
+            # Lut Point
+            lut_100 = lut[ i_100 ]
+            lut_010 = lut[ i_010 ]
+            lut_001 = lut[ i_001 ]
+            lut_110 = lut[ i_110 ]
+            lut_011 = lut[ i_011 ]
+            lut_101 = lut[ i_101 ]
+            lut_111 = lut[ i_111 ]
+            # Percent
+            percent_red   = ( pr - axis[ nr0 ] ) / unit
+            percent_green = ( pg - axis[ ng0 ] ) / unit
+            percent_blue  = ( pb - axis[ nb0 ] ) / unit
+            # Red Component
+            c_br = Lerp_3D( percent_red,  lut_000[0], lut_000[1], lut_000[2],  lut_100[0], lut_100[1], lut_100[2] )
+            c_gy = Lerp_3D( percent_red,  lut_010[0], lut_010[1], lut_010[2],  lut_110[0], lut_110[1], lut_110[2] )
+            c_bm = Lerp_3D( percent_red,  lut_001[0], lut_001[1], lut_001[2],  lut_101[0], lut_101[1], lut_101[2] )
+            c_cw = Lerp_3D( percent_red,  lut_011[0], lut_011[1], lut_011[2],  lut_111[0], lut_111[1], lut_111[2] )
+            # Green Component
+            c_br_gy = Lerp_3D( percent_green,  c_br[0], c_br[1], c_br[2],  c_gy[0], c_gy[1], c_gy[2] )
+            c_bm_cw = Lerp_3D( percent_green,  c_bm[0], c_bm[1], c_bm[2],  c_cw[0], c_cw[1], c_cw[2] )
+            # Blue Component
+            lut_rgb = Lerp_3D( percent_blue,  c_br_gy[0], c_br_gy[1], c_br_gy[2],  c_bm_cw[0], c_bm_cw[1], c_bm_cw[2] )
+            # Output
+            red   = Limit_Float( lut_rgb[0] )
+            green = Limit_Float( lut_rgb[1] )
+            blue  = Limit_Float( lut_rgb[2] )
+        return [ red, green, blue ]
+
+    #endregion
 
 class Analyse():
 
@@ -1780,7 +1906,7 @@ class Analyse():
         # Byte Order
         byte_order = sys.byteorder
         # Bit Depth
-        num_array = []
+        num_array = list()
         if ( n_cd == "U8" or n_cd == None ):
             for i in range( 0, len( byte_array ) ):
                 byte = byte_array.at( i )
@@ -1809,16 +1935,6 @@ class Analyse():
         # num_data - information previously calculated
         # n_cd - document color depth
 
-        # Byte Order
-        byte_order = sys.byteorder
-        # Bit Depth
-        if n_cd == "U8":
-            k = 1
-        elif ( n_cd == "U16" or n_cd == "F16" ):
-            k = 2
-        elif n_cd == "F32":
-            k = 4
-
         # Conversion to Bytes
         byte_array = bytearray( num_array )
         return byte_array
@@ -1826,114 +1942,106 @@ class Analyse():
     def Numbers_on_Pixel( self, cmodel, n_cd, index, num_array ):
         # reads the numerical data from a pixel with a given index
 
-        # Variables
-        if n_cd == "U8": # BGR
-            k = 255
-        elif n_cd == "U16":
-            k = 65535
-        elif n_cd == "F16":
-            # k = 65535
-            k = 15360
-        elif n_cd == "F32":
-            # k = 4294836225
-            k = 1065353216
         # Color Model and Depth
-        byte_list = []
-        if cmodel == "A":
-            pixel = index * 2
-            if n_cd == "U8":
-                n0 = num_array[pixel + 0] # Gray
-                n1 = num_array[pixel + 1] # Alpha
-            if n_cd == "U16":
-                n0 = num_array[pixel + 0] # Gray
-                n1 = num_array[pixel + 1] # Alpha
-            if n_cd == "F16":
-                pass
-            if n_cd == "F32":
-                pass
-            byte_list = [n0, n1]
-        elif cmodel in [ "RGB", None ]:
-            pixel = index * 4
-            if n_cd == "U8": # BGR
-                n0 = num_array[pixel + 2] # Red
-                n1 = num_array[pixel + 1] # Green
-                n2 = num_array[pixel + 0] # Blue
-                n3 = num_array[pixel + 3] # Alpha
-            if n_cd == "U16": # BGR
-                n0 = num_array[pixel + 2] # Red
-                n1 = num_array[pixel + 1] # Green
-                n2 = num_array[pixel + 0] # Blue
-                n3 = num_array[pixel + 3] # Alpha
-            if n_cd == "F16":
-                pass
-            if n_cd == "F32":
-                pass
-            byte_list = [n0, n1, n2, n3]
-        elif cmodel == "CMYK":
-            pixel = index * 5
-            if n_cd == "U8":
-                n0 = num_array[pixel + 0] # Cyan
-                n1 = num_array[pixel + 1] # Magenta
-                n2 = num_array[pixel + 2] # Yellow
-                n3 = num_array[pixel + 3] # Key
-                n4 = num_array[pixel + 4] # Alpha
-            if n_cd == "U16":
-                n0 = num_array[pixel + 0] # Cyan
-                n1 = num_array[pixel + 1] # Magenta
-                n2 = num_array[pixel + 2] # Yellow
-                n3 = num_array[pixel + 3] # Key
-                n4 = num_array[pixel + 4] # Alpha
-            if n_cd == "F32":
-                pass
-            byte_list = [n0, n1, n2, n3, n4]
-        elif cmodel == "YUV":
-            pixel = index * 4
-            if n_cd == "U8":
-                n0 = num_array[pixel + 0] # Luma
-                n1 = num_array[pixel + 1] # Cb
-                n2 = num_array[pixel + 2] # Cr
-                n3 = num_array[pixel + 3] # Alpha
-            if n_cd == "U16":
-                n0 = num_array[pixel + 0] # Luma
-                n1 = num_array[pixel + 1] # Cb
-                n2 = num_array[pixel + 2] # Cr
-                n3 = num_array[pixel + 3] # Alpha
-            if n_cd == "F32":
-                pass
-            byte_list = [n0, n1, n2, n3]
-        elif cmodel == "XYZ":
-            pixel = index * 4
-            if n_cd == "U8":
-                n0 = num_array[pixel + 0] # X
-                n1 = num_array[pixel + 1] # Y
-                n2 = num_array[pixel + 2] # Z
-                n3 = num_array[pixel + 3] # Alpha
-            if n_cd == "U16":
-                n0 = num_array[pixel + 0] # X
-                n1 = num_array[pixel + 1] # Y
-                n2 = num_array[pixel + 2] # Z
-                n3 = num_array[pixel + 3] # Alpha
-            if n_cd == "F16":
-                pass
-            if n_cd == "F32":
-                pass
-            byte_list = [n0, n1, n2, n3]
-        elif cmodel == "LAB":
-            pixel = index * 4
-            if n_cd == "U8":
-                n0 = num_array[pixel + 0] # Lightness*
-                n1 = num_array[pixel + 1] # A*
-                n2 = num_array[pixel + 2] # 1*
-                n3 = num_array[pixel + 3] # Alpha
-            if n_cd == "U16":
-                n0 = num_array[pixel + 0] # Lightness*
-                n1 = num_array[pixel + 1] # A*
-                n2 = num_array[pixel + 2] # 1*
-                n3 = num_array[pixel + 3] # Alpha
-            if n_cd == "F32":
-                pass
-            byte_list = [n0, n1, n2, n3]
-        return byte_list
+        try:
+            byte_list = list()
+            if cmodel in [ "A", "GRAY" ]:
+                pixel = index * 2
+                if n_cd == "U8":
+                    n0 = num_array[ pixel + 0 ] # Gray
+                    n1 = num_array[ pixel + 1 ] # Alpha
+                if n_cd == "U16":
+                    n0 = num_array[ pixel + 0 ] # Gray
+                    n1 = num_array[ pixel + 1 ] # Alpha
+                if n_cd == "F16":
+                    pass
+                if n_cd == "F32":
+                    pass
+                byte_list = [ n0, n1 ]
+            elif cmodel in [ "SRGB", "LRGB" ]:
+                pixel = index * 4
+                if n_cd == "U8": # BGR
+                    n0 = num_array[ pixel + 2 ] # Red
+                    n1 = num_array[ pixel + 1 ] # Green
+                    n2 = num_array[ pixel + 0 ] # Blue
+                    n3 = num_array[ pixel + 3 ] # Alpha
+                if n_cd == "U16": # BGR
+                    n0 = num_array[ pixel + 2 ] # Red
+                    n1 = num_array[ pixel + 1 ] # Green
+                    n2 = num_array[ pixel + 0 ] # Blue
+                    n3 = num_array[ pixel + 3 ] # Alpha
+                if n_cd == "F16":
+                    pass
+                if n_cd == "F32":
+                    pass
+                byte_list = [ n0, n1, n2, n3 ]
+            elif cmodel == "CMYK":
+                pixel = index * 5
+                if n_cd == "U8":
+                    n0 = num_array[ pixel + 0 ] # Cyan
+                    n1 = num_array[ pixel + 1 ] # Magenta
+                    n2 = num_array[ pixel + 2 ] # Yellow
+                    n3 = num_array[ pixel + 3 ] # Key
+                    n4 = num_array[ pixel + 4 ] # Alpha
+                if n_cd == "U16":
+                    n0 = num_array[ pixel + 0 ] # Cyan
+                    n1 = num_array[ pixel + 1 ] # Magenta
+                    n2 = num_array[ pixel + 2 ] # Yellow
+                    n3 = num_array[ pixel + 3 ] # Key
+                    n4 = num_array[ pixel + 4 ] # Alpha
+                if n_cd == "F32":
+                    pass
+                byte_list = [ n0, n1, n2, n3, n4 ]
+            elif cmodel == "YUV":
+                pixel = index * 4
+                if n_cd == "U8":
+                    n0 = num_array[ pixel + 0 ] # Luma
+                    n1 = num_array[ pixel + 1 ] # Cb
+                    n2 = num_array[ pixel + 2 ] # Cr
+                    n3 = num_array[ pixel + 3 ] # Alpha
+                if n_cd == "U16":
+                    n0 = num_array[ pixel + 0 ] # Luma
+                    n1 = num_array[ pixel + 1 ] # Cb
+                    n2 = num_array[ pixel + 2 ] # Cr
+                    n3 = num_array[ pixel + 3 ] # Alpha
+                if n_cd == "F32":
+                    pass
+                byte_list = [ n0, n1, n2, n3 ]
+            elif cmodel == "XYZ":
+                pixel = index * 4
+                if n_cd == "U8":
+                    n0 = num_array[ pixel + 0 ] # X
+                    n1 = num_array[ pixel + 1 ] # Y
+                    n2 = num_array[ pixel + 2 ] # Z
+                    n3 = num_array[ pixel + 3 ] # Alpha
+                if n_cd == "U16":
+                    n0 = num_array[ pixel + 0 ] # X
+                    n1 = num_array[ pixel + 1 ] # Y
+                    n2 = num_array[ pixel + 2 ] # Z
+                    n3 = num_array[ pixel + 3 ] # Alpha
+                if n_cd == "F16":
+                    pass
+                if n_cd == "F32":
+                    pass
+                byte_list = [ n0, n1, n2, n3 ]
+            elif cmodel == "LAB":
+                pixel = index * 4
+                if n_cd == "U8":
+                    n0 = num_array[ pixel + 0 ] # Lightness*
+                    n1 = num_array[ pixel + 1 ] # A*
+                    n2 = num_array[ pixel + 2 ] # 1*
+                    n3 = num_array[ pixel + 3 ] # Alpha
+                if n_cd == "U16":
+                    n0 = num_array[ pixel + 0 ] # Lightness*
+                    n1 = num_array[ pixel + 1 ] # A*
+                    n2 = num_array[ pixel + 2 ] # 1*
+                    n3 = num_array[ pixel + 3 ] # Alpha
+                if n_cd == "F32":
+                    pass
+                byte_list = [ n0, n1, n2, n3 ]
+            return byte_list
+        except Exception as e:
+            return None
     # Total Ink Coverage
     def Total_Ink_Coverage( self, invert, tic, limit, c0, c1, c2, bw, cor ):
         p = tic - limit

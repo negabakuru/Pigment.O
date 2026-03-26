@@ -48,13 +48,13 @@
        <number>0</number>
       </property>
       <property name="leftMargin">
-       <number>10</number>
+       <number>5</number>
       </property>
       <property name="topMargin">
-       <number>10</number>
+       <number>5</number>
       </property>
       <property name="rightMargin">
-       <number>10</number>
+       <number>5</number>
       </property>
       <property name="bottomMargin">
        <number>0</number>
@@ -127,8 +127,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>480</width>
-               <height>448</height>
+               <width>490</width>
+               <height>453</height>
               </rect>
              </property>
              <layout class="QVBoxLayout" name="scroll_area_contents_system_layout">
@@ -136,16 +136,16 @@
                <number>5</number>
               </property>
               <property name="leftMargin">
-               <number>10</number>
+               <number>5</number>
               </property>
               <property name="topMargin">
-               <number>20</number>
+               <number>5</number>
               </property>
               <property name="rightMargin">
-               <number>10</number>
+               <number>5</number>
               </property>
               <property name="bottomMargin">
-               <number>10</number>
+               <number>5</number>
               </property>
               <item>
                <widget class="QGroupBox" name="group_color_space">
@@ -161,18 +161,21 @@
                 <property name="title">
                  <string>Color Space</string>
                 </property>
+                <property name="flat">
+                 <bool>true</bool>
+                </property>
                 <layout class="QGridLayout" name="group_color_space_layout">
                  <property name="leftMargin">
-                  <number>10</number>
+                  <number>2</number>
                  </property>
                  <property name="topMargin">
-                  <number>10</number>
+                  <number>2</number>
                  </property>
                  <property name="rightMargin">
-                  <number>10</number>
+                  <number>2</number>
                  </property>
                  <property name="bottomMargin">
-                  <number>10</number>
+                  <number>2</number>
                  </property>
                  <property name="spacing">
                   <number>5</number>
@@ -181,13 +184,13 @@
                   <widget class="QLabel" name="cs_luminosity_label">
                    <property name="minimumSize">
                     <size>
-                     <width>100</width>
+                     <width>80</width>
                      <height>20</height>
                     </size>
                    </property>
                    <property name="maximumSize">
                     <size>
-                     <width>100</width>
+                     <width>80</width>
                      <height>20</height>
                     </size>
                    </property>
@@ -227,17 +230,22 @@
                    </property>
                    <item>
                     <property name="text">
-                     <string>ITU-R BT.601</string>
+                     <string>Rec.601</string>
                     </property>
                    </item>
                    <item>
                     <property name="text">
-                     <string>ITU-R BT.709</string>
+                     <string>Rec.709</string>
                     </property>
                    </item>
                    <item>
                     <property name="text">
-                     <string>ITU-R BT.2020</string>
+                     <string>Rec.2020</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>Rec.2100</string>
                     </property>
                    </item>
                   </widget>
@@ -246,13 +254,13 @@
                   <widget class="QLabel" name="cs_matrix_label">
                    <property name="minimumSize">
                     <size>
-                     <width>100</width>
+                     <width>80</width>
                      <height>20</height>
                     </size>
                    </property>
                    <property name="maximumSize">
                     <size>
-                     <width>100</width>
+                     <width>80</width>
                      <height>20</height>
                     </size>
                    </property>
@@ -285,7 +293,7 @@
                     <enum>Qt::NoFocus</enum>
                    </property>
                    <property name="currentIndex">
-                    <number>1</number>
+                    <number>0</number>
                    </property>
                    <property name="frame">
                     <bool>false</bool>
@@ -410,95 +418,26 @@
                 <property name="title">
                  <string>Maps</string>
                 </property>
+                <property name="flat">
+                 <bool>true</bool>
+                </property>
                 <layout class="QGridLayout" name="group_options_layout">
                  <property name="leftMargin">
-                  <number>10</number>
+                  <number>2</number>
                  </property>
                  <property name="topMargin">
-                  <number>10</number>
+                  <number>2</number>
                  </property>
                  <property name="rightMargin">
-                  <number>10</number>
+                  <number>2</number>
                  </property>
                  <property name="bottomMargin">
-                  <number>10</number>
+                  <number>2</number>
                  </property>
                  <property name="spacing">
                   <number>5</number>
                  </property>
-                 <item row="0" column="0">
-                  <widget class="QLabel" name="label_2">
-                   <property name="minimumSize">
-                    <size>
-                     <width>100</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>100</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="text">
-                    <string>Total Ink Coverage</string>
-                   </property>
-                   <property name="alignment">
-                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="1" column="0">
-                  <widget class="QLabel" name="label">
-                   <property name="minimumSize">
-                    <size>
-                     <width>100</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>100</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="text">
-                    <string>CMYK - KEY</string>
-                   </property>
-                   <property name="alignment">
-                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="0" column="4">
-                  <widget class="QCheckBox" name="tic_display">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="minimumSize">
-                    <size>
-                     <width>0</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>16777215</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="focusPolicy">
-                    <enum>Qt::NoFocus</enum>
-                   </property>
-                   <property name="text">
-                    <string>Display</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="0" column="1">
+                 <item row="0" column="6">
                   <widget class="QSpinBox" name="tic_value">
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
@@ -508,7 +447,7 @@
                    </property>
                    <property name="minimumSize">
                     <size>
-                     <width>60</width>
+                     <width>0</width>
                      <height>20</height>
                     </size>
                    </property>
@@ -544,18 +483,33 @@
                    </property>
                   </widget>
                  </item>
-                 <item row="0" column="3">
-                  <widget class="QCheckBox" name="invert_tic">
+                 <item row="1" column="0">
+                  <widget class="QPushButton" name="cmyk_key">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>16777215</width>
+                     <height>20</height>
+                    </size>
+                   </property>
                    <property name="focusPolicy">
                     <enum>Qt::NoFocus</enum>
                    </property>
                    <property name="text">
-                    <string>Invert</string>
+                    <string>CMYK - Key</string>
+                   </property>
+                   <property name="flat">
+                    <bool>true</bool>
                    </property>
                   </widget>
                  </item>
-                 <item row="1" column="3">
-                  <widget class="QCheckBox" name="invert_cmyk">
+                 <item row="0" column="3">
+                  <widget class="QCheckBox" name="tic_invert">
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
                      <horstretch>0</horstretch>
@@ -579,6 +533,62 @@
                    </property>
                    <property name="text">
                     <string>Invert</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="3">
+                  <widget class="QCheckBox" name="cmyk_invert">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>0</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>16777215</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                   <property name="focusPolicy">
+                    <enum>Qt::NoFocus</enum>
+                   </property>
+                   <property name="text">
+                    <string>Invert</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="0">
+                  <widget class="QPushButton" name="tic_display">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>16777215</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                   <property name="focusPolicy">
+                    <enum>Qt::NoFocus</enum>
+                   </property>
+                   <property name="text">
+                    <string>Total Ink Coverage</string>
+                   </property>
+                   <property name="checkable">
+                    <bool>true</bool>
+                   </property>
+                   <property name="flat">
+                    <bool>true</bool>
                    </property>
                   </widget>
                  </item>
@@ -646,22 +656,34 @@
       <number>5</number>
      </property>
      <item>
-      <spacer name="horizontal_spacer">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+      <widget class="QProgressBar" name="progress_bar">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
        </property>
-       <property name="sizeHint" stdset="0">
+       <property name="maximumSize">
         <size>
-         <width>0</width>
-         <height>0</height>
+         <width>16777215</width>
+         <height>5</height>
         </size>
        </property>
-      </spacer>
+       <property name="value">
+        <number>0</number>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+       <property name="textVisible">
+        <bool>false</bool>
+       </property>
+      </widget>
      </item>
      <item>
       <widget class="QPushButton" name="manual">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+        <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -697,14 +719,14 @@
      <item>
       <widget class="QPushButton" name="license">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+        <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
        <property name="minimumSize">
         <size>
-         <width>30</width>
+         <width>0</width>
          <height>15</height>
         </size>
        </property>

@@ -21,19 +21,11 @@ from krita import *
 from PyQt5 import Qt, QtWidgets, QtCore, QtGui, uic
 
 #endregion
-#region Global Variables
-
-EXTENSION_ID = 'pykrita_pigment_o_picker_extension'
-
-#endregion
 
 
 class Picker_Extension( Extension ):
     SIGNAL_PIN = QtCore.pyqtSignal( int )
-    SIGNAL_KEY_1 = QtCore.pyqtSignal( int )
-    SIGNAL_KEY_2 = QtCore.pyqtSignal( int )
-    SIGNAL_KEY_3 = QtCore.pyqtSignal( int )
-    SIGNAL_KEY_4 = QtCore.pyqtSignal( int )
+    SIGNAL_KEY = QtCore.pyqtSignal( int, int )
     SIGNAL_LOCK = QtCore.pyqtSignal( str )
 
     #region Initialize
@@ -111,10 +103,7 @@ class Picker_Extension( Extension ):
 
         # Lock Actions
         action_lock_cmyk = window.createAction( "pigment_o_picker_lock_cmyk", "Lock CMYK",   "tools/scripts/pigment_o_menu/lock_menu" )
-        action_lock_kkk  = window.createAction( "pigment_o_picker_lock_kkk",  "Lock Kelvin", "tools/scripts/pigment_o_menu/lock_menu" )
-        # Lock Connections
         action_lock_cmyk.triggered.connect( self.LOCK_CMYK )
-        action_lock_kkk.triggered.connect( self.LOCK_KKK )
 
     #endregion
     #region PIN
@@ -146,31 +135,29 @@ class Picker_Extension( Extension ):
     #region KEY
 
     def KEY_1_Minus( self ):
-        self.SIGNAL_KEY_1.emit( -1 )
+        self.SIGNAL_KEY.emit( 1, -1 )
     def KEY_1_Plus( self ):
-        self.SIGNAL_KEY_1.emit( 1 )
+        self.SIGNAL_KEY.emit( 1, +1 )
 
     def KEY_2_Minus( self ):
-        self.SIGNAL_KEY_2.emit( -1 )
+        self.SIGNAL_KEY.emit( 2, -1 )
     def KEY_2_Plus( self ):
-        self.SIGNAL_KEY_2.emit( 1 )
+        self.SIGNAL_KEY.emit( 2, +1 )
 
     def KEY_3_Minus( self ):
-        self.SIGNAL_KEY_3.emit( -1 )
+        self.SIGNAL_KEY.emit( 3, -1 )
     def KEY_3_Plus( self ):
-        self.SIGNAL_KEY_3.emit( 1 )
+        self.SIGNAL_KEY.emit( 3, +1 )
 
     def KEY_4_Minus( self ):
-        self.SIGNAL_KEY_4.emit( -1 )
+        self.SIGNAL_KEY.emit( 4, -1 )
     def KEY_4_Plus( self ):
-        self.SIGNAL_KEY_4.emit( 1 )
+        self.SIGNAL_KEY.emit( 4, +1 )
 
     #endregion
     #region LOCK
 
     def LOCK_CMYK( self ):
         self.SIGNAL_LOCK.emit( "CMYK" )
-    def LOCK_KKK( self ):
-        self.SIGNAL_LOCK.emit( "KKK" )
 
     #endregion
