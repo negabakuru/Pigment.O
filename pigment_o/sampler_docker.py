@@ -1751,5 +1751,7 @@ def Run_Range( self, cmodel, d_cd, depth, k, dx, dy, dw, dh, num_array, num_ss )
 
 """
 To Do:
+- Sampler only works in U8 and U16.
+- Sampler now can accept images from Imagine Board to apply LUT files (*.cube) too. Can Batch multiple images to the same LUT.
 - Color Collection mode: White Colors and Black Colors
 """

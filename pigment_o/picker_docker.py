@@ -6752,9 +6752,8 @@ O F32
 - Mixer is updated. no infinite channels. kelvin is a mixer now. pole mixer is new. linear mixer remains solo.
 - YUV formular are fixed. added yuv rec.2100. Pigmento with YUV documents is fixed ( FINALLY )
 - Mixer works in 16 bit and up now
-- Sampler only works in U8 and U16.
-- Sampler now can accept images from Imagine Board to apply LUT files (*.cube) too. Can Batch multiple images to the same LUT.
 - LCH gradient is correct now
+- Less context menus and more Settings
 
 Problems:
 - Dialog History has no space
