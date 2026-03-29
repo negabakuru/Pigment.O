@@ -6056,10 +6056,13 @@ class Picker_Docker( DockWidget ):
     def Name_Display( self ):
         color_name = self.dialog.name_display.text()
         if color_name != "":
-            hc = QApplication.clipboard()
-            hc.clear()
-            hc.setText( color_name )
-            self.Label_String( "NAME COPY" )
+            try:
+                hc = QApplication.clipboard()
+                hc.clear()
+                hc.setText( color_name )
+                self.Label_String( "NAME COPY" )
+            except:
+                pass
     def Name_Closest( self ):
         hex_start = self.color_index["hex6"]
         ps = self.convert.hex6_to_srgb( hex_start )
@@ -6134,6 +6137,7 @@ class Picker_Docker( DockWidget ):
         if self.cursor_inside == True:
             try:
                 clip_board = QApplication.clipboard()
+                clip_board.clear()
                 clip_board.setText( hex_code )
             except:
                 pass
