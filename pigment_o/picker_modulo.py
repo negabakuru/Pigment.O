@@ -292,6 +292,8 @@ class Harmony_Swatch( QWidget ):
         # Widget
         self.ww = 0
         self.hh = 0
+        self.w2 = 0
+        self.h2 = 0
         # Index
         self.harmony_rule = harmony_5 # harmony_1 harmony_2 harmony_3 harmony_4 harmony_5
         self.harmony_edit = False
