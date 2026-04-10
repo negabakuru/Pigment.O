@@ -381,6 +381,340 @@
                    </item>
                   </widget>
                  </item>
+                 <item row="6" column="0">
+                  <widget class="QLabel" name="label_panel_dot">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>80</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>80</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                   <property name="focusPolicy">
+                    <enum>Qt::NoFocus</enum>
+                   </property>
+                   <property name="lineWidth">
+                    <number>0</number>
+                   </property>
+                   <property name="text">
+                    <string>Dot</string>
+                   </property>
+                   <property name="alignment">
+                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="0">
+                  <widget class="QLabel" name="label_panel_mode">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>80</width>
+                     <height>100</height>
+                    </size>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>80</width>
+                     <height>100</height>
+                    </size>
+                   </property>
+                   <property name="focusPolicy">
+                    <enum>Qt::NoFocus</enum>
+                   </property>
+                   <property name="text">
+                    <string>Mode</string>
+                   </property>
+                   <property name="alignment">
+                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="5" column="0">
+                  <widget class="QLabel" name="label_panel_gamut">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>80</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>80</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                   <property name="focusPolicy">
+                    <enum>Qt::NoFocus</enum>
+                   </property>
+                   <property name="lineWidth">
+                    <number>0</number>
+                   </property>
+                   <property name="text">
+                    <string>Gamut</string>
+                   </property>
+                   <property name="alignment">
+                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="6" column="2">
+                  <widget class="QCheckBox" name="dot_edit">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>80</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                   <property name="focusPolicy">
+                    <enum>Qt::NoFocus</enum>
+                   </property>
+                   <property name="text">
+                    <string>Edit</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="4" column="0">
+                  <widget class="QLabel" name="label_panel_hue">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>80</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>80</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                   <property name="focusPolicy">
+                    <enum>Qt::NoFocus</enum>
+                   </property>
+                   <property name="lineWidth">
+                    <number>0</number>
+                   </property>
+                   <property name="text">
+                    <string>Hue</string>
+                   </property>
+                   <property name="alignment">
+                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="1" colspan="2">
+                  <widget class="QComboBox" name="panel_mode">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>0</width>
+                     <height>100</height>
+                    </size>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>16777215</width>
+                     <height>100</height>
+                    </size>
+                   </property>
+                   <property name="focusPolicy">
+                    <enum>Qt::WheelFocus</enum>
+                   </property>
+                   <property name="iconSize">
+                    <size>
+                     <width>80</width>
+                     <height>80</height>
+                    </size>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="6" column="1">
+                  <widget class="QSpinBox" name="dot_dimension">
+                   <property name="frame">
+                    <bool>false</bool>
+                   </property>
+                   <property name="minimum">
+                    <number>3</number>
+                   </property>
+                   <property name="maximum">
+                    <number>11</number>
+                   </property>
+                   <property name="singleStep">
+                    <number>2</number>
+                   </property>
+                   <property name="value">
+                    <number>11</number>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="7" column="1">
+                  <widget class="QComboBox" name="mask_folder">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>16777215</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                   <property name="currentIndex">
+                    <number>-1</number>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="5" column="1">
+                  <widget class="QComboBox" name="gamut_mask">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>16777215</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                   <property name="currentIndex">
+                    <number>0</number>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>FULL</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>TRIANGLE</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>SQUARE</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>HEXAGON</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>CIRCLE_1</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>CIRCLE_2</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>NONE</string>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item row="4" column="1">
+                  <widget class="QComboBox" name="hue_shape">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>16777215</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                   <property name="currentIndex">
+                    <number>0</number>
+                   </property>
+                   <item>
+                    <property name="text">
+                     <string>TRIANGLE</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>SQUARE</string>
+                    </property>
+                   </item>
+                   <item>
+                    <property name="text">
+                     <string>DIAMOND</string>
+                    </property>
+                   </item>
+                  </widget>
+                 </item>
+                 <item row="5" column="2">
+                  <widget class="QPushButton" name="gamut_reset">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="maximumSize">
+                    <size>
+                     <width>80</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                   <property name="focusPolicy">
+                    <enum>Qt::NoFocus</enum>
+                   </property>
+                   <property name="text">
+                    <string>Reset</string>
+                   </property>
+                  </widget>
+                 </item>
                  <item row="2" column="0">
                   <widget class="QLabel" name="label_panel_wheel">
                    <property name="sizePolicy">
@@ -435,140 +769,7 @@
                    </item>
                   </widget>
                  </item>
-                 <item row="1" column="0">
-                  <widget class="QLabel" name="label_panel_mode">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="minimumSize">
-                    <size>
-                     <width>80</width>
-                     <height>100</height>
-                    </size>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>80</width>
-                     <height>100</height>
-                    </size>
-                   </property>
-                   <property name="focusPolicy">
-                    <enum>Qt::NoFocus</enum>
-                   </property>
-                   <property name="text">
-                    <string>Mode</string>
-                   </property>
-                   <property name="alignment">
-                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="3" column="0">
-                  <widget class="QLabel" name="label_panel_hue">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="minimumSize">
-                    <size>
-                     <width>80</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>80</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="focusPolicy">
-                    <enum>Qt::NoFocus</enum>
-                   </property>
-                   <property name="lineWidth">
-                    <number>0</number>
-                   </property>
-                   <property name="text">
-                    <string>Hue</string>
-                   </property>
-                   <property name="alignment">
-                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="4" column="0">
-                  <widget class="QLabel" name="label_panel_gamut">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="minimumSize">
-                    <size>
-                     <width>80</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>80</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="focusPolicy">
-                    <enum>Qt::NoFocus</enum>
-                   </property>
-                   <property name="lineWidth">
-                    <number>0</number>
-                   </property>
-                   <property name="text">
-                    <string>Gamut</string>
-                   </property>
-                   <property name="alignment">
-                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="5" column="0">
-                  <widget class="QLabel" name="label_panel_dot">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="minimumSize">
-                    <size>
-                     <width>80</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>80</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="focusPolicy">
-                    <enum>Qt::NoFocus</enum>
-                   </property>
-                   <property name="lineWidth">
-                    <number>0</number>
-                   </property>
-                   <property name="text">
-                    <string>Dot</string>
-                   </property>
-                   <property name="alignment">
-                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="6" column="0">
+                 <item row="7" column="0">
                   <widget class="QLabel" name="label_panel_mask">
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -602,208 +803,7 @@
                    </property>
                   </widget>
                  </item>
-                 <item row="1" column="1" colspan="2">
-                  <widget class="QComboBox" name="panel_mode">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="minimumSize">
-                    <size>
-                     <width>0</width>
-                     <height>100</height>
-                    </size>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>16777215</width>
-                     <height>100</height>
-                    </size>
-                   </property>
-                   <property name="focusPolicy">
-                    <enum>Qt::WheelFocus</enum>
-                   </property>
-                   <property name="iconSize">
-                    <size>
-                     <width>80</width>
-                     <height>80</height>
-                    </size>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="5" column="1">
-                  <widget class="QSpinBox" name="dot_dimension">
-                   <property name="frame">
-                    <bool>false</bool>
-                   </property>
-                   <property name="minimum">
-                    <number>3</number>
-                   </property>
-                   <property name="maximum">
-                    <number>11</number>
-                   </property>
-                   <property name="singleStep">
-                    <number>2</number>
-                   </property>
-                   <property name="value">
-                    <number>11</number>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="6" column="1">
-                  <widget class="QComboBox" name="mask_folder">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>16777215</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="currentIndex">
-                    <number>-1</number>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="4" column="1">
-                  <widget class="QComboBox" name="gamut_mask">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>16777215</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="currentIndex">
-                    <number>0</number>
-                   </property>
-                   <item>
-                    <property name="text">
-                     <string>FULL</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>TRIANGLE</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>SQUARE</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>HEXAGON</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>CIRCLE_1</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>CIRCLE_2</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>NONE</string>
-                    </property>
-                   </item>
-                  </widget>
-                 </item>
-                 <item row="3" column="1">
-                  <widget class="QComboBox" name="hue_shape">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>16777215</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="currentIndex">
-                    <number>0</number>
-                   </property>
-                   <item>
-                    <property name="text">
-                     <string>TRIANGLE</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>SQUARE</string>
-                    </property>
-                   </item>
-                   <item>
-                    <property name="text">
-                     <string>DIAMOND</string>
-                    </property>
-                   </item>
-                  </widget>
-                 </item>
-                 <item row="4" column="2">
-                  <widget class="QPushButton" name="gamut_reset">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>80</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="focusPolicy">
-                    <enum>Qt::NoFocus</enum>
-                   </property>
-                   <property name="text">
-                    <string>Reset</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="5" column="2">
-                  <widget class="QCheckBox" name="dot_edit">
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
-                   <property name="maximumSize">
-                    <size>
-                     <width>80</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                   <property name="focusPolicy">
-                    <enum>Qt::NoFocus</enum>
-                   </property>
-                   <property name="text">
-                    <string>Edit</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="6" column="2">
+                 <item row="7" column="2">
                   <widget class="QCheckBox" name="mask_edit">
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
@@ -822,6 +822,13 @@
                    </property>
                    <property name="text">
                     <string>Edit</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="3" column="0" colspan="3">
+                  <widget class="Line" name="line">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
                    </property>
                   </widget>
                  </item>
@@ -1172,8 +1179,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>98</width>
-               <height>371</height>
+               <width>490</width>
+               <height>411</height>
               </rect>
              </property>
              <property name="sizePolicy">
@@ -4452,8 +4459,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>101</width>
-               <height>167</height>
+               <width>490</width>
+               <height>411</height>
               </rect>
              </property>
              <layout class="QVBoxLayout" name="scroll_area_contents_system_layout">

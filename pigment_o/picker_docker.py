@@ -716,6 +716,7 @@ class Picker_Docker( DockWidget ):
         self.kview = None
         self.kdepth = 255
         self.kmodel = None
+        self.kwrite = False
 
         # Colors
         self.color_index = kfc
@@ -1686,24 +1687,27 @@ class Picker_Docker( DockWidget ):
 
     # Krita and Pigmento
     def Krita_Read( self ):
-        # Document
-        kdocument = self.Document_Active()
-        cmodel = kdocument["cmodel"]
-        if self.kdocument != kdocument:
-            self.kdocument = kdocument
-            self.convert.Set_Document( cmodel, kdocument["n_cd"], kdocument["n_cp"] )
-            self.color_header.Set_Vector( self.kdocument["vi"] )
-        # Canvas
-        if ( self.kcanvas != None ) and ( self.kview != None ):
-            if ( self.mode_index == 0 ) or ( self.kdocument != kdocument ): self.Read_Color( kdocument )
-            elif self.mode_index == 2:                                      self.Read_Only( kdocument )
-            if self.Fill_Check( kdocument ) == False:                       self.Fill_None()
-        else:
-            self.kdepth = 255
-            self.Fill_None()
+        if self.kwrite == False:
+            # Document
+            kdocument = self.Document_Active()
+            cmodel = kdocument["cmodel"]
+            if self.kdocument != kdocument:
+                self.kdocument = kdocument
+                self.convert.Set_Document( cmodel, kdocument["n_cd"], kdocument["n_cp"] )
+                self.color_header.Set_Vector( self.kdocument["vi"] )
+            # Canvas
+            if ( self.kcanvas != None ) and ( self.kview != None ):
+                if ( self.mode_index == 0 ) or ( self.kdocument != kdocument ): self.Read_Color( kdocument )
+                elif self.mode_index == 2:                                      self.Read_Only( kdocument )
+                if self.Fill_Check( kdocument ) == False:                       self.Fill_None()
+            else:
+                self.kdepth = 255
+                self.Fill_None()
     def Krita_Write( self, release ):
         if ( self.kcanvas != None ) and ( self.kview != None ):
             if self.mode_index in ( 0 , 1 ) and release == True:
+                # Control
+                self.kwrite = True
                 # Check Eraser Mode ON or OFF
                 eraser = Krita.instance().action( "erase_action" )
                 # Current Document
@@ -1728,6 +1732,8 @@ class Picker_Docker( DockWidget ):
                 # Fill with Foreground Color
                 if self.Fill_Check( kdocument ) == True: Krita.instance().action( "fill_selection_foreground_color_opacity" ).trigger()
                 else:                                    self.Fill_None()
+                # Control
+                self.kwrite = False
 
     # Channel Read
     def Read_Color( self, kdocument, update=False ):
@@ -5984,7 +5990,7 @@ class Picker_Docker( DockWidget ):
     def Analyse_Pixel( self, qimage ):
         if qimage.isNull() == False:
             # Scale
-            size = 300
+            size = 200
             if qimage.width() > size and qimage.height() > size:
                 qimage = qimage.scaled( size, size, QtCore.Qt.KeepAspectRatio, QtCore.Qt.FastTransformation )
             # Variables
@@ -5993,29 +5999,26 @@ class Picker_Docker( DockWidget ):
             # Progress Bar
             self.layout.progress_bar.setValue( 0 )
             self.layout.progress_bar.setMaximum( height )
+            # Variables
+            list_name = list()
+            self.analyse_list = list()
             # Pixel Check
-            dictionary = dict()
             for h in range( 0, height ):
-                # Progress bar
+                # Progress Bar
                 h1 = ( h + 1 )
-                if h1 % 5 == 0:
+                if h1 % 10 == 0:
                     self.layout.progress_bar.setValue( h1 )
                     QApplication.processEvents()
-                # Rox of Pixels
                 for w in range( 0, width ):
-                    # RGB
+                    # Read
                     qcolor = qimage.pixelColor( w, h )
                     name = qcolor.name()
-                    a = qcolor.alphaF()
-                    if a > 0:
-                        try:    dictionary[name] = dictionary[name] + 1 # amount of pixels with the color
-                        except: dictionary[name] = 1
-            # Cleanup
-            self.analyse_list = dict()
-            list_name = dictionary.keys()
-            for name in list_name:
-                self.analyse_list[name] = self.Color_Convert( "HEX", name, 0, 0, 0, color_neutral.copy() )
-            del dictionary
+                    alpha = qcolor.alphaF()
+                    # List
+                    if ( alpha > 0 ) and ( name not in list_name ):
+                        list_name.append( name )
+                        cor = self.Color_Convert( "HEX", name, 0, 0, 0, color_neutral.copy() )
+                        self.analyse_list.append( cor )
             # Update
             self.layout.progress_bar.setValue( 0 )
             self.layout.progress_bar.setMaximum( 1 )
@@ -6758,6 +6761,7 @@ O F32
 - Mixer works in 16 bit and up now
 - LCH gradient is correct now
 - Less context menus and more Settings
+- Fixed Analyse display speed
 
 Problems:
 - Dialog History has no space

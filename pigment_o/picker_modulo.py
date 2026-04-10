@@ -920,16 +920,28 @@ class Panel_Square( QWidget ):
 
         # Analyse Colors
         if self.analyse_list != None:
-            cor = int( self.v1 * 360 )
             painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
             painter.setBrush( QBrush( self.c_gray ) )
-            list_name = self.analyse_list.keys()
-            for name in list_name:
-                color = self.analyse_list[name]
-                if int( color[ self.id1 ] * 360 ) == cor:
-                    px = color[ self.id2 ] * self.ww
-                    py = ( 1 - color[ self.id3 ] ) * self.hh
-                    painter.drawEllipse( int( px - dot1 ), int( py - dot1 ), dot2, dot2 )
+            hue = int( self.v1 * 360 )
+            if hue == 360:
+                hue = 0
+            for color in self.analyse_list:
+                if int( color[ self.id1 ] * 360 ) == hue:
+                    if self.hue_shape == "TRIANGLE":
+                        cx = color["hsl_2"]
+                        cy = ( 1 - color["hsl_3"] )
+                        lerp = self.Triangle_Lerp( cy, 1, 1 )
+                        painter.drawEllipse( int( ( cx * lerp * self.ww ) - dot1 ), int( ( cy * self.hh ) - dot1 ), dot2, dot2 )
+                    if self.hue_shape == "SQUARE":
+                        px = color[ self.id2 ] * self.ww
+                        py = ( 1 - color[ self.id3 ] ) * self.hh
+                        painter.drawEllipse( int( px - dot1 ), int( py - dot1 ), dot2, dot2 )
+                    if self.hue_shape == "DIAMOND":
+                        cx = color["hsl_2"]
+                        cy = ( 1 - color["hsl_3"] )
+                        mini, maxi, delta = self.Diamond_Lerp( cy, 1, 1 )
+                        value = mini + cx * delta
+                        painter.drawEllipse( int( ( value * self.ww ) - dot1 ), int( ( cy * self.hh ) - dot1 ), dot2, dot2 )
 
         # Pinned Colors
         if self.pin_list != None:
@@ -941,30 +953,17 @@ class Panel_Square( QWidget ):
                         cx = pin["hsl_2"]
                         cy = ( 1 - pin["hsl_3"] )
                         lerp = self.Triangle_Lerp( cy, 1, 1 )
-                        painter.drawEllipse( 
-                            int( ( cx * lerp * self.ww ) - dot1 ),
-                            int( ( cy * self.hh ) - dot1 ),
-                            dot2,
-                            dot2,
-                            )
+                        painter.drawEllipse( int( ( cx * lerp * self.ww ) - dot1 ), int( ( cy * self.hh ) - dot1 ), dot2, dot2 )
                     if self.hue_shape == "SQUARE":
-                        painter.drawEllipse( 
-                            int( ( pin[ self.id2 ] * self.ww ) - dot1 ),
-                            int( ( ( 1 - pin[ self.id3 ] ) * self.hh ) - dot1 ),
-                            dot2,
-                            dot2,
-                            )
+                        px = pin[ self.id2 ] * self.ww
+                        py = ( 1 - pin[ self.id3 ] ) * self.hh
+                        painter.drawEllipse( int( px - dot1 ), int( py - dot1 ), dot2, dot2 )
                     if self.hue_shape == "DIAMOND":
                         cx = pin["hsl_2"]
                         cy = ( 1 - pin["hsl_3"] )
                         mini, maxi, delta = self.Diamond_Lerp( cy, 1, 1 )
                         value = mini + cx * delta
-                        painter.drawEllipse( 
-                            int( ( value * self.ww ) - dot1 ),
-                            int( ( cy * self.hh ) - dot1 ),
-                            dot2,
-                            dot2,
-                            )
+                        painter.drawEllipse( int( ( value * self.ww ) - dot1 ), int( ( cy * self.hh ) - dot1 ), dot2, dot2 )
 
         # Harmony Colors
         if self.harmony_list != None:
@@ -2000,13 +1999,11 @@ class Panel_Gamut( QWidget ):
 
         # Analyse Colors
         if self.analyse_list != None:
-            cor = int( self.v3 * 255 )
             painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
             painter.setBrush( QBrush( self.c_gray ) )
-            list_name = self.analyse_list.keys()
-            for name in list_name:
-                color = self.analyse_list[name]
-                if int( color[ self.id3 ] * 255 ) == cor:
+            tone = int( self.v3 * 255 )
+            for color in self.analyse_list:
+                if int( color[ self.id3 ] * 255 ) == tone:
                     angle = Wheel_Angle( self.wheel_mode, color )
                     radius = color[ self.id2 ]
                     px, py = Trig_2D_Angle_Circle( self.w2, self.h2, self.disk_s2, radius, angle )
@@ -2443,13 +2440,11 @@ class Panel_Hexagon( QWidget ):
 
         # Analyse Colors
         if self.analyse_list != None:
-            cor = int( self.v3 * 360 )
             painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
             painter.setBrush( QBrush( self.c_gray ) )
-            list_name = self.analyse_list.keys()
-            for name in list_name:
-                color = self.analyse_list[name]
-                if int( color[ self.id3 ] * 360 ) == cor:
+            gamma = int( self.v3 * 360 )
+            for color in self.analyse_list:
+                if int( color[ self.id3 ] * 360 ) == gamma:
                     px = self.px + ( 0.5 + color["uvd_1"] * 0.5 ) * self.side
                     py = self.py + ( 0.5 - color["uvd_2"] * 0.5 ) * self.side
                     painter.drawEllipse( int( px - dot1 ), int( py - dot1 ), dot2, dot2 )
@@ -2717,13 +2712,11 @@ class Panel_Luma( QWidget ):
 
         # Analyse Colors
         if self.analyse_list != None:
-            cor = int( self.v1 * 360 )
             painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
             painter.setBrush( QBrush( self.c_gray ) )
-            list_name = self.analyse_list.keys()
-            for name in list_name:
-                color = self.analyse_list[name]
-                if int( color[ self.id1 ] * 360 ) == cor:
+            hue = int( self.v1 * 360 )
+            for color in self.analyse_list:
+                if int( color[ self.id1 ] * 360 ) == hue:
                     px = color[ self.id2 ] * self.ww
                     py = ( 1 - color[ self.id3 ] ) * self.hh
                     painter.drawEllipse( int( px - dot1 ), int( py - dot1 ), dot2, dot2 )
@@ -3597,4 +3590,3 @@ class Pin_Color( QWidget ):
             painter.drawLine( self.w2 - 2, self.h2, self.w2 + 2, self.h2 )
 
 #endregion
-
