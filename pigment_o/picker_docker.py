@@ -655,6 +655,14 @@ class Picker_Docker( DockWidget ):
             self.pin_color.append( color_false.copy() )
 
         #endregion
+        #region Sample
+
+        self.sample_screen = SampleScreen_Button( self.layout.sample_screen )
+        self.sample_screen.SIGNAL_PRESS.connect( self.SampleScreen_Press )
+        self.sample_screen.SIGNAL_MOVE.connect( self.SampleScreen_Move )
+        self.sample_screen.SIGNAL_RELEASE.connect( self.SampleScreen_Release )
+
+        #endregion
     def Style( self ):
         # Style
         self.Style_Icon()
@@ -1007,7 +1015,6 @@ class Picker_Docker( DockWidget ):
 
         # Footer
         self.layout.fill_pixel.toggled.connect( self.Menu_Fill )
-        self.layout.sample_screen.clicked.connect( self.Menu_Sample_Screen )
         self.layout.settings.clicked.connect( self.Menu_Settings )
 
         #endregion
@@ -1309,10 +1316,12 @@ class Picker_Docker( DockWidget ):
         self.qicon_fill_off         = ki.icon( "folder-documents" )
         self.qicon_fill_on          = ki.icon( "fillLayer" )
         self.qicon_sample_screen    = ki.icon( "sample-screen" )
+        self.qicon_sampling_point   = ki.icon( "pivot-point" )
         self.qicon_settings         = ki.icon( "settings-button" )
         self.qicon_lock_layout      = ki.icon( "layer-locked" )
         self.qicon_lock_dialog      = ki.icon( "docker_lock_b" )
         self.qicon_none             = QIcon()
+
 
         # Widgets
         self.layout.dot_swap.setIcon( self.qicon_swap )
@@ -3352,7 +3361,11 @@ class Picker_Docker( DockWidget ):
     def Header_Swap( self ):
         list_key = list( kfc.keys() )
         for key in list_key:
-            kfc[key], kbc[key] = kbc[key], kfc[key]
+            # kfc[key], kbc[key] = kbc[key], kfc[key]
+            fg = kfc[key]
+            bg = kbc[key]
+            kfc[key] = bg
+            kbc[key] = fg
         self.Pigmento_SYNC()
     def Header_Show( self, active ):
         # Show Foreground or Background Color
@@ -5028,14 +5041,17 @@ class Picker_Docker( DockWidget ):
         self.layout.fill_pixel.setIcon( Krita.instance().icon( "folder-documents" ) )
         self.layout.fill_pixel.setChecked( False )
         self.layout.fill_pixel.blockSignals( False )
+
     # Sample
-    def Menu_Sample_Screen( self ):
+    def SampleScreen_Press( self ):
+        self.Label_String( "Sample Screen" )
+        self.layout.sample_screen.setIcon( self.qicon_sampling_point )
+    def SampleScreen_Move( self ):
+        self.Label_String( "Sampling" )
+    def SampleScreen_Release( self ):
         # Krita Action ( gives wrong colors on everything except the canvas)
         # Krita.instance().action( "sample_screen_color_real_canvas" ).trigger()
 
-        # Pigmento Action
-        self.grabMouse()
-    def Sample_Screen( self ):
         # Screen Shot
         qscreen = self.layout.sample_screen.screen()
         geo = qscreen.geometry()
@@ -5051,7 +5067,9 @@ class Picker_Docker( DockWidget ):
         blue = qcolor.blueF()
         # Apply
         self.Pigmento_APPLY( "SRGB", red, green, blue, 0, self.color_index )
-        self.releaseMouse()
+        # Icon
+        self.layout.sample_screen.setIcon( self.qicon_sample_screen )
+
     # String
     def Label_String( self, string ):
         self.layout.label.setText( str( string ) )
@@ -6315,9 +6333,6 @@ class Picker_Docker( DockWidget ):
     #endregion
     #region Widget Events
 
-    # QMouse
-    def mouseReleaseEvent( self, event ):
-        self.Sample_Screen()
     # QWidget
     def showEvent( self, event ):
         # Sampler

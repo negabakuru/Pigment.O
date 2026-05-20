@@ -3590,3 +3590,29 @@ class Pin_Color( QWidget ):
             painter.drawLine( self.w2 - 2, self.h2, self.w2 + 2, self.h2 )
 
 #endregion
+#region Footer
+
+class SampleScreen_Button( QWidget ):
+    SIGNAL_PRESS = QtCore.pyqtSignal()
+    SIGNAL_MOVE = QtCore.pyqtSignal()
+    SIGNAL_RELEASE = QtCore.pyqtSignal()
+
+    # Initilization
+    def __init__( self, parent ):
+        super( SampleScreen_Button, self ).__init__( parent )
+        pass
+
+    # Mouse Events
+    def mousePressEvent( self, event ):
+        if ( event.modifiers() == QtCore.Qt.NoModifier and event.buttons() == QtCore.Qt.LeftButton ):
+            self.SIGNAL_PRESS.emit()
+            QApplication.setOverrideCursor( Qt.CrossCursor )
+    def mouseMoveEvent( self, event ):
+        if ( event.modifiers() == QtCore.Qt.NoModifier and event.buttons() == QtCore.Qt.LeftButton ):
+            self.SIGNAL_MOVE.emit()
+    def mouseReleaseEvent( self, event ):
+        self.SIGNAL_RELEASE.emit()
+        QApplication.restoreOverrideCursor()
+
+#endregion
+
