@@ -13,14 +13,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-
+from PyQt6.QtCore import QRect, QPoint
+from PyQt6.QtWidgets import QMenu
 #region Imports
 
 # Krita
 from krita import *
 # PyQt5
-from PyQt5 import QtWidgets, QtCore, QtGui, uic
+from PyQt6 import QtWidgets, QtCore, QtGui, uic
+from PyQt6.QtGui import *
 # Engine
 from .engine_calculations import *
 
@@ -56,7 +57,7 @@ class Display_Map( QWidget ):
         self.operation = None
         # Display
         self.qpixmap_display = None
-        self.scale_method = Qt.FastTransformation
+        self.scale_method = QtCore.Qt.TransformationMode.FastTransformation
         # Interaction
         self.operation = None
         # Camera
@@ -91,28 +92,28 @@ class Display_Map( QWidget ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         self.ox = ex
         self.oy = ey
         self.ex = ex
         self.ey = ey
         self.operation = None
         # LMB
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Camera_Previous(); self.operation = "camera_move"
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):  self.Camera_Reset()
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Camera_Previous(); self.operation = "camera_move"
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):  self.Camera_Reset()
         # MMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.MiddleButton ):     self.Camera_Previous(); self.operation = "camera_move"
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.MiddleButton ):     self.Camera_Previous(); self.operation = "camera_move"
         # RMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.RightButton ):      self.Context_Menu( event )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.RightButton ):   self.Camera_Previous(); self.operation = "camera_scale"
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.RightButton ): self.Camera_Reset()
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.RightButton ):      self.Context_Menu( event )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.RightButton ):   self.Camera_Previous(); self.operation = "camera_scale"
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.RightButton ): self.Camera_Reset()
         # Update
         self.update()
     def mouseMoveEvent( self, event ):
         # Event
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         self.ex = ex
         self.ey = ey
         # Camera
@@ -133,7 +134,7 @@ class Display_Map( QWidget ):
         qmenu = QMenu( self )
         action_mask = qmenu.addAction( "Insert" )
         action_clean = qmenu.addAction( "Clean" )
-        action = qmenu.exec_( self.mapToGlobal( event.pos() ) )
+        action = qmenu.exec( self.mapToGlobal( event.pos() ) )
         if action == action_mask:
             self.SIGNAL_INSERT.emit()
         if action == action_clean:
@@ -158,14 +159,14 @@ class Display_Map( QWidget ):
     def paintEvent( self, event ):
         # Painter
         painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
+        painter.setRenderHint( QtGui.QPainter.RenderHint.Antialiasing, True )
         # Background Hover
-        painter.setPen( QtCore.Qt.NoPen )
+        painter.setPen( QtCore.Qt.PenStyle.NoPen )
         if self.background == True:
             painter.setBrush( QBrush( self.color_red ) )
             painter.drawRect( 0, 0, self.ww, self.hh )
         # Mask
-        painter.setClipRect( QRect( 0, 0, self.ww, self.hh ), Qt.ReplaceClip )
+        painter.setClipRect( QRect( 0, 0, self.ww, self.hh ), QtCore.Qt.ClipOperation.ReplaceClip )
         # Render Image
         qpixmap = self.qpixmap_display
         render = True
@@ -178,11 +179,11 @@ class Display_Map( QWidget ):
     def Draw_Render( self, qpixmap ):
         # QPixmap
         if self.display == False:
-            draw = qpixmap.scaled( int( self.ww * self.cz ), int( self.hh * self.cz ), Qt.KeepAspectRatio, self.scale_method )
+            draw = qpixmap.scaled( int( self.ww * self.cz ), int( self.hh * self.cz ), QtCore.Qt.AspectRatioMode.KeepAspectRatio, self.scale_method )
         else:
             ww = qpixmap.width()
             hh = qpixmap.height()
-            draw = qpixmap.scaled( int( ww * self.cz ), int( hh * self.cz ), Qt.KeepAspectRatio, self.scale_method )
+            draw = qpixmap.scaled( int( ww * self.cz ), int( hh * self.cz ), QtCore.Qt.AspectRatioMode.KeepAspectRatio, self.scale_method )
         self.bw = draw.width()
         self.bh = draw.height()
         # Variables
@@ -272,21 +273,21 @@ class Channel_Select( QWidget ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         self.ex = ex
         self.ey = ey
         self.operation = None
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):
             self.operation = "channel_select"
             self.Channel_Select( ex, ey )
         # Update
         self.update()
     def mouseMoveEvent( self, event ):
         # Event
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         self.ex = ex
         self.ey = ey
         # Operations
@@ -332,7 +333,7 @@ class Channel_Select( QWidget ):
     def paintEvent( self, event ):
         # Painter
         painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
+        painter.setRenderHint( QtGui.QPainter.RenderHint.Antialiasing, True )
         # Paint Images
         if self.channel_map != None:
             for i in range( 0, len( self.channel_map ) ):
@@ -353,15 +354,15 @@ class Channel_Select( QWidget ):
                     # Bounding Box
                     box = QRect( int( px ), int( py ), int( width ), int( height ) )
                     # Highlight
-                    painter.setPen( QtCore.Qt.NoPen )
+                    painter.setPen( QtCore.Qt.PenStyle.NoPen )
                     painter.setBrush( QBrush( self.c_dark ) )
                     painter.drawRect( box )
                     # String
-                    painter.setBrush( QtCore.Qt.NoBrush )
-                    painter.setPen( QPen( self.c_lite, 1, Qt.SolidLine ) )
+                    painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
+                    painter.setPen( QPen( self.c_lite, 1, QtCore.Qt.PenStyle.SolidLine ) )
                     qfont = QFont( "Consolas", 10 )
                     painter.setFont( qfont )
-                    painter.drawText( box, Qt.AlignCenter, text )
+                    painter.drawText( box, QtCore.Qt.AlignmentFlag.AlignCenter, text )
 
 class Channel_Slider( QWidget ):
     SIGNAL_PA = QtCore.pyqtSignal( float )
@@ -394,7 +395,7 @@ class Channel_Slider( QWidget ):
         self.ex_pd = 0.7
         self.delta_ab_n = abs( self.ex_pa - self.ex_pb )
         self.delta_cd_n = abs( self.ex_pd - self.ex_pc )
-        self.mod_3 = QtCore.Qt.ShiftModifier | QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier
+        self.mod_3 = QtCore.Qt.KeyboardModifier.ShiftModifier | QtCore.Qt.KeyboardModifier.ControlModifier | QtCore.Qt.KeyboardModifier.AltModifier
         # State
         self.state_press = False
         # Slider
@@ -436,24 +437,24 @@ class Channel_Slider( QWidget ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):
             self.slider_node = self.Slider_Node( ex, ey )
             self.Channel_Move( ex, ey )
-        if ( em == self.mod_3 and eb == QtCore.Qt.LeftButton ):             self.Channel_Reset()
+        if ( em == self.mod_3 and eb == QtCore.Qt.MouseButton.LeftButton ):             self.Channel_Reset()
         # Update
         self.update()
     def mouseMoveEvent( self, event ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # Operations
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):   self.Channel_Move( ex, ey )
-        if ( em == self.mod_3 and eb == QtCore.Qt.LeftButton ):             self.Channel_Reset()
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):   self.Channel_Move( ex, ey )
+        if ( em == self.mod_3 and eb == QtCore.Qt.MouseButton.LeftButton ):             self.Channel_Reset()
         # Update
         self.update()
     def mouseReleaseEvent( self, event ):
@@ -767,12 +768,12 @@ class Channel_Slider( QWidget ):
 
         # Painter
         painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
+        painter.setRenderHint( QtGui.QPainter.RenderHint.Antialiasing, True )
 
         # Channels
         if self.slider_gradient != None:
-            painter.setPen( QPen( self.c_lite, line_size, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
-            painter.setBrush( QtCore.Qt.NoBrush )
+            painter.setPen( QPen( self.c_lite, line_size, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
+            painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
 
             # Gradient
             grad = QLinearGradient( px, py, dw, dh )
@@ -785,7 +786,7 @@ class Channel_Slider( QWidget ):
                 color = QColor( r, g, b, k )
                 grad.setColorAt( loc, color )
             painter.setBrush( QBrush( grad ) )
-            painter.setPen( QtCore.Qt.NoPen )
+            painter.setPen( QtCore.Qt.PenStyle.NoPen )
             square = QPolygon( [
                 QPoint( int( px ),  int( py ) ),
                 QPoint( int( dw ), int( py ) ),
@@ -798,7 +799,7 @@ class Channel_Slider( QWidget ):
             ht = 6
             hb = self.hh - ht
             # Triangles
-            painter.setBrush( QtCore.Qt.NoBrush )
+            painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
             if self.slider_mode == "LINEAR":
                 tl = None
                 tn = QPolygon( [
@@ -931,11 +932,11 @@ class Channel_Slider( QWidget ):
                         QPoint( ex_pd_r, hb ),
                         QPoint( ex_pc_n, hb ),
                         ] )
-            painter.setPen( QPen( self.c_black, line_back, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin ) )
+            painter.setPen( QPen( self.c_black, line_back, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.RoundCap, QtCore.Qt.PenJoinStyle.RoundJoin ) )
             if tl != None:  painter.drawPolygon( tl )
             if tn != None:  painter.drawPolygon( tn )
             if tr != None:  painter.drawPolygon( tr )
-            painter.setPen( QPen( self.c_white, line_size, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin ) )
+            painter.setPen( QPen( self.c_white, line_size, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.RoundCap, QtCore.Qt.PenJoinStyle.RoundJoin ) )
             if tl != None:  painter.drawPolygon( tl )
             if tn != None:  painter.drawPolygon( tn )
             if tr != None:  painter.drawPolygon( tr )
@@ -952,7 +953,7 @@ class Channel_Slider( QWidget ):
                 top2 = 1
                 bot2 = self.hh - 1
                 # Black Square
-                painter.setPen( QtCore.Qt.NoPen )
+                painter.setPen( QtCore.Qt.PenStyle.NoPen )
                 painter.setBrush( self.brush_black )
                 black = QPolygon( [
                     QPoint( int( bl ), int( top1 ) ),
@@ -962,7 +963,7 @@ class Channel_Slider( QWidget ):
                     ] )
                 painter.drawPolygon( black )
                 # White Square
-                painter.setPen( QtCore.Qt.NoPen )
+                painter.setPen( QtCore.Qt.PenStyle.NoPen )
                 painter.setBrush( self.brush_white )
                 square = QPolygon( [
                     QPoint( int( wl ), int( top2 ) ),

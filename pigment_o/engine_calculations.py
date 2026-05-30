@@ -20,10 +20,12 @@
 # Python
 import math
 import sys
+
 # Krita Module
 from krita import *
-# PyQt5
-from PyQt5 import QtCore
+# PyQt6
+from PyQt6 import QtCore
+from PyQt6.QtWidgets import QMessageBox, QWidget
 # Picker
 from .engine_constants import *
 
@@ -53,7 +55,7 @@ def Message_Log( operation, message ):
     except:pass
 def Message_Warnning( operation, message ):
     string = f"{ DOCKER_NAME } | { operation.upper() } { message }"
-    QMessageBox.information( QWidget(), i18n( "Warnning" ), i18n( string ) )
+    QMessageBox.information( QWidget(), i18n( "Warning" ), i18n( string ) )
 def Message_Float( operation, message, icon ):
     ki = Krita.instance()
     string = f"{ DOCKER_NAME } | { operation.upper() } { message }"

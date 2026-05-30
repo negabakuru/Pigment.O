@@ -27,10 +27,14 @@ import re
 import math
 import zipfile
 import shutil
+
+from PyQt6.QtCore import QByteArray, QBuffer, QIODevice, QSize, QPoint, QEvent
+from PyQt6.QtGui import QPixmap, QColor, QIcon, QImageReader, QBrush, QCursor, QImage
+from PyQt6.QtWidgets import QDialog, QApplication, QMenu, QListWidgetItem
 # Krita
 from krita import *
 # PyQt5
-from PyQt5 import QtWidgets, QtCore, QtGui, uic
+from PyQt6 import QtWidgets, QtCore, QtGui, uic
 # Engine
 from .engine_name import *
 from .engine_constants import *
@@ -1110,7 +1114,7 @@ class Picker_Docker( DockWidget ):
         self.dialog.key_3_unit.valueChanged.connect( self.Key_3_Unit );       self.dialog.key_3_unit.setValue( self.key_3_unit );       self.Key_3_Unit( self.key_3_unit )
         self.dialog.key_4_unit.valueChanged.connect( self.Key_4_Unit );       self.dialog.key_4_unit.setValue( self.key_4_unit );       self.Key_4_Unit( self.key_4_unit )
         # Reference
-        self.dialog.name_display.clicked.connect( self.Name_Display );
+        self.dialog.name_display.clicked.connect( self.Name_Display )
         self.dialog.name_closest.clicked.connect( self.Name_Closest )
 
         #endregion
@@ -1560,7 +1564,7 @@ class Picker_Docker( DockWidget ):
         return convert
     def API_Color_Interpolate( self, mode, color_l, color_r, factor ):
         # requires a pigmento color object
-        interpolate = self.Color_Interpolate_2( mode, mode, color_l, color_r, factor )
+        interpolate = self.Color_Interpolate_2( mode, color_l, color_r, factor )
         return interpolate
     # Write
     def API_Input_Preview( self, mode, var_1, var_2, var_3, var_4 ):
@@ -4883,7 +4887,7 @@ class Picker_Docker( DockWidget ):
         widget = self.layout.history_set.mapToGlobal( self.layout.history_list.geometry().topLeft() )
         mouse = event.pos()
         qpoint = QPoint( widget.x()+mouse.x(), widget.y()+mouse.y() )
-        action = qmenu.exec_( qpoint )
+        action = qmenu.exec( qpoint )
         if action == action_clear:
             self.layout.history_list.clear()
 
@@ -4965,7 +4969,7 @@ class Picker_Docker( DockWidget ):
         geo = self.layout.mode.geometry()
         qpoint = geo.bottomLeft()
         position = self.layout.footer.mapToGlobal( qpoint )
-        action = qmenu.exec_( position )
+        action = qmenu.exec( position )
         # Triggers
         if action == action_on:
             self.Mode_Index( 0 )
@@ -6011,7 +6015,7 @@ class Picker_Docker( DockWidget ):
             # Scale
             size = 200
             if qimage.width() > size and qimage.height() > size:
-                qimage = qimage.scaled( size, size, QtCore.Qt.KeepAspectRatio, QtCore.Qt.FastTransformation )
+                qimage = qimage.scaled( size, size, QtCore.Qt.AspectRatioMode.KeepAspectRatio, QtCore.Qt.TransformationMode.FastTransformation )
             # Variables
             width = qimage.width()
             height = qimage.height()
@@ -6269,8 +6273,8 @@ class Picker_Docker( DockWidget ):
         if self.panel_mode == panel_luma:                                   geometry = "Y4"
         # Operation Confirmation
         message = f"This operation will take a couple of minutes\nCreate { self.kdocument['cmodel'] }_{ space }_{ geometry }.zip ?"
-        boolean = QMessageBox.question( QWidget(), DOCKER_PICKER, message, QMessageBox.Yes, QMessageBox.Abort )
-        if boolean == QMessageBox.Yes:
+        boolean = QMessageBox.question( QWidget(), DOCKER_PICKER, message, QMessageBox.StandardButton.Yes, QMessageBox.StandardButton.Abort )
+        if boolean == QMessageBox.StandardButton.Yes:
             self.Print_Process( space, geometry )
     # Worker
     def Print_Process( self, space, geometry ):
@@ -6357,7 +6361,7 @@ class Picker_Docker( DockWidget ):
     def eventFilter( self, source, event ):
         # Event
         et = event.type()
-        modifier_all = QtCore.Qt.ShiftModifier | QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier
+        modifier_all = QtCore.Qt.KeyboardModifier.ShiftModifier | QtCore.Qt.KeyboardModifier.ControlModifier | QtCore.Qt.KeyboardModifier.AltModifier
         # Panels
         panels = [
             # Panel
@@ -6384,17 +6388,17 @@ class Picker_Docker( DockWidget ):
             self.layout.pin_set,
             self.layout.history_set,
             ]
-        if ( et == QEvent.Resize and source in panels ):
+        if ( et == QEvent.Type.Resize and source in panels ):
             self.Size_Update()
-        if ( et == QEvent.ContextMenu and source == self.layout.history_list ):
+        if ( et == QEvent.Type.ContextMenu and source == self.layout.history_list ):
             self.History_Menu( event )
         # Mode
-        if ( et == QEvent.MouseButtonPress and source is self.layout.mode ):
+        if ( et == QEvent.Type.MouseButtonPress and source is self.layout.mode ):
             self.Mode_Press( event )
-        if ( et == QEvent.Wheel and source is self.layout.mode ):
+        if ( et == QEvent.Type.Wheel and source is self.layout.mode ):
             self.Mode_Wheel( event )
         # Settings
-        if ( et == QEvent.MouseButtonPress and event.modifiers() == modifier_all and source is self.layout.settings ):
+        if ( et == QEvent.Type.MouseButtonPress and event.modifiers() == modifier_all and source is self.layout.settings ):
             self.Size_Standard()
         return super().eventFilter( source, event )
     # Krita Canvas
@@ -6518,7 +6522,7 @@ class Worker_Print( QtCore.QObject ):
                 self.source.dialog.progress_bar.setValue( t+1 )
                 QApplication.processEvents()
                 # Base Image to Edit
-                qimage = QImage( qsize, QImage.Format_RGB32 )
+                qimage = QImage( qsize, QImage.Format.Format_RGB32 )
                 qimage.fill( qcolor )
                 # Range
                 for y in range( 0, depth ):
@@ -6558,7 +6562,7 @@ class Worker_Print( QtCore.QObject ):
                 self.source.dialog.progress_bar.setValue( t+1 )
                 QApplication.processEvents()
                 # Base Image to Edit
-                qimage = QImage( qsize, QImage.Format_RGB32 )
+                qimage = QImage( qsize, QImage.Format.Format_RGB32 )
                 qimage.fill( qcolor )
                 # Range
                 for y in range( 0, depth ):
@@ -6603,7 +6607,7 @@ class Worker_Print( QtCore.QObject ):
                 self.source.dialog.progress_bar.setValue( t+1 )
                 QApplication.processEvents()
                 # Base Image to Edit
-                qimage = QImage( qsize, QImage.Format_RGB32 )
+                qimage = QImage( qsize, QImage.Format.Format_RGB32 )
                 qimage.fill( qcolor )
                 # Range
                 for y in range( 0, depth ):
@@ -6639,7 +6643,7 @@ class Worker_Print( QtCore.QObject ):
                 self.source.dialog.progress_bar.setValue( t+1 )
                 QApplication.processEvents()
                 # Base Image to Edit
-                qimage = QImage( qsize, QImage.Format_RGB32 )
+                qimage = QImage( qsize, QImage.Format.Format_RGB32 )
                 qimage.fill( qcolor )
                 # Range
                 for y in range( 0, depth ):

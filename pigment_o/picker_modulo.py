@@ -13,14 +13,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-
+from PyQt6.QtCore import QPoint, QPointF, QRect
+from PyQt6.QtGui import QImageReader, QPainterPath, QBrush, QColor, QPainter, QPen, QPolygon, QRegion, QConicalGradient, \
+    QTransform, QImage, QPixmap, QLinearGradient
+from PyQt6.QtWidgets import QMenu, QApplication
 #region Imports
 
 # Krita Module
 from krita import *
 # PyQt5 Modules
-from PyQt5 import QtWidgets, QtCore, QtGui, uic
+from PyQt6 import QtWidgets, QtCore, QtGui, uic
 # Picker
 from .engine_constants import *
 from .engine_calculations import *
@@ -87,7 +89,7 @@ def Cursor_Normal( painter, ex, ey, size1 ):
         )
     painter.setClipPath( mask )
     # Black Circle
-    painter.setPen( QtCore.Qt.NoPen )
+    painter.setPen( QtCore.Qt.PenStyle.NoPen )
     painter.setBrush( QBrush( QColor( "#000000" ) ) )
     painter.drawEllipse( 
         int( ex - size1 ),
@@ -96,7 +98,7 @@ def Cursor_Normal( painter, ex, ey, size1 ):
         int( size2 ),
         )
     # White Circle
-    painter.setPen( QtCore.Qt.NoPen )
+    painter.setPen( QtCore.Qt.PenStyle.NoPen )
     painter.setBrush( QBrush( QColor( "#ffffff" ) ) )
     painter.drawEllipse( 
         int( ex - size1 + w1 ),
@@ -106,7 +108,7 @@ def Cursor_Normal( painter, ex, ey, size1 ):
         )
 def Cursor_Zoom( painter, ex, ey, zoom_size, margin_size, hex_color ):
     # Border
-    painter.setPen( QtCore.Qt.NoPen )
+    painter.setPen( QtCore.Qt.PenStyle.NoPen )
     painter.setBrush( QBrush( QColor( "#000000" ) ) )
     painter.drawEllipse( 
         int( ex - zoom_size ),
@@ -214,7 +216,7 @@ class Color_Header( QWidget ):
         qmenu_random = qmenu.addAction( "Random" )
         qmenu_complementary = qmenu.addAction( "Complementary" )
         # Map
-        action = qmenu.exec_( self.mapToGlobal( event.pos() ) )
+        action = qmenu.exec( self.mapToGlobal( event.pos() ) )
         # Triggers
         if action == qmenu_swap:
             self.SIGNAL_SWAP.emit()
@@ -236,8 +238,8 @@ class Color_Header( QWidget ):
     def paintEvent( self, event ):
         # Start Painter
         painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
-        painter.setPen( QtCore.Qt.NoPen )
+        painter.setRenderHint( QtGui.QPainter.RenderHint.Antialiasing, True )
+        painter.setPen( QtCore.Qt.PenStyle.NoPen )
 
         # Variable
         w1 = self.ww + 1
@@ -275,7 +277,7 @@ class Color_Header( QWidget ):
                     painter.drawRect( int( 0 ), int( 0 ), int( self.other_a ), int( self.hh ) )
         else:
             painter.setBrush( QBrush( self.brush ) )
-            painter.setPen( QPen( self.pen, 15, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+            painter.setPen( QPen( self.pen, 15, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
             painter.drawRect( int( 0 ), int( 0 ), int( w1 ), int( self.hh ) )
 
 class Harmony_Swatch( QWidget ):
@@ -339,7 +341,7 @@ class Harmony_Swatch( QWidget ):
         self.update()
     # Signals
     def Index_Signal( self, event ):
-        self.ex = Limit_Range( event.x(), 0, self.ww )
+        self.ex = Limit_Range( event.position().x(), 0, self.ww )
         percentage = self.ex / self.ww
         self.harmony_index = Limit_Range( int( percentage * self.harmony_parts ), 0, self.harmony_parts - 1 ) + 1
         self.SIGNAL_HARMONY_INDEX.emit( self.harmony_index )
@@ -348,14 +350,14 @@ class Harmony_Swatch( QWidget ):
     def paintEvent( self, event ):
         # Start Qpainter
         painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
+        painter.setRenderHint( QtGui.QPainter.RenderHint.Antialiasing, True )
 
         # Correct Variable Range
         self.harmony_index = Limit_Range( self.harmony_index, 0, self.harmony_parts )
 
         # Swatch
         points = list()
-        painter.setPen( QtCore.Qt.NoPen )
+        painter.setPen( QtCore.Qt.PenStyle.NoPen )
         unit = int( self.ww / self.harmony_parts ) + 1
         for i in range( 0, self.harmony_parts ):
             # Variables
@@ -370,10 +372,10 @@ class Harmony_Swatch( QWidget ):
         # Index Cursor
         if self.harmony_index != 0:
             px = int( points[ self.harmony_index - 1 ] + unit * 0.5 )
-            painter.setBrush( QtCore.Qt.NoBrush )
-            painter.setPen( QPen( self.c_black, 6, Qt.SolidLine, Qt.FlatCap, Qt.MiterJoin ) )
+            painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
+            painter.setPen( QPen( self.c_black, 6, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.FlatCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
             painter.drawLine( px - 5, self.h2, px + 5, self.h2 )
-            painter.setPen( QPen( self.c_white, 2, Qt.SolidLine, Qt.FlatCap, Qt.MiterJoin ) )
+            painter.setPen( QPen( self.c_white, 2, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.FlatCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
             painter.drawLine( px - 4, self.h2, px + 4, self.h2 )
 class Harmony_Span( QWidget ):
     SIGNAL_SPAN = QtCore.pyqtSignal( float )
@@ -416,34 +418,34 @@ class Harmony_Span( QWidget ):
     def mousePressEvent( self, event ):
         eb = event.buttons()
         em = event.modifiers()
-        ex = event.x()
-        if ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.ShiftModifier ):
+        ex = event.position().x()
+        if ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.ShiftModifier ):
             self.Range_Width( ex )
-        if ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.ControlModifier ):
+        if ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.ControlModifier ):
             self.Range_Pin( ex )
     def mouseMoveEvent( self, event ):
         eb = event.buttons()
         em = event.modifiers()
-        ex = event.x()
-        if ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.ShiftModifier ):
+        ex = event.position().x()
+        if ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.ShiftModifier ):
             self.Range_Width( ex )
-        if ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.ControlModifier ):
+        if ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.ControlModifier ):
             self.Range_Pin( ex )
     def mouseDoubleClickEvent( self, event ):
         eb = event.buttons()
         em = event.modifiers()
-        ex = event.x()
-        if ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.ShiftModifier ):
+        ex = event.position().x()
+        if ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.ShiftModifier ):
             self.Range_Width( ex )
-        if ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.ControlModifier ):
+        if ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.ControlModifier ):
             self.Range_Pin( ex )
     def mouseReleaseEvent( self, event ):
         eb = event.buttons()
         em = event.modifiers()
-        ex = event.x()
-        if ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.ShiftModifier ):
+        ex = event.position().x()
+        if ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.ShiftModifier ):
             self.Range_Width( ex )
-        if ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.ControlModifier ):
+        if ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.ControlModifier ):
             self.Range_Pin( ex )
         self.SIGNAL_RELEASE.emit( 0 )
     # Signals
@@ -498,7 +500,7 @@ class Harmony_Span( QWidget ):
     def paintEvent( self, event ):
         # Start Qpainter
         painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
+        painter.setRenderHint( QtGui.QPainter.RenderHint.Antialiasing, True )
 
         # Variables
         if self.harmony_rule in self.no_span:
@@ -511,10 +513,10 @@ class Harmony_Span( QWidget ):
                 width = 1
 
         # Harmony Angle
-        painter.setPen( QtCore.Qt.NoPen )
+        painter.setPen( QtCore.Qt.PenStyle.NoPen )
         painter.setBrush( QBrush( self.c_black ) )
         painter.drawRect( int( px ), int( 1 ), int( width ), int( 8 ) )
-        painter.setPen( QtCore.Qt.NoPen )
+        painter.setPen( QtCore.Qt.PenStyle.NoPen )
         painter.setBrush( QBrush( self.c_white ) )
         painter.drawRect( int( px + 1 ), int( 2 ), int( width - 2 ), int( 6 ) )
 
@@ -549,9 +551,9 @@ class Panel_Fill( QWidget ):
     def paintEvent( self, event ):
         # Painter
         painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
+        painter.setRenderHint( QtGui.QPainter.RenderHint.Antialiasing, True )
         # Draw Pixmaps
-        painter.setPen( QtCore.Qt.NoPen )
+        painter.setPen( QtCore.Qt.PenStyle.NoPen )
         painter.setBrush( QBrush( self.hex_color ) )
         painter.drawRect( 0, 0, self.ww, self.hh )
 
@@ -622,7 +624,7 @@ class Panel_Square( QWidget ):
                 QPoint( self.ww + 1, self.h2 ),
                 QPoint( -1, self.hh + 1 ),
                 ] )
-            triangle = QRegion( polygon, Qt.OddEvenFill )
+            triangle = QRegion( polygon, QtCore.Qt.FillRule.OddEvenFill )
             self.setMask( triangle )
         if self.hue_shape == "SQUARE":
             polygon = QPolygon( [
@@ -631,7 +633,7 @@ class Panel_Square( QWidget ):
                 QPoint( self.ww + 1, self.hh + 1 ),
                 QPoint( -1, self.hh + 1 ),
                 ] )
-            square = QRegion( polygon, Qt.OddEvenFill )
+            square = QRegion( polygon, QtCore.Qt.FillRule.OddEvenFill )
             self.setMask( square )
         if self.hue_shape == "DIAMOND":
             polygon = QPolygon( [
@@ -640,7 +642,7 @@ class Panel_Square( QWidget ):
                 QPoint( self.w2, self.hh + 1 ),
                 QPoint( -1, self.h2 ),
                 ] )
-            diamond = QRegion( polygon, Qt.OddEvenFill )
+            diamond = QRegion( polygon, QtCore.Qt.FillRule.OddEvenFill )
             self.setMask( diamond )
         # Update
         self.resize( ww, hh )
@@ -738,47 +740,47 @@ class Panel_Square( QWidget ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # Variables
         self.ox = ex
         self.oy = ey
         self.ot = self.v1
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Position( ex, ey, False )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Position( ex, ey, True )
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):  pass
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):      self.Cursor_Snap( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Position( ex, ey, False )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Position( ex, ey, True )
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):  pass
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):      self.Cursor_Snap( ex, ey )
         # RMB
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.RightButton ):     self.Cursor_Snap( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.RightButton ):     self.Cursor_Snap( ex, ey )
         self.update()
     def mouseMoveEvent( self, event ):
         # Events
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Position( ex, ey, False )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Position( ex, ey, True )
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):  self.Cursor_Tangent( ex )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):      self.Cursor_Snap( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Position( ex, ey, False )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Position( ex, ey, True )
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):  self.Cursor_Tangent( ex )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):      self.Cursor_Snap( ex, ey )
         # RMB
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.RightButton ):     self.Cursor_Position( ex, ey, False )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.RightButton ):     self.Cursor_Position( ex, ey, False )
         self.update()
     def mouseDoubleClickEvent( self, event ):
         # Events
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Position( ex, ey, False )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Position( ex, ey, True )
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):  self.Cursor_Tangent( ex )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):      self.Cursor_Snap( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Position( ex, ey, False )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Position( ex, ey, True )
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):  self.Cursor_Tangent( ex )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):      self.Cursor_Snap( ex, ey )
         # RMB
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.RightButton ):     self.Cursor_Position( ex, ey, False )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.RightButton ):     self.Cursor_Position( ex, ey, False )
         self.update()
     def mouseReleaseEvent( self, event ):
         # Variables
@@ -884,7 +886,7 @@ class Panel_Square( QWidget ):
     def paintEvent( self, event ):
         # Painter
         painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
+        painter.setRenderHint( QtGui.QPainter.RenderHint.Antialiasing, True )
 
         # Variables
         dot1 = 5
@@ -909,18 +911,18 @@ class Panel_Square( QWidget ):
                 painter.setClipPath( diamond )
             try:
                 # Draw Pixmaps
-                painter.setPen( QtCore.Qt.NoPen )
-                painter.setBrush( QtCore.Qt.NoBrush )
+                painter.setPen( QtCore.Qt.PenStyle.NoPen )
+                painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
                 index = int( self.v1 * self.axis )
                 qpixmap = self.gradient[index]
-                render = qpixmap.scaled( self.ww, self.hh, Qt.IgnoreAspectRatio, Qt.FastTransformation )
+                render = qpixmap.scaled( self.ww, self.hh, QtCore.Qt.AspectRatioMode.IgnoreAspectRatio, QtCore.Qt.TransformationMode.FastTransformation )
                 painter.drawPixmap( 0, 0, render )
             except:
                 pass
 
         # Analyse Colors
         if self.analyse_list != None:
-            painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+            painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
             painter.setBrush( QBrush( self.c_gray ) )
             hue = int( self.v1 * 360 )
             if hue == 360:
@@ -945,7 +947,7 @@ class Panel_Square( QWidget ):
 
         # Pinned Colors
         if self.pin_list != None:
-            painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+            painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
             painter.setBrush( QBrush( self.c_white ) )
             for pin in self.pin_list:
                 if pin["active"] == True:
@@ -989,14 +991,14 @@ class Panel_Square( QWidget ):
                 points.append( [ har_x, har_y ] )
             length = len( points )
             # Draw Line
-            painter.setPen( QPen( self.c_white, line_poly, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin ) )
-            painter.setBrush( QtCore.Qt.NoBrush )
+            painter.setPen( QPen( self.c_white, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.RoundCap, QtCore.Qt.PenJoinStyle.RoundJoin ) )
+            painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
             for i in range( 1, length ):
                 painter.drawLine( int( points[i-1][0] ), int( points[i-1][1] ), int( points[i][0] ), int( points[i][1] ) )
             if self.harmony_rule in [ harmony_3, harmony_4 ]:
                 painter.drawLine( int( points[0][0] ), int( points[0][1] ), int( points[length-1][0] ), int( points[length-1][1] ) )
             # Draw Points
-            painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin ) )
+            painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.RoundCap, QtCore.Qt.PenJoinStyle.RoundJoin ) )
             painter.setBrush( QBrush( self.c_white ) )
             for i in range( 0, length ):
                 painter.drawEllipse( int( points[i][0] - dot1 ), int( points[i][1] - dot1 ), int( dot2 ), int( dot2 ) )
@@ -1079,7 +1081,7 @@ class Panel_Hue_Circle( QWidget ):
             int( 0 ),
             int( self.ww ),
             int( self.hh ),
-            QRegion.Rectangle
+            QRegion.RegionType.Rectangle
             )
         if hue_shape == "None":
             mask_region = widget_square
@@ -1099,7 +1101,7 @@ class Panel_Hue_Circle( QWidget ):
                 QPoint( int( self.px + tx * self.side ),             int( self.py + self.side - ty * self.side + pad ) ),
                 QPoint( int( self.px + tx * self.side - pad ),       int( self.py + self.side - ty * self.side ) ),
                 ] )
-            triangle = QRegion( polygon, Qt.OddEvenFill )
+            triangle = QRegion( polygon, QtCore.Qt.FillRule.OddEvenFill )
             mask_region = widget_square.subtracted( triangle )
         if hue_shape == "SQUARE":
             sk = 0.2
@@ -1108,7 +1110,7 @@ class Panel_Hue_Circle( QWidget ):
                 int( self.py + self.side * sk - pad ),
                 int( self.side - ( 2 * sk * self.side ) + ( 2 * pad ) ),
                 int( self.side - ( 2 * sk * self.side ) + ( 2 * pad ) ),
-                QRegion.Rectangle
+                QRegion.RegionType.Rectangle
                 )
             mask_region = widget_square.subtracted( square )
         if hue_shape == "DIAMOND":
@@ -1120,11 +1122,11 @@ class Panel_Hue_Circle( QWidget ):
                     QPoint( int( self.w2 ),                         int( self.h2 + self.side * dk + pad ) ),
                     QPoint( int( self.w2 - self.side * dk - pad ),  int( self.h2 ) ),
                     ] )
-            diamond = QRegion( polygon, Qt.OddEvenFill )
+            diamond = QRegion( polygon, QtCore.Qt.FillRule.OddEvenFill )
             mask_region = widget_square.subtracted( diamond )
 
         # Mask
-        mask_circle = QRegion( int( self.px ), int( self.py ), int( self.side ), int( self.side ), QRegion.Ellipse )
+        mask_circle = QRegion( int( self.px ), int( self.py ), int( self.side ), int( self.side ), QRegion.RegionType.Ellipse )
         mask = mask_circle.intersected( mask_region )
         self.setMask( mask )
 
@@ -1166,7 +1168,7 @@ class Panel_Hue_Circle( QWidget ):
             [ 255, 000, 255 ], # Index = 6 > magenta
             ]
         if self.wheel_mode == "DIGITAL":
-            hue_shine = QConicalGradient( QPoint( w2, h2 ), 180 )
+            hue_shine = QConicalGradient( QPointF( w2, h2 ), 180 )
             hue_shine.setColorAt( 0.000, QColor( shine[0][0], shine[0][1], shine[0][2] ) ) # RED
             hue_shine.setColorAt( 0.166, QColor( shine[6][0], shine[6][1], shine[6][2] ) ) # MAGENTA
             hue_shine.setColorAt( 0.333, QColor( shine[5][0], shine[5][1], shine[5][2] ) ) # BLUE
@@ -1175,7 +1177,7 @@ class Panel_Hue_Circle( QWidget ):
             hue_shine.setColorAt( 0.833, QColor( shine[2][0], shine[2][1], shine[2][2] ) ) # YELLOW
             hue_shine.setColorAt( 1.000, QColor( shine[0][0], shine[0][1], shine[0][2] ) ) # RED
         if self.wheel_mode == "ANALOG":
-            hue_shine = QConicalGradient( QPoint( w2, h2 ), 210 )
+            hue_shine = QConicalGradient( QPointF( w2, h2 ), 210 )
             hue_shine.setColorAt( 0.000, QColor( shine[0][0], shine[0][1], shine[0][2] ) ) # RED
             hue_shine.setColorAt( 0.083, QColor( shine[6][0], shine[6][1], shine[6][2] ) ) # MAGENTA
             hue_shine.setColorAt( 0.236, QColor( shine[5][0], shine[5][1], shine[5][2] ) ) # BLUE
@@ -1187,19 +1189,19 @@ class Panel_Hue_Circle( QWidget ):
         return hue_shine
     # Mouse Interaction
     def mousePressEvent( self, event ):
-        if event.buttons() == QtCore.Qt.LeftButton:
+        if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
             angle = self.Cursor_Angle( event )
             if self.harmony_list != None:
                 self.Cursor_Harmony( angle )
             self.Cursor_Signal( angle )
         self.update()
     def mouseMoveEvent( self, event ):
-        if event.buttons() == QtCore.Qt.LeftButton:
+        if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
             angle = self.Cursor_Angle( event )
             self.Cursor_Signal( angle )
         self.update()
     def mouseDoubleClickEvent( self, event ):
-        if event.buttons() == QtCore.Qt.LeftButton:
+        if event.buttons() == QtCore.Qt.MouseButton.LeftButton:
             angle = self.Cursor_Angle( event )
             self.Cursor_Signal( angle )
         self.update()
@@ -1210,19 +1212,19 @@ class Panel_Hue_Circle( QWidget ):
     def Cursor_Angle( self, event ):
         # Variables
         em = event.modifiers()
-        ex = event.x()
-        ey = self.hh - event.y()
+        ex = event.position().x()
+        ey = self.hh - event.position().y()
         limit = 2.5
         # Angle Measure
         if self.wheel_mode == "DIGITAL":
             angle = Trig_2D_Points_Lines_Angle( ex, ey, self.w2, self.h2, 0, self.h2 )
-            if em == QtCore.Qt.ShiftModifier:   angle = int( angle )
-            if em == QtCore.Qt.ControlModifier: angle = Limit_Angle( angle, limit )
+            if em == QtCore.Qt.KeyboardModifier.ShiftModifier:   angle = int( angle )
+            if em == QtCore.Qt.KeyboardModifier.ControlModifier: angle = Limit_Angle( angle, limit )
             angle = angle / 360
         elif self.wheel_mode == "ANALOG":
             angle = Trig_2D_Points_Lines_Angle( ex, ey, self.w2, self.h2, self.ax, self.ay )
-            if em == QtCore.Qt.ShiftModifier:   angle = int( angle )
-            if em == QtCore.Qt.ControlModifier: angle = Limit_Angle( angle, limit )
+            if em == QtCore.Qt.KeyboardModifier.ShiftModifier:   angle = int( angle )
+            if em == QtCore.Qt.KeyboardModifier.ControlModifier: angle = Limit_Angle( angle, limit )
             angle = Limit_Looper( angle, 360 ) / 360
         return angle
     def Cursor_Harmony( self, angle ):
@@ -1242,7 +1244,7 @@ class Panel_Hue_Circle( QWidget ):
     def paintEvent( self, event ):
         # Painter
         painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
+        painter.setRenderHint( QtGui.QPainter.RenderHint.Antialiasing, True )
 
         # Variables
         line_width = 4
@@ -1268,12 +1270,12 @@ class Panel_Hue_Circle( QWidget ):
                     list_pin.append( [ px, py ] )
 
         # Dark Border
-        painter.setPen( QtCore.Qt.NoPen )
+        painter.setPen( QtCore.Qt.PenStyle.NoPen )
         painter.setBrush( QBrush( self.c_dark ) )
         painter.drawPath( self.circle_02 )
         # Dark Lines Color Reference
-        painter.setPen( QPen( self.c_dark, line_width, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
-        painter.setBrush( QtCore.Qt.NoBrush )
+        painter.setPen( QPen( self.c_dark, line_width, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
+        painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
         if self.wheel_mode == "DIGITAL":
             for digital in circle_digital:
                 px, py = Trig_2D_Angle_Circle( self.w2, self.h2, self.side, radius - margin, digital )
@@ -1286,14 +1288,14 @@ class Panel_Hue_Circle( QWidget ):
         # Gradients
         hue_shine = self.Conical_Gradient( self.w2, self.h2 )
         # Hue Gradient
-        painter.setPen( QtCore.Qt.NoPen )
+        painter.setPen( QtCore.Qt.PenStyle.NoPen )
         painter.setBrush( QBrush( hue_shine ) )
         painter.setClipPath( self.circle_01 )
         painter.drawRect( int( self.px ), int( self.py ), int( self.side ), int( self.side ) )
 
         # Light Line
-        painter.setPen( QPen( self.c_lite, line_width, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
-        painter.setBrush( QtCore.Qt.NoBrush )
+        painter.setPen( QPen( self.c_lite, line_width, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
+        painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
         if length > 0:
             line_gray = QPainterPath()
             for point in list_point:
@@ -1303,8 +1305,8 @@ class Panel_Hue_Circle( QWidget ):
             painter.drawPath( line_gray )
         # Pinned Colors
         if self.pin_list != None:
-            painter.setPen( QPen( self.c_lite, line_width, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
-            painter.setBrush( QtCore.Qt.NoBrush )
+            painter.setPen( QPen( self.c_lite, line_width, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
+            painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
             line_gray = QPainterPath()
             for pin in list_pin:
                 line_gray.moveTo( int( self.w2 ), int( self.h2 ) )
@@ -1312,8 +1314,8 @@ class Panel_Hue_Circle( QWidget ):
             painter.setClipPath( self.circle_12 )
             painter.drawPath( line_gray )
         # Dark Line over Hue
-        painter.setPen( QPen( self.c_dark, line_width, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
-        painter.setBrush( QtCore.Qt.NoBrush )
+        painter.setPen( QPen( self.c_dark, line_width, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
+        painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
         painter.setClipPath( self.circle_01 )
         for point in list_point:
             painter.drawLine( int( point[0] ), int( point[1] ), int( self.w2 ), int( self.h2 ) )
@@ -1368,7 +1370,7 @@ class Panel_Gamut( QWidget ):
         self.v1 = 0 # 0-360 event tangent
         self.v2 = 0
         self.v3 = 0
-        self.mod_3 = QtCore.Qt.ShiftModifier | QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier
+        self.mod_3 = QtCore.Qt.KeyboardModifier.ShiftModifier | QtCore.Qt.KeyboardModifier.ControlModifier | QtCore.Qt.KeyboardModifier.AltModifier
         self.previous_distance = 0
         self.previous_rotation = 0
 
@@ -1495,8 +1497,8 @@ class Panel_Gamut( QWidget ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # Variables
         self.ox = ex
         self.oy = ey
@@ -1510,22 +1512,22 @@ class Panel_Gamut( QWidget ):
         self.mask = distance > self.side * 0.5
         self.gamut_list = self.Gamut_List()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):
             self.Cursor_Position( ex, ey, em, True )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):
             if self.region == True:    self.zoom = True
             self.Cursor_Position( ex, ey, em )
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):
             if self.region == False:    self.Cursor_Position( ex, ey, em )
             if self.region == True:     self.Disk_Tangent( ex, ey )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):
             if self.region == False:    pass
             if self.region == True:     self.Disk_Snap( ex, ey )
-        if ( eb == QtCore.Qt.LeftButton and em == self.mod_3 ):
+        if ( eb == QtCore.Qt.MouseButton.LeftButton and em == self.mod_3 ):
             if self.region == False:    pass
             if self.region == True:     self.previous_rotation = self.Previous_Rotation()
         # RMB
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.RightButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.RightButton ):
             if self.region == False:    pass
             if self.region == True:     self.Disk_Snap( ex, ey )
         # Update
@@ -1534,25 +1536,25 @@ class Panel_Gamut( QWidget ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):
             self.Cursor_Position( ex, ey, em )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):
             if self.region == True:    self.zoom = True
             self.Cursor_Position( ex, ey, em )
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):
             if self.region == False:    self.Cursor_Position( ex, ey, em )
             if self.region == True:     self.Disk_Tangent( ex, ey )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):
             if self.region == False:    pass
             if self.region == True:     self.Disk_Snap( ex, ey )
-        if ( eb == QtCore.Qt.LeftButton and em == self.mod_3 ):
+        if ( eb == QtCore.Qt.MouseButton.LeftButton and em == self.mod_3 ):
             if self.region == False:    pass
             if self.region == True:     self.Disk_Rotation( ex, ey )
         # RMB
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.RightButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.RightButton ):
             if self.region == False:    pass
             if self.region == True:     self.Cursor_Position( ex, ey, em )
         # Update
@@ -1561,25 +1563,25 @@ class Panel_Gamut( QWidget ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):
             self.Cursor_Position( ex, ey, em )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):
             if self.region == True:    self.zoom = True
             self.Cursor_Position( ex, ey, em )
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):
             if self.region == False:    self.Cursor_Position( ex, ey, em )
             if self.region == True:     self.Disk_Tangent( ex, ey )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):
             if self.region == False:    pass
             if self.region == True:     self.Disk_Snap( ex, ey )
-        if ( eb == QtCore.Qt.LeftButton and em == self.mod_3 ):
+        if ( eb == QtCore.Qt.MouseButton.LeftButton and em == self.mod_3 ):
             if self.region == False:    pass
             if self.region == True:     self.Disk_Rotation( ex, ey )
         # RMB
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.RightButton ):
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.RightButton ):
             if self.region == False:    pass
             if self.region == True:     self.Cursor_Position( ex, ey, em )
         # Update
@@ -1606,8 +1608,8 @@ class Panel_Gamut( QWidget ):
         if self.mask == False:
             # Hue
             angle = Trig_2D_Points_Lines_Angle( 0, self.h2, self.w2, self.h2, ex, ey )
-            if em == QtCore.Qt.ShiftModifier:   angle = int( angle)
-            if em == QtCore.Qt.ControlModifier: angle = Limit_Angle( angle, 2.5 )
+            if em == QtCore.Qt.KeyboardModifier.ShiftModifier:   angle = int( angle)
+            if em == QtCore.Qt.KeyboardModifier.ControlModifier: angle = Limit_Angle( angle, 2.5 )
             if self.wheel_mode == "DIGITAL":    hue = angle / 360
             if self.wheel_mode == "ANALOG":     hue = Limit_Looper( angle + hue_a, 360 ) / 360
             # Saturation
@@ -1757,7 +1759,7 @@ class Panel_Gamut( QWidget ):
     def paintEvent( self, event ):
         # Painter
         painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
+        painter.setRenderHint( QtGui.QPainter.RenderHint.Antialiasing, True )
 
         # Variables
         line_width = 5
@@ -1786,12 +1788,12 @@ class Panel_Gamut( QWidget ):
                     list_pin.append( [ px, py ] )
 
         # Dark Border
-        painter.setPen( QtCore.Qt.NoPen )
+        painter.setPen( QtCore.Qt.PenStyle.NoPen )
         painter.setBrush( QBrush( self.c_dark ) )
         painter.drawPath( self.circle_02 )
         # Dark Lines
-        painter.setPen( QPen( self.c_dark, line_width, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
-        painter.setBrush( QtCore.Qt.NoBrush )
+        painter.setPen( QPen( self.c_dark, line_width, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
+        painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
         if self.wheel_mode == "DIGITAL":
             for digital in circle_digital:
                 px, py = Trig_2D_Angle_Circle( self.w2, self.h2, self.side, radius - margin, digital )
@@ -1802,8 +1804,8 @@ class Panel_Gamut( QWidget ):
                 painter.drawLine( int( px ), int( py ), int( self.w2 ), int( self.h2 ) )
 
         # Line Gray
-        painter.setPen( QPen( self.c_lite, line_width, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
-        painter.setBrush( QtCore.Qt.NoBrush )
+        painter.setPen( QPen( self.c_lite, line_width, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
+        painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
         if length > 0:
             line_gray = QPainterPath()
             for point in list_point:
@@ -1814,8 +1816,8 @@ class Panel_Gamut( QWidget ):
 
         # Ring Pin Points
         if self.pin_list != None:
-            painter.setPen( QPen( self.c_lite, line_width, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
-            painter.setBrush( QtCore.Qt.NoBrush )
+            painter.setPen( QPen( self.c_lite, line_width, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
+            painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
             line_gray = QPainterPath()
             for pin in list_pin:
                 line_gray.moveTo( int( self.w2 ), int( self.h2 ) )
@@ -1830,8 +1832,8 @@ class Panel_Gamut( QWidget ):
             if self.gradient != None and self.axis > 0:
                 try:
                     # Draw Pixmaps
-                    painter.setPen( QtCore.Qt.NoPen )
-                    painter.setBrush( QtCore.Qt.NoBrush )
+                    painter.setPen( QtCore.Qt.PenStyle.NoPen )
+                    painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
                     index = int( self.v3 * self.axis )
                     qpixmap = self.gradient[index]
                     qbrush = QBrush( qpixmap )
@@ -1841,7 +1843,7 @@ class Panel_Gamut( QWidget ):
                         qtransform.scale( int( self.disk_s1 ) / 255, int( self.disk_s1 ) / 255 )
                         qbrush.setTransform( qtransform )
                     # Painter
-                    painter.setPen( QtCore.Qt.NoPen )
+                    painter.setPen( QtCore.Qt.PenStyle.NoPen )
                     painter.setBrush( qbrush )
                 except:
                     pass
@@ -1850,11 +1852,11 @@ class Panel_Gamut( QWidget ):
             gdy = self.disk_py
             gds = self.disk_s1
             if self.gamut_mask == "FULL":
-                painter.setPen( QtCore.Qt.NoPen )
+                painter.setPen( QtCore.Qt.PenStyle.NoPen )
                 painter.drawEllipse( int( gdx ), int( gdy ), int( gds ), int( gds ) )
             elif self.gamut_mask == "TRIANGLE":
                 # Polygon
-                painter.setPen( QtCore.Qt.NoPen )
+                painter.setPen( QtCore.Qt.PenStyle.NoPen )
                 poly = QPolygon( [
                     QPoint( int( gdx + gds * self.gi_t1[1][0] ), int( gdy + gds * self.gi_t1[1][1] ) ),
                     QPoint( int( gdx + gds * self.gi_t1[2][0] ), int( gdy + gds * self.gi_t1[2][1] ) ),
@@ -1862,7 +1864,7 @@ class Panel_Gamut( QWidget ):
                     ] )
                 painter.drawPolygon( poly )
                 # Display Subjective Primaries
-                painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+                painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
                 painter.setBrush( QBrush( self.c_white ) )
                 painter.drawEllipse( int( gdx + gds * self.gi_t1[0][0] - dot1 ), int( gdy + gds * self.gi_t1[0][1] - dot1 ), int( dot2 ), int( dot2 ) )
                 painter.drawEllipse( int( gdx + gds * self.gi_t1[1][0] - dot1 ), int( gdy + gds * self.gi_t1[1][1] - dot1 ), int( dot2 ), int( dot2 ) )
@@ -1870,7 +1872,7 @@ class Panel_Gamut( QWidget ):
                 painter.drawEllipse( int( gdx + gds * self.gi_t1[3][0] - dot1 ), int( gdy + gds * self.gi_t1[3][1] - dot1 ), int( dot2 ), int( dot2 ) )
             elif self.gamut_mask == "SQUARE":
                 # Polygon
-                painter.setPen( QtCore.Qt.NoPen )
+                painter.setPen( QtCore.Qt.PenStyle.NoPen )
                 poly = QPolygon( [
                     QPoint( int( gdx + gds * self.gi_s1[1][0] ), int( gdy + gds * self.gi_s1[1][1] ) ),
                     QPoint( int( gdx + gds * self.gi_s1[2][0] ), int( gdy + gds * self.gi_s1[2][1] ) ),
@@ -1879,7 +1881,7 @@ class Panel_Gamut( QWidget ):
                     ] )
                 painter.drawPolygon( poly )
                 # Display Subjective Primaries
-                painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+                painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
                 painter.setBrush( QBrush( self.c_white ) )
                 painter.drawEllipse( int( gdx + gds * self.gi_s1[0][0] - dot1 ), int( gdy + gds * self.gi_s1[0][1] - dot1 ), int( dot2 ), int( dot2 ) )
                 painter.drawEllipse( int( gdx + gds * self.gi_s1[1][0] - dot1 ), int( gdy + gds * self.gi_s1[1][1] - dot1 ), int( dot2 ), int( dot2 ) )
@@ -1888,7 +1890,7 @@ class Panel_Gamut( QWidget ):
                 painter.drawEllipse( int( gdx + gds * self.gi_s1[4][0] - dot1 ), int( gdy + gds * self.gi_s1[4][1] - dot1 ), int( dot2 ), int( dot2 ) )
             elif self.gamut_mask == "HEXAGON":
                 # Polygon
-                painter.setPen( QtCore.Qt.NoPen )
+                painter.setPen( QtCore.Qt.PenStyle.NoPen )
                 poly = QPolygon( [
                     QPoint( int( gdx + gds * self.gi_h1[1][0] ), int( gdy + gds * self.gi_h1[1][1] ) ),
                     QPoint( int( gdx + gds * self.gi_h1[2][0] ), int( gdy + gds * self.gi_h1[2][1] ) ),
@@ -1899,7 +1901,7 @@ class Panel_Gamut( QWidget ):
                     ] )
                 painter.drawPolygon( poly )
                 # Display Subjective Primaries
-                painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+                painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
                 painter.setBrush( QBrush( self.c_white ) )
                 painter.drawEllipse( int( gdx + gds * self.gi_h1[0][0] - dot1 ), int( gdy + gds * self.gi_h1[0][1] - dot1 ), int( dot2 ), int( dot2 ) )
                 painter.drawEllipse( int( gdx + gds * self.gi_h1[1][0] - dot1 ), int( gdy + gds * self.gi_h1[1][1] - dot1 ), int( dot2 ), int( dot2 ) )
@@ -1912,10 +1914,10 @@ class Panel_Gamut( QWidget ):
                 # Profile Points
                 path, P0, P1, P2, P3, P4 = self.Render_Circle( gdx, gdy, gds, self.gi_c1, self.circle_2 )
                 # Polygon
-                painter.setPen( QtCore.Qt.NoPen )
+                painter.setPen( QtCore.Qt.PenStyle.NoPen )
                 painter.drawPath( path )
                 # Display Subjective Primaries
-                painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+                painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
                 painter.setBrush( QBrush( self.c_white ) )
                 painter.drawEllipse( int( P0[0] - dot1 ), int( P0[1] - dot1 ), int( dot2 ), int( dot2 ) )
                 painter.drawEllipse( int( P1[0] - dot1 ), int( P1[1] - dot1 ), int( dot2 ), int( dot2 ) )
@@ -1927,11 +1929,11 @@ class Panel_Gamut( QWidget ):
                 path_0, P0_0, P1_0, P2_0, P3_0, P4_0 = self.Render_Circle( gdx, gdy, gds, self.gi_c2[0:5], self.circle_2 )
                 path_1, P0_1, P1_1, P2_1, P3_1, P4_1 = self.Render_Circle( gdx, gdy, gds, self.gi_c2[5:10], self.circle_2 )
                 # Polygon
-                painter.setPen( QtCore.Qt.NoPen )
+                painter.setPen( QtCore.Qt.PenStyle.NoPen )
                 painter.drawPath( path_0 )
                 painter.drawPath( path_1 )
                 # Display Subjective Primaries
-                painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+                painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
                 painter.setBrush( QBrush( self.c_white ) )
                 # Circle 0
                 painter.drawEllipse( int( P0_0[0] - dot1 ), int( P0_0[1] - dot1 ), int( dot2 ), int( dot2 ) )
@@ -1981,12 +1983,12 @@ class Panel_Gamut( QWidget ):
                     )
 
                 # Polygon
-                painter.setPen( QtCore.Qt.NoPen )
+                painter.setPen( QtCore.Qt.PenStyle.NoPen )
                 painter.drawPie( rect, int( ang_a1 ), int( ang_a2 ) )
                 painter.drawPie( rect, int( ang_b1 ), int( ang_b2 ) )
                 painter.drawPie( rect, int( ang_c1 ), int( ang_c2 ) )
                 # Display Subjective Primaries
-                painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+                painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
                 painter.setBrush( QBrush( self.c_white ) )
                 painter.drawEllipse( int( gdx + gds * self.gi_p3[0][0] - dot1 ), int( gdy + gds * self.gi_p3[0][1] - dot1 ), int( dot2 ), int( dot2 ) )
                 painter.drawEllipse( int( gdx + gds * self.gi_p3[1][0] - dot1 ), int( gdy + gds * self.gi_p3[1][1] - dot1 ), int( dot2 ), int( dot2 ) )
@@ -1999,7 +2001,7 @@ class Panel_Gamut( QWidget ):
 
         # Analyse Colors
         if self.analyse_list != None:
-            painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+            painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
             painter.setBrush( QBrush( self.c_gray ) )
             tone = int( self.v3 * 255 )
             for color in self.analyse_list:
@@ -2011,7 +2013,7 @@ class Panel_Gamut( QWidget ):
 
         # Pinned Colors
         if self.pin_list != None:
-            painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+            painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
             painter.setBrush( QBrush( self.c_white ) )
             for pin in self.pin_list:
                 if pin["active"] == True:
@@ -2031,14 +2033,14 @@ class Panel_Gamut( QWidget ):
                 list_harmony.append( [ har_x, har_y ] )
             length = len( list_harmony )
             # Draw Line
-            painter.setPen( QPen( self.c_white, line_poly, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin ) )
-            painter.setBrush( QtCore.Qt.NoBrush )
+            painter.setPen( QPen( self.c_white, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.RoundCap, QtCore.Qt.PenJoinStyle.RoundJoin ) )
+            painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
             for i in range( 1, length ):
                 painter.drawLine( int( list_harmony[i-1][0] ), int( list_harmony[i-1][1] ), int( list_harmony[i][0] ), int( list_harmony[i][1] ) )
             if self.harmony_rule in [ harmony_3, harmony_4 ]:
                 painter.drawLine( int( list_harmony[0][0] ), int( list_harmony[0][1] ), int( list_harmony[length-1][0] ), int( list_harmony[length-1][1] ) )
             # Draw Points
-            painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin ) )
+            painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.RoundCap, QtCore.Qt.PenJoinStyle.RoundJoin ) )
             painter.setBrush( QBrush( self.c_white ) )
             for i in range( 0, length ):
                 painter.drawEllipse( int( list_harmony[i][0] - dot1 ), int( list_harmony[i][1] - dot1 ), int( dot2 ), int( dot2 ) )
@@ -2086,21 +2088,21 @@ class Panel_Gamut( QWidget ):
         b = 1 - 0.551915024494
         path.moveTo( A1[0], A1[1] )
         path.cubicTo(
-            QPoint( int( Lerp_1D( a, A1[0], P12[0] ) ), int( Lerp_1D( a, A1[1], P12[1] ) ) ),
-            QPoint( int( Lerp_1D( b, P12[0], A2[0] ) ), int( Lerp_1D( b, P12[1], A2[1] ) ) ),
-            QPoint( int( A2[0] ), int( A2[1] ) ) )
+            QPointF( int( Lerp_1D( a, A1[0], P12[0] ) ), int( Lerp_1D( a, A1[1], P12[1] ) ) ),
+            QPointF( int( Lerp_1D( b, P12[0], A2[0] ) ), int( Lerp_1D( b, P12[1], A2[1] ) ) ),
+            QPointF( int( A2[0] ), int( A2[1] ) ) )
         path.cubicTo(
-            QPoint( int( Lerp_1D( a, A2[0], P23[0] ) ), int( Lerp_1D( a, A2[1], P23[1] ) ) ),
-            QPoint( int( Lerp_1D( b, P23[0], A3[0] ) ), int( Lerp_1D( b, P23[1], A3[1] ) ) ),
-            QPoint( int( A3[0] ), int( A3[1] ) ) )
+            QPointF( int( Lerp_1D( a, A2[0], P23[0] ) ), int( Lerp_1D( a, A2[1], P23[1] ) ) ),
+            QPointF( int( Lerp_1D( b, P23[0], A3[0] ) ), int( Lerp_1D( b, P23[1], A3[1] ) ) ),
+            QPointF( int( A3[0] ), int( A3[1] ) ) )
         path.cubicTo(
-            QPoint( int( Lerp_1D( a, A3[0], P34[0] ) ), int( Lerp_1D( a, A3[1], P34[1] ) ) ),
-            QPoint( int( Lerp_1D( b, P34[0], A4[0] ) ), int( Lerp_1D( b, P34[1], A4[1] ) ) ),
-            QPoint( int( A4[0] ), int( A4[1] ) ) )
+            QPointF( int( Lerp_1D( a, A3[0], P34[0] ) ), int( Lerp_1D( a, A3[1], P34[1] ) ) ),
+            QPointF( int( Lerp_1D( b, P34[0], A4[0] ) ), int( Lerp_1D( b, P34[1], A4[1] ) ) ),
+            QPointF( int( A4[0] ), int( A4[1] ) ) )
         path.cubicTo(
-            QPoint( int( Lerp_1D( a, A4[0], P41[0] ) ), int( Lerp_1D( a, A4[1], P41[1] ) ) ),
-            QPoint( int( Lerp_1D( b, P41[0], A1[0] ) ), int( Lerp_1D( b, P41[1], A1[1] ) ) ),
-            QPoint( int( A1[0] ), int( A1[1] ) ) )
+            QPointF( int( Lerp_1D( a, A4[0], P41[0] ) ), int( Lerp_1D( a, A4[1], P41[1] ) ) ),
+            QPointF( int( Lerp_1D( b, P41[0], A1[0] ) ), int( Lerp_1D( b, P41[1], A1[1] ) ) ),
+            QPointF( int( A1[0] ), int( A1[1] ) ) )
         path = path.intersected( circle )
         # Return
         return path, P0, P1, P2, P3, P4
@@ -2238,53 +2240,53 @@ class Panel_Hexagon( QWidget ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # Variables
         self.ox = ex
         self.oy = ey
         self.oz = self.v3
         self.od = Trig_2D_Points_Distance( ex, ey, self.w2, self.h2 )
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Position( ex, ey )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Position( ex, ey ); self.zoom = True
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):  self.Cursor_Tangent( ex )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):      self.Cursor_Snap( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Position( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Position( ex, ey ); self.zoom = True
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):  self.Cursor_Tangent( ex )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):      self.Cursor_Snap( ex, ey )
         # RMB
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.RightButton ): self.Cursor_Gamma( ex, ey )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.RightButton ):     self.Cursor_Snap( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.RightButton ): self.Cursor_Gamma( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.RightButton ):     self.Cursor_Snap( ex, ey )
         # Update
         self.update()
     def mouseMoveEvent( self, event ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Position( ex, ey )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Position( ex, ey ); self.zoom = True
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):  self.Cursor_Tangent( ex )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):      self.Cursor_Snap( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Position( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Position( ex, ey ); self.zoom = True
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):  self.Cursor_Tangent( ex )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):      self.Cursor_Snap( ex, ey )
         # RMB
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.RightButton ): self.Cursor_Gamma( ex, ey )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.RightButton ):     self.Cursor_Position( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.RightButton ): self.Cursor_Gamma( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.RightButton ):     self.Cursor_Position( ex, ey )
         # Update
         self.update()
     def mouseDoubleClickEvent( self, event ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Position( ex, ey )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Position( ex, ey ); self.zoom = True
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):  self.Cursor_Tangent( ex )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):      self.Cursor_Snap( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Position( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Position( ex, ey ); self.zoom = True
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):  self.Cursor_Tangent( ex )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):      self.Cursor_Snap( ex, ey )
         # RMB
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.RightButton ): self.Cursor_Gamma( ex, ey )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.RightButton ):     self.Cursor_Position( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.RightButton ): self.Cursor_Gamma( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.RightButton ):     self.Cursor_Position( ex, ey )
         # Update
         self.update()
     def mouseReleaseEvent( self, event ):
@@ -2385,7 +2387,7 @@ class Panel_Hexagon( QWidget ):
     def paintEvent( self, event ):
         # Painter
         painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
+        painter.setRenderHint( QtGui.QPainter.RenderHint.Antialiasing, True )
 
         # Variables
         line_width = 5
@@ -2396,12 +2398,12 @@ class Panel_Hexagon( QWidget ):
         dot2 = 10
 
         # Dark Border
-        painter.setPen( QtCore.Qt.NoPen )
+        painter.setPen( QtCore.Qt.PenStyle.NoPen )
         painter.setBrush( QBrush( self.c_dark ) )
         painter.drawPath( self.circle_02 )
         # Dark Lines Color Reference
-        painter.setPen( QPen( self.c_dark, line_width, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
-        painter.setBrush( QtCore.Qt.NoBrush )
+        painter.setPen( QPen( self.c_dark, line_width, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
+        painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
         for hexagon in circle_hexagon:
             px, py = Trig_2D_Angle_Circle( self.w2, self.h2, self.side, radius - margin, hexagon )
             painter.drawLine( int( px ), int( py ), int( self.w2 ), int( self.h2 ) )
@@ -2420,12 +2422,12 @@ class Panel_Hexagon( QWidget ):
                 painter.setClipPath( hexagon )
 
                 # Draw Pixmaps
-                painter.setPen( QtCore.Qt.NoPen )
-                painter.setBrush( QtCore.Qt.NoBrush )
+                painter.setPen( QtCore.Qt.PenStyle.NoPen )
+                painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
                 index = int( self.v3 * self.axis )
                 qpixmap = self.gradient[index]
                 if qpixmap.isNull() == False:
-                    render = qpixmap.scaled( self.side, self.side, Qt.IgnoreAspectRatio, Qt.FastTransformation )
+                    render = qpixmap.scaled( self.side, self.side, QtCore.Qt.AspectRatioMode.IgnoreAspectRatio, QtCore.Qt.TransformationMode.FastTransformation )
                     painter.drawPixmap( int( self.px ), int( self.py ), render )
 
                 # Reset Mask
@@ -2440,7 +2442,7 @@ class Panel_Hexagon( QWidget ):
 
         # Analyse Colors
         if self.analyse_list != None:
-            painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+            painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
             painter.setBrush( QBrush( self.c_gray ) )
             gamma = int( self.v3 * 360 )
             for color in self.analyse_list:
@@ -2451,7 +2453,7 @@ class Panel_Hexagon( QWidget ):
 
         # Pinned Colors
         if self.pin_list != None:
-            painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+            painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
             painter.setBrush( QBrush( self.c_white ) )
             for pin in self.pin_list:
                 if pin["active"] == True:
@@ -2469,14 +2471,14 @@ class Panel_Hexagon( QWidget ):
                 points.append( [ har_x, har_y ] )
             length = len( points )
             # Draw Line
-            painter.setPen( QPen( self.c_white, line_poly, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin ) )
-            painter.setBrush( QtCore.Qt.NoBrush )
+            painter.setPen( QPen( self.c_white, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.RoundCap, QtCore.Qt.PenJoinStyle.RoundJoin ) )
+            painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
             for i in range( 1, length ):
                 painter.drawLine( int( points[i-1][0] ), int( points[i-1][1] ), int( points[i][0] ), int( points[i][1] ) )
             if self.harmony_rule in [ harmony_3, harmony_4 ]:
                 painter.drawLine( int( points[0][0] ), int( points[0][1] ), int( points[length-1][0] ), int( points[length-1][1] ) )
             # Draw Points
-            painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin ) )
+            painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.RoundCap, QtCore.Qt.PenJoinStyle.RoundJoin ) )
             painter.setBrush( QBrush( self.c_white ) )
             for i in range( 0, length ):
                 painter.drawEllipse( int( points[i][0] - dot1 ), int( points[i][1] - dot1 ), int( dot2 ), int( dot2 ) )
@@ -2549,7 +2551,7 @@ class Panel_Luma( QWidget ):
             QPoint( self.ww + 1, self.hh + 1 ),
             QPoint( -1, self.hh + 1 ),
             ] )
-        square = QRegion( polygon, Qt.OddEvenFill )
+        square = QRegion( polygon, QtCore.Qt.FillRule.OddEvenFill )
         self.setMask( square )
         # Update
         self.resize( ww, hh )
@@ -2587,47 +2589,47 @@ class Panel_Luma( QWidget ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # Variables
         self.ox = ex
         self.oy = ey
         self.ot = self.v1
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Position( ex, ey, False )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Position( ex, ey, True )
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):  pass
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):      self.Cursor_Snap( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Position( ex, ey, False )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Position( ex, ey, True )
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):  pass
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):      self.Cursor_Snap( ex, ey )
         # RMB
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.RightButton ):     self.Cursor_Snap( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.RightButton ):     self.Cursor_Snap( ex, ey )
         self.update()
     def mouseMoveEvent( self, event ):
         # Events
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Position( ex, ey, False )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Position( ex, ey, True )
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):  self.Cursor_Tangent( ex )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):      self.Cursor_Snap( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Position( ex, ey, False )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Position( ex, ey, True )
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):  self.Cursor_Tangent( ex )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):      self.Cursor_Snap( ex, ey )
         # RMB
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.RightButton ):     self.Cursor_Position( ex, ey, False )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.RightButton ):     self.Cursor_Position( ex, ey, False )
         self.update()
     def mouseDoubleClickEvent( self, event ):
         # Events
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Position( ex, ey, False )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Position( ex, ey, True )
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):  self.Cursor_Tangent( ex )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):      self.Cursor_Snap( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Position( ex, ey, False )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Position( ex, ey, True )
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):  self.Cursor_Tangent( ex )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):      self.Cursor_Snap( ex, ey )
         # RMB
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.RightButton ):     self.Cursor_Position( ex, ey, False )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.RightButton ):     self.Cursor_Position( ex, ey, False )
         self.update()
     def mouseReleaseEvent( self, event ):
         # Variables
@@ -2683,7 +2685,7 @@ class Panel_Luma( QWidget ):
     def paintEvent( self, event ):
         # Painter
         painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
+        painter.setRenderHint( QtGui.QPainter.RenderHint.Antialiasing, True )
 
         # Variables
         line_width = 2
@@ -2695,24 +2697,24 @@ class Panel_Luma( QWidget ):
         if self.gradient != None and self.axis > 0:
             try:
                 # Draw Pixmaps
-                painter.setPen( QtCore.Qt.NoPen )
-                painter.setBrush( QtCore.Qt.NoBrush )
+                painter.setPen( QtCore.Qt.PenStyle.NoPen )
+                painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
                 index = int( self.v1 * self.axis )
                 qpixmap = self.gradient[index]
-                render = qpixmap.scaled( self.ww, self.hh, Qt.IgnoreAspectRatio, Qt.FastTransformation )
+                render = qpixmap.scaled( self.ww, self.hh, QtCore.Qt.AspectRatioMode.IgnoreAspectRatio, QtCore.Qt.TransformationMode.FastTransformation )
                 painter.drawPixmap( 0, 0, render )
             except:
                 pass
 
         # Lines
-        painter.setPen( QPen( self.c_black, line_width, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
-        painter.setBrush( QtCore.Qt.NoBrush )
+        painter.setPen( QPen( self.c_black, line_width, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
+        painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
         painter.drawLine( int( 0 ), int( self.h2 ), int( self.ww ), int( self.h2 ) )
         painter.drawLine( int( self.w2 ), int( 0 ), int( self.w2 ), int( self.hh ) )
 
         # Analyse Colors
         if self.analyse_list != None:
-            painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+            painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
             painter.setBrush( QBrush( self.c_gray ) )
             hue = int( self.v1 * 360 )
             for color in self.analyse_list:
@@ -2723,7 +2725,7 @@ class Panel_Luma( QWidget ):
 
         # Pinned Colors
         if self.pin_list != None:
-            painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.SquareCap, Qt.MiterJoin ) )
+            painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.SquareCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
             painter.setBrush( QBrush( self.c_white ) )
             for pin in self.pin_list:
                 if pin["active"] == True:
@@ -2744,14 +2746,14 @@ class Panel_Luma( QWidget ):
                 points.append( [ har_x, har_y ] )
             length = len( points )
             # Draw Line
-            painter.setPen( QPen( self.c_white, line_poly, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin ) )
-            painter.setBrush( QtCore.Qt.NoBrush )
+            painter.setPen( QPen( self.c_white, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.RoundCap, QtCore.Qt.PenJoinStyle.RoundJoin ) )
+            painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
             for i in range( 1, length ):
                 painter.drawLine( int( points[i-1][0] ), int( points[i-1][1] ), int( points[i][0] ), int( points[i][1] ) )
             if self.harmony_rule in [ harmony_3, harmony_4 ]:
                 painter.drawLine( int( points[0][0] ), int( points[0][1] ), int( points[length-1][0] ), int( points[length-1][1] ) )
             # Draw Points
-            painter.setPen( QPen( self.c_black, line_poly, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin ) )
+            painter.setPen( QPen( self.c_black, line_poly, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.RoundCap, QtCore.Qt.PenJoinStyle.RoundJoin ) )
             painter.setBrush( QBrush( self.c_white ) )
             for i in range( 0, length ):
                 painter.drawEllipse( int( points[i][0] - dot1 ), int( points[i][1] - dot1 ), int( dot2 ), int( dot2 ) )
@@ -2827,39 +2829,39 @@ class Panel_Dot( QWidget ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Position( ex, ey )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Position( ex, ey ); self.zoom = True
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):  self.Cursor_Position( ex, ey )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):      self.Cursor_Position( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Position( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Position( ex, ey ); self.zoom = True
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):  self.Cursor_Position( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):      self.Cursor_Position( ex, ey )
         # Update
         self.update()
     def mouseMoveEvent( self, event ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Position( ex, ey )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Position( ex, ey ); self.zoom = True
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):  self.Cursor_Position( ex, ey )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):      self.Cursor_Position( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Position( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Position( ex, ey ); self.zoom = True
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):  self.Cursor_Position( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):      self.Cursor_Position( ex, ey )
         # Update
         self.update()
     def mouseDoubleClickEvent( self, event ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Position( ex, ey )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Position( ex, ey ); self.zoom = True
-        if ( em == QtCore.Qt.ControlModifier and eb == QtCore.Qt.LeftButton ):  self.Cursor_Position( ex, ey )
-        if ( em == QtCore.Qt.AltModifier and eb == QtCore.Qt.LeftButton ):      self.Cursor_Position( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Position( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Position( ex, ey ); self.zoom = True
+        if ( em == QtCore.Qt.KeyboardModifier.ControlModifier and eb == QtCore.Qt.MouseButton.LeftButton ):  self.Cursor_Position( ex, ey )
+        if ( em == QtCore.Qt.KeyboardModifier.AltModifier and eb == QtCore.Qt.MouseButton.LeftButton ):      self.Cursor_Position( ex, ey )
         # Update
         self.update()
     def mouseReleaseEvent( self, event ):
@@ -2897,10 +2899,10 @@ class Panel_Dot( QWidget ):
     def paintEvent( self, event ):
         # Painter
         painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
+        painter.setRenderHint( QtGui.QPainter.RenderHint.Antialiasing, True )
         # Dots
         if self.dot_matrix != None:
-            painter.setPen( QtCore.Qt.NoPen )
+            painter.setPen( QtCore.Qt.PenStyle.NoPen )
             for y in range( 0, self.dot_dimension ):
                 for x in range( 0, self.dot_dimension ):
                     try:
@@ -3006,12 +3008,12 @@ class Panel_Mask( QWidget ):
             color.setAlphaF( self.mask_alpha[i] )
             # Images
             img_path = QImage( mask_path[i] )
-            img_color = QImage( img_path.width(), img_path.height(), QImage.Format_RGBA8888 )
+            img_color = QImage( img_path.width(), img_path.height(), QImage.Format.Format_RGBA8888 )
             img_color.fill( color )
             # Painter
             painter = QPainter()
             painter.begin( img_path )
-            painter.setCompositionMode( QPainter.CompositionMode_SourceIn )
+            painter.setCompositionMode( QPainter.CompositionMode.CompositionMode_SourceIn )
             painter.drawImage( 0, 0, img_color )
             painter.end()
             del painter
@@ -3025,35 +3027,35 @@ class Panel_Mask( QWidget ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         self.ox = ex
         self.oy = ey
         self.press = True
         self.SIGNAL_LIVE_OFF.emit( None )
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Color( ex, ey, self.qimage )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Color( ex, ey, self.qimage ); self.zoom = True
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Color( ex, ey, self.qimage )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Color( ex, ey, self.qimage ); self.zoom = True
         self.update()
     def mouseMoveEvent( self, event ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Color( ex, ey, self.qimage )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Color( ex, ey, self.qimage ); self.zoom = True
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Color( ex, ey, self.qimage )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Color( ex, ey, self.qimage ); self.zoom = True
         self.update()
     def mouseDoubleClickEvent( self, event ):
         # Event
         em = event.modifiers()
         eb = event.buttons()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB
-        if ( em == QtCore.Qt.NoModifier and eb == QtCore.Qt.LeftButton ):       self.Cursor_Color( ex, ey, self.qimage )
-        if ( em == QtCore.Qt.ShiftModifier and eb == QtCore.Qt.LeftButton ):    self.Cursor_Color( ex, ey, self.qimage ); self.zoom = True
+        if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Color( ex, ey, self.qimage )
+        if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Color( ex, ey, self.qimage ); self.zoom = True
         self.update()
     def mouseReleaseEvent( self, event ):
         # Variables
@@ -3085,9 +3087,9 @@ class Panel_Mask( QWidget ):
     def paintEvent( self, event ):
         # Painter
         painter = QPainter( self )
-        painter.setRenderHint( QtGui.QPainter.Antialiasing, True )
+        painter.setRenderHint( QtGui.QPainter.RenderHint.Antialiasing, True )
         # Background
-        painter.setPen( QtCore.Qt.NoPen )
+        painter.setPen( QtCore.Qt.PenStyle.NoPen )
         bw = QLinearGradient( int( 0 ), int( 0 ), int( 0 ), int( self.hh ) )
         bw.setColorAt( 0.000, self.c_lite )
         bw.setColorAt( 1.000, self.c_dark )
@@ -3097,7 +3099,7 @@ class Panel_Mask( QWidget ):
         if self.mask_qpixmap != None:
             for qpixmap in self.mask_qpixmap:
                 if qpixmap.isNull() == False:
-                    render = qpixmap.scaled( self.ww, self.hh, Qt.KeepAspectRatio, Qt.FastTransformation )
+                    render = qpixmap.scaled( self.ww, self.hh, QtCore.Qt.AspectRatioMode.KeepAspectRatio, QtCore.Qt.TransformationMode.FastTransformation )
                     px = int( self.w2 - render.width() * 0.5 )
                     py = int( self.h2 - render.height() * 0.5 )
                     painter.drawPixmap( int( px ), int( py ), render )
@@ -3167,46 +3169,46 @@ class Channel_Slider( QWidget ):
         # Event
         eb = event.buttons()
         em = event.modifiers()
-        ex = event.x()
+        ex = event.position().x()
         # Start Event
         self.ox = ex
         self.mo = self.mv
         # LMB
-        if   ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.NoModifier ):
+        if   ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.NoModifier ):
             if   self.patch == False:   self.Emit_Value_Linear( ex )
             elif self.patch == True:    self.Snap_Mark( ex )
-        elif ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.ShiftModifier ):      self.Snap_Half()
-        elif ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.ControlModifier ):    self.Snap_Mark( ex )
-        elif ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.AltModifier ):        self.Mark_Shift( ex )
+        elif ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.ShiftModifier ):      self.Snap_Half()
+        elif ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.ControlModifier ):    self.Snap_Mark( ex )
+        elif ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.AltModifier ):        self.Mark_Shift( ex )
         # RMB
-        elif ( eb == QtCore.Qt.RightButton and em == QtCore.Qt.NoModifier ):        self.Patch_Mode()
+        elif ( eb == QtCore.Qt.MouseButton.RightButton and em == QtCore.Qt.KeyboardModifier.NoModifier ):        self.Patch_Mode()
         self.update()
     def mouseMoveEvent( self, event ):
         # Event
         eb = event.buttons()
         em = event.modifiers()
-        ex = event.x()
+        ex = event.position().x()
         # LMB
-        if   ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.NoModifier ):
+        if   ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.NoModifier ):
             if   self.patch == False:   self.Emit_Value_Linear( ex )
             elif self.patch == True:    self.Snap_Mark( ex )
-        elif ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.ShiftModifier ):      self.Snap_Half()
-        elif ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.ControlModifier ):    self.Snap_Mark( ex )
+        elif ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.ShiftModifier ):      self.Snap_Half()
+        elif ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.ControlModifier ):    self.Snap_Mark( ex )
         # RMB
-        elif ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.AltModifier ):        self.Mark_Shift( ex )
+        elif ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.AltModifier ):        self.Mark_Shift( ex )
         self.update()
     def mouseDoubleClickEvent( self, event ):
         # Event
         eb = event.buttons()
         em = event.modifiers()
-        ex = event.x()
+        ex = event.position().x()
         # LMB
-        if   ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.NoModifier ):
+        if   ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.NoModifier ):
             if   self.patch == False:   self.Emit_Value_Linear( ex )
             elif self.patch == True:    self.Snap_Mark( ex )
-        elif ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.ShiftModifier ):      self.Snap_Half()
-        elif ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.ControlModifier ):    self.Snap_Mark( ex )
-        elif ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.AltModifier ):        self.Mark_Reset()
+        elif ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.ShiftModifier ):      self.Snap_Half()
+        elif ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.ControlModifier ):    self.Snap_Mark( ex )
+        elif ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.AltModifier ):        self.Mark_Reset()
         self.update()
     def mouseReleaseEvent( self, event ):
         self.SIGNAL_TEXT.emit( "" )
@@ -3311,12 +3313,12 @@ class Channel_Slider( QWidget ):
         painter = QPainter( self )
 
         # Background
-        painter.setPen( QtCore.Qt.NoPen )
+        painter.setPen( QtCore.Qt.PenStyle.NoPen )
         painter.setBrush( QBrush( self.c_black ) )
         painter.drawRect( 0, 0, self.ww, self.hh )
 
         # Mark
-        painter.setPen( QtCore.Qt.NoPen )
+        painter.setPen( QtCore.Qt.PenStyle.NoPen )
         painter.setBrush( QBrush( self.c_white ) )
         if self.mv <= 0 :
             painter.drawRect( int( 0 ), int( 0 ), int( self.ww ), int( 1 ) )
@@ -3329,7 +3331,7 @@ class Channel_Slider( QWidget ):
         # Draw Elements
         if self.gradient != None and self.patch == False:
             # Gradient
-            painter.setPen( QtCore.Qt.NoPen )
+            painter.setPen( QtCore.Qt.PenStyle.NoPen )
             gradient = QLinearGradient( int( 0 ), int( 0 ), int( self.ww ), int( 0 ) )
             count = len( self.gradient ) - 1
             for i in range( 0, count + 1 ):
@@ -3360,7 +3362,7 @@ class Channel_Slider( QWidget ):
             top2 = 1
             bot2 = self.hh - 1
             # Black Square
-            painter.setPen( QtCore.Qt.NoPen )
+            painter.setPen( QtCore.Qt.PenStyle.NoPen )
             painter.setBrush( self.brush_black )
             black = QPolygon( [
                 QPoint( int( bl ), int( top1 ) ),
@@ -3370,7 +3372,7 @@ class Channel_Slider( QWidget ):
                 ] )
             painter.drawPolygon( black )
             # White Square
-            painter.setPen( QtCore.Qt.NoPen )
+            painter.setPen( QtCore.Qt.PenStyle.NoPen )
             painter.setBrush( self.brush_white )
             square = QPolygon( [
                 QPoint( int( wl ), int( top2 ) ),
@@ -3382,9 +3384,9 @@ class Channel_Slider( QWidget ):
         elif self.gradient != None and self.patch == True:
             # Clip Mask
             slider = QRect( int( 1 ), int( 1 ), int( w2 ), int( h1 ) )
-            painter.setClipRect( slider, Qt.ReplaceClip )
+            painter.setClipRect( slider, QtCore.Qt.ClipOperation.ReplaceClip )
             # Gradient
-            painter.setPen( QtCore.Qt.NoPen )
+            painter.setPen( QtCore.Qt.PenStyle.NoPen )
             count = len( self.gradient )
             for i in range( 0, count ):
                 # Geometry
@@ -3414,7 +3416,7 @@ class Channel_Slider( QWidget ):
             region = r0.subtracted( r1 )
             painter.setClipRegion( region )
             # Colors
-            painter.setPen( QtCore.Qt.NoPen )
+            painter.setPen( QtCore.Qt.PenStyle.NoPen )
             painter.setBrush( self.brush_black )
             painter.drawRect( int( cx ), int( 0 ), int( cw ), int( self.hh ) )
             painter.setBrush( self.brush_white )
@@ -3457,8 +3459,8 @@ class Pin_Color( QWidget ):
         self.c_gray = QColor( "#b0b0b0" )
         self.c_black = QColor( "#000000" )
         # Modifier Keys
-        self.mod_1 = [ QtCore.Qt.ShiftModifier, QtCore.Qt.ControlModifier, QtCore.Qt.AltModifier ]
-        self.mod_3 = ( QtCore.Qt.ShiftModifier | QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier )
+        self.mod_1 = [ QtCore.Qt.KeyboardModifier.ShiftModifier, QtCore.Qt.KeyboardModifier.ControlModifier, QtCore.Qt.KeyboardModifier.AltModifier ]
+        self.mod_3 = ( QtCore.Qt.KeyboardModifier.ShiftModifier | QtCore.Qt.KeyboardModifier.ControlModifier | QtCore.Qt.KeyboardModifier.AltModifier )
     # Relay
     def Set_Size( self, ww, hh ):
         self.ww = ww
@@ -3490,18 +3492,18 @@ class Pin_Color( QWidget ):
         # Variables
         eb = event.buttons()
         em = event.modifiers()
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # LMB Neutral
-        if   ( eb == QtCore.Qt.LeftButton and em == QtCore.Qt.NoModifier ): self.Swipe_String( ex, ey );    self.operation = "swipe"
-        elif ( eb == QtCore.Qt.LeftButton and em in self.mod_1 ):           self.Swipe_Transparency( ex );  self.operation = "alpha"
-        elif ( eb == QtCore.Qt.LeftButton and em == self.mod_3 ):           self.SIGNAL_CLEAN.emit( self.index )
+        if   ( eb == QtCore.Qt.MouseButton.LeftButton and em == QtCore.Qt.KeyboardModifier.NoModifier ): self.Swipe_String( ex, ey );    self.operation = "swipe"
+        elif ( eb == QtCore.Qt.MouseButton.LeftButton and em in self.mod_1 ):           self.Swipe_Transparency( ex );  self.operation = "alpha"
+        elif ( eb == QtCore.Qt.MouseButton.LeftButton and em == self.mod_3 ):           self.SIGNAL_CLEAN.emit( self.index )
         # Update
         self.update()
     def mouseMoveEvent( self, event ):
         # Events
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # Operation
         if self.operation == "swipe":   self.Swipe_String( ex, ey )
         if self.operation == "alpha":   self.Swipe_Transparency( ex )
@@ -3509,8 +3511,8 @@ class Pin_Color( QWidget ):
         self.update()
     def mouseDoubleClickEvent( self, event ):
         # Events
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # Operation
         if self.operation == "swipe":   self.Swipe_String( ex, ey )
         if self.operation == "alpha":   self.Swipe_Transparency( ex )
@@ -3518,8 +3520,8 @@ class Pin_Color( QWidget ):
         self.update()
     def mouseReleaseEvent( self, event ):
         # Events
-        ex = event.x()
-        ey = event.y()
+        ex = event.position().x()
+        ey = event.position().y()
         # Operation
         if self.operation == "swipe":   self.Swipe_Operation( ex, ey )
         if self.operation == "alpha":   self.Swipe_Transparency( ex )
@@ -3548,7 +3550,7 @@ class Pin_Color( QWidget ):
         if self.menu[0] != None:    qmenu_apply = qmenu.addAction( self.menu[0] )
         if self.menu[1] != None:    qmenu_save = qmenu.addAction( self.menu[1] )
         if self.menu[2] != None:    qmenu_clean = qmenu.addAction( self.menu[2] )
-        action = qmenu.exec_( self.mapToGlobal( QPoint( 0, 18 ) ) )
+        action = qmenu.exec( self.mapToGlobal( QPoint( 0, 18 ) ) )
         # Triggers
         if self.menu[0] != None and action == qmenu_apply:  self.SIGNAL_APPLY.emit( self.index )
         if self.menu[1] != None and action == qmenu_save:   self.SIGNAL_SAVE.emit(  self.index )
@@ -3559,8 +3561,8 @@ class Pin_Color( QWidget ):
         painter = QPainter( self )
         # Null Marker
         nn = 2
-        painter.setBrush( QtCore.Qt.NoBrush )
-        painter.setPen( QPen( self.c_gray, 2, Qt.SolidLine, Qt.FlatCap, Qt.MiterJoin ) )
+        painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
+        painter.setPen( QPen( self.c_gray, 2, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.FlatCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
         painter.drawLine( self.w2 - nn, self.h2, self.w2 + nn, self.h2 )
         # Color
         if self.qcolor != None:
@@ -3568,7 +3570,7 @@ class Pin_Color( QWidget ):
             if self.alpha != 1:
                 self.qcolor.setAlphaF( self.alpha )
             painter.setBrush( QBrush( self.qcolor ) )
-            painter.setPen( QtCore.Qt.NoPen )
+            painter.setPen( QtCore.Qt.PenStyle.NoPen )
             painter.drawRect( QRect( 1, 1, self.ww - 2, self.hh - 2 ) )
             # Alpha Bar
             if self.state_alpha == True:
@@ -3578,15 +3580,15 @@ class Pin_Color( QWidget ):
                 width = Limit_Range( ( self.ww * self.alpha ) - 1 , 0, self.ww )
                 # Slider
                 painter.setBrush( QBrush( self.c_white ) )
-                painter.setPen( QPen( self.c_black, line, Qt.SolidLine, Qt.FlatCap, Qt.MiterJoin ) )
+                painter.setPen( QPen( self.c_black, line, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.FlatCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
                 painter.drawRect( QRect( int( 0 ), int( self.hh - bar - line ), int( width ), int( bar ) ) )
         # Active
         if self.state_active == True:
-            painter.setBrush( QtCore.Qt.NoBrush )
-            painter.setPen( QtCore.Qt.NoPen )
-            painter.setPen( QPen( self.c_black, 6, Qt.SolidLine, Qt.FlatCap, Qt.MiterJoin ) )
+            painter.setBrush( QtCore.Qt.BrushStyle.NoBrush )
+            painter.setPen( QtCore.Qt.PenStyle.NoPen )
+            painter.setPen( QPen( self.c_black, 6, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.FlatCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
             painter.drawLine( self.w2 - 3, self.h2, self.w2 + 3, self.h2 )
-            painter.setPen( QPen( self.c_white, 2, Qt.SolidLine, Qt.FlatCap, Qt.MiterJoin ) )
+            painter.setPen( QPen( self.c_white, 2, QtCore.Qt.PenStyle.SolidLine, QtCore.Qt.PenCapStyle.FlatCap, QtCore.Qt.PenJoinStyle.MiterJoin ) )
             painter.drawLine( self.w2 - 2, self.h2, self.w2 + 2, self.h2 )
 
 #endregion
@@ -3604,11 +3606,11 @@ class SampleScreen_Button( QWidget ):
 
     # Mouse Events
     def mousePressEvent( self, event ):
-        if ( event.modifiers() == QtCore.Qt.NoModifier and event.buttons() == QtCore.Qt.LeftButton ):
+        if ( event.modifiers() == QtCore.Qt.KeyboardModifier.NoModifier and event.buttons() == QtCore.Qt.MouseButton.LeftButton ):
             self.SIGNAL_PRESS.emit()
-            QApplication.setOverrideCursor( Qt.CrossCursor )
+            QApplication.setOverrideCursor( QtCore.Qt.CursorShape.CrossCursor )
     def mouseMoveEvent( self, event ):
-        if ( event.modifiers() == QtCore.Qt.NoModifier and event.buttons() == QtCore.Qt.LeftButton ):
+        if ( event.modifiers() == QtCore.Qt.KeyboardModifier.NoModifier and event.buttons() == QtCore.Qt.MouseButton.LeftButton ):
             self.SIGNAL_MOVE.emit()
     def mouseReleaseEvent( self, event ):
         self.SIGNAL_RELEASE.emit()

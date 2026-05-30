@@ -19,10 +19,13 @@
 
 # Python
 import webbrowser
+
+from PyQt6.QtCore import QSize, QTime, QObject, QThread
+from PyQt6.QtWidgets import QDialog, QFileDialog, QApplication
 # Krita
 from krita import *
 # PyQt5
-from PyQt5 import QtWidgets, QtCore, QtGui, uic
+from PyQt6 import QtWidgets, QtCore, QtGui, uic
 # Engine
 from .engine_constants import *
 from .engine_calculations import *
@@ -276,13 +279,13 @@ class Sampler_Docker( DockWidget ):
     # File Dialog
     def Open_Directory( self, string, directory ):
         file_dialog = QFileDialog( QWidget( self ) )
-        file_dialog.setFileMode( QFileDialog.DirectoryOnly )
+        file_dialog.setFileMode( QFileDialog.FileMode.Directory )
         folder_url = file_dialog.getExistingDirectory( self, string, directory )
         folder_url = os.path.normpath( folder_url )
         return folder_url
     def Open_File( self, string, directory, extension ):
         file_dialog = QFileDialog( QWidget( self ) )
-        file_dialog.setFileMode( QFileDialog.DirectoryOnly )
+        file_dialog.setFileMode( QFileDialog.FileMode.Directory )
         file_url = file_dialog.getOpenFileName( self, string, directory, f"File( *.{ extension } )" )[0]
         file_url = os.path.normpath( file_url )
         return file_url
@@ -543,7 +546,7 @@ class Sampler_Docker( DockWidget ):
         for item in self.channel_data:
             # Variables
             render = item["render"]
-            draw = render.scaled( int( height * 1.2 ), int( height ), Qt.KeepAspectRatio, Qt.FastTransformation )
+            draw = render.scaled( int( height * 1.2 ), int( height ), QtCore.Qt.AspectRatioMode.KeepAspectRatio, QtCore.Qt.TransformationMode.FastTransformation )
             dw = draw.width()
             dh = draw.height()
             text = item["text"]
@@ -1379,9 +1382,9 @@ class Sampler_Docker( DockWidget ):
     def eventFilter( self, source, event ):
         # Event
         et = event.type()
-        modifier_all = QtCore.Qt.ShiftModifier | QtCore.Qt.ControlModifier | QtCore.Qt.AltModifier
+        modifier_all = QtCore.Qt.KeyboardModifier.ShiftModifier | QtCore.Qt.KeyboardModifier.ControlModifier | QtCore.Qt.KeyboardModifier.AltModifier
         # Settings
-        if ( et == QEvent.MouseButtonPress and event.modifiers() == modifier_all and source is self.layout.settings ):
+        if ( et == QtCore.QEvent.Type.MouseButtonPress and event.modifiers() == modifier_all and source is self.layout.settings ):
             self.Size_Standard()
         return super().eventFilter( source, event )
 
@@ -1415,7 +1418,7 @@ class Worker_Samples( QObject ):
     SIGNAL_FINISH = QtCore.pyqtSignal()
 
     def run( self, source, split_method, run_variables, thread ):
-        if thread == True:  source.samples_qthread.setPriority( QThread.HighestPriority )
+        if thread == True:  source.samples_qthread.setPriority( QThread.Priority.HighestPriority )
         if split_method == "CHANNEL":   Run_Channel( source, *run_variables )
         elif split_method == "RANGE":   Run_Range( source, *run_variables )
         if thread == True:  source.samples_qthread.quit()
@@ -1601,7 +1604,7 @@ def Run_Channel( self, cmodel, d_cd, depth, k, dx, dy, dw, dh, num_array, num_ss
     # Check
     if numbers != None and len( byte_0_m ) > 0:
         # QPixmap
-        qimage_format = QImage.Format_RGBA8888
+        qimage_format = QImage.Format.Format_RGBA8888
         if length >= 1: pix_0_r = QPixmap().fromImage( QImage( bytes( byte_0_r ), dw, dh, qimage_format ) )
         if length >= 2: pix_1_r = QPixmap().fromImage( QImage( bytes( byte_1_r ), dw, dh, qimage_format ) )
         if length >= 3: pix_2_r = QPixmap().fromImage( QImage( bytes( byte_2_r ), dw, dh, qimage_format ) )
@@ -1737,7 +1740,7 @@ def Run_Range( self, cmodel, d_cd, depth, k, dx, dy, dw, dh, num_array, num_ss )
     # Selection Mask
     if numbers != None and len( sel_pixels ) > 0:
         # Preview
-        qimage_format = QImage.Format_RGBA8888
+        qimage_format = QImage.Format.Format_RGBA8888
         qpixmap = QPixmap().fromImage( QImage( bytes( draw_pixels ), dw, dh, qimage_format ) )
         self.display_map.Update_Display( qpixmap )
         # Data

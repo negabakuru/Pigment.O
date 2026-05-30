@@ -18,7 +18,7 @@
 #region Import Modules
 
 from krita import *
-from PyQt5 import Qt, QtWidgets, QtCore, QtGui, uic
+from PyQt6 import QtWidgets, QtCore, QtGui, uic
 
 #endregion
 

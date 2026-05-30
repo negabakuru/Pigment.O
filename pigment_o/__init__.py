@@ -17,13 +17,13 @@
 
 # Imports
 from krita import *
-from PyQt5 import *
+from PyQt6 import *
 from .picker_docker import *
 from .sampler_docker import *
 
 
 # Information
-__version__ = ' qt=5 krita=5.2.16 date=2026_03_26 '
+__version__ = ' qt=6 krita=6.0.2 date=2026_05_30 '
 __license__ = ' GPLv3+ LGPLv3+ '
 __author__ = ' Ricardo Jeremias '
 __email__ = ' jeremy6321478@gmail.com '
@@ -31,6 +31,6 @@ __url__ = ' https://github.com/EyeOdin '
 
 
 # Register Krita Docker
-Application.addDockWidgetFactory( DockWidgetFactory( "pykrita_pigment_o_picker_docker", DockWidgetFactoryBase.DockRight, Picker_Docker ) )
-Application.addDockWidgetFactory( DockWidgetFactory( "pykrita_pigment_o_sampler_docker", DockWidgetFactoryBase.DockRight, Sampler_Docker ) )
+Application.addDockWidgetFactory( DockWidgetFactory( "pykrita_pigment_o_picker_docker", DockWidgetFactoryBase.DockPosition.DockRight, Picker_Docker ) )
+Application.addDockWidgetFactory( DockWidgetFactory( "pykrita_pigment_o_sampler_docker", DockWidgetFactoryBase.DockPosition.DockRight, Sampler_Docker ) )
 
