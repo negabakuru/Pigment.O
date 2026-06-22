@@ -1637,12 +1637,14 @@ class Picker_Docker( DockWidget ):
             aw = ki.activeWindow()
             av = aw.activeView()
             ad = ki.activeDocument()
-            an = ad.activeNode()
+            # too slow on write updates probably because of krita's sync
+            # an = ad.activeNode()
             # Node
-            n_cm = an.colorModel()
-            n_cd = an.colorDepth()
-            n_cp = an.colorProfile()
-            n_uid = an.uniqueId()
+            n_cm = ad.colorModel()
+            n_cd = ad.colorDepth()
+            n_cp = ad.colorProfile()
+            # n_uid = an.uniqueId()
+            n_uid = -1
             # Colors
             fgc = av.foregroundColor() # ManagedColor
             bgc = av.backgroundColor() # ManagedColor
