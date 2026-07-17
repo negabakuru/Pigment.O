@@ -127,6 +127,7 @@ class Picker_Docker( DockWidget ):
 
         # Panel Square
         self.panel_square = Panel_Square( self.layout.panel_square )
+        self.panel_square.SIGNAL_CLICK.connect( self.Panel_Square_UpdateNodeData )
         self.panel_square.SIGNAL_VALUE.connect( self.Panel_Square_Value )
         self.panel_square.SIGNAL_RELEASE.connect( self.Pigmento_SYNC )
         self.panel_square.SIGNAL_PIN_INDEX.connect( self.Pin_Apply )
@@ -729,6 +730,12 @@ class Picker_Docker( DockWidget ):
         self.kdepth = 255
         self.kmodel = None
         self.kwrite = False
+
+        self.n_cm = "SRGB"
+        self.n_cd = "U8"
+        self.n_cp = None
+        self.n_uid = None
+        self.vi = 0
 
         # Colors
         self.color_index = kfc
@@ -1636,21 +1643,17 @@ class Picker_Docker( DockWidget ):
             ki = Krita.instance()
             aw = ki.activeWindow()
             av = aw.activeView()
-            ad = ki.activeDocument()
-            # too slow on write updates probably because of krita's sync
-            # an = ad.activeNode()
             # Node
-            n_cm = ad.colorModel()
-            n_cd = ad.colorDepth()
-            n_cp = ad.colorProfile()
-            # n_uid = an.uniqueId()
-            n_uid = -1
+            n_cm = self.n_cm
+            n_cd = self.n_cd
+            n_cp = self.n_cp
+            n_uid = self.n_uid
             # Colors
             fgc = av.foregroundColor() # ManagedColor
             bgc = av.backgroundColor() # ManagedColor
             # Others
             vc = av.canvas()
-            vi = self.Vector_Index( an )
+            vi = self.vi
             cmodel = self.Color_Model_Index( n_cm )
             # Create List
             document = {
@@ -3475,6 +3478,17 @@ class Picker_Docker( DockWidget ):
         list_gradient = self.Read_Zip( url )
         self.panel_square.Update_Gradient( list_gradient )
     # Signals
+    def Panel_Square_UpdateNodeData( self, mode, v1, v2, v3 ):
+        # Store active node data to use later
+        ki = Krita.instance()
+        ad = ki.activeDocument()
+        an = ad.activeNode()
+        self.n_cm = ad.colorModel()
+        self.n_cd = ad.colorDepth()
+        self.n_cp = ad.colorProfile()
+        self.n_uid = an.uniqueId()
+        self.vi = self.Vector_Index(an)
+
     def Panel_Square_Value( self, mode, v1, v2, v3 ):
         self.Color_Convert( mode, v1, v2, v3, 0, self.color_index )
         self.Sync_Elements( not self.performance_release, True, False )

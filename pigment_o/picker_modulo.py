@@ -558,6 +558,7 @@ class Panel_Fill( QWidget ):
         painter.drawRect( 0, 0, self.ww, self.hh )
 
 class Panel_Square( QWidget ):
+    SIGNAL_CLICK = QtCore.pyqtSignal(str, float, float, float )
     SIGNAL_VALUE = QtCore.pyqtSignal( str, float, float, float )
     SIGNAL_RELEASE = QtCore.pyqtSignal()
     SIGNAL_PIN_INDEX = QtCore.pyqtSignal( int )
@@ -746,6 +747,8 @@ class Panel_Square( QWidget ):
         self.ox = ex
         self.oy = ey
         self.ot = self.v1
+        # Store active node data
+        self.SIGNAL_CLICK.emit( self.wheel_space, self.v1, self.v2, self.v3 )
         # LMB
         if ( em == QtCore.Qt.KeyboardModifier.NoModifier and eb == QtCore.Qt.MouseButton.LeftButton ):       self.Cursor_Position( ex, ey, False )
         if ( em == QtCore.Qt.KeyboardModifier.ShiftModifier and eb == QtCore.Qt.MouseButton.LeftButton ):    self.Cursor_Position( ex, ey, True )
